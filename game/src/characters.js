@@ -819,11 +819,13 @@ export function createFirstPersonHands(S) {
         muzzle(-0.72); tipZ = -0.76;
       } else if (cls === 'shotgun') {
         P(0.055, 0.07, 0.3, gunM, 0, -0.01, -0.26);
-        CYL(0.026, 0.3, barrelM, 0, -0.01, -0.55);
-        CYL(0.02, 0.24, gunM, 0, -0.05, -0.5); // tube mag under barrel
-        P(0.07, 0.06, 0.14, gripM, 0, -0.015, -0.5); // pump
-        P(0.072, 0.02, 0.02, barrelM, 0, -0.015, -0.44);
-        P(0.072, 0.02, 0.02, barrelM, 0, -0.015, -0.56);
+        // Double barrel (reference look): two side-by-side barrels.
+        CYL(0.022, 0.3, barrelM, -0.028, -0.01, -0.55);
+        CYL(0.022, 0.3, barrelM, 0.028, -0.01, -0.55);
+        CYL(0.02, 0.24, gunM, 0, -0.05, -0.5); // tube mag under barrels
+        P(0.09, 0.06, 0.14, gripM, 0, -0.015, -0.5); // pump
+        P(0.092, 0.02, 0.02, barrelM, 0, -0.015, -0.44);
+        P(0.092, 0.02, 0.02, barrelM, 0, -0.015, -0.56);
         frontPost(-0.68); rearSight(-0.12);
         gripAt(0, -0.02); stockAt(0.2); tipZ = -0.72;
       } else if (cls === 'lmg') {

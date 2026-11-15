@@ -14,8 +14,8 @@ export const WEAPONS_DB = [
   { id: 'rpd', name: 'RPD', cls: 'LMG', price: 2200, magSize: 75, dmg: 32, headMult: 4, rate: 0.13, reload: 3.4, spread: 0.014, zoom: 1.15, auto: true, recoil: 1.3, range: 55, pellets: 1, projectile: null, blastR: 0, haptic: 60, sound: 'rpd' },
   { id: 'p12', name: 'P-12 Sidewinder', cls: 'Pistol', price: 500, magSize: 7, dmg: 45, headMult: 2, rate: 0.32, reload: 1.6, spread: 0.008, zoom: 1.1, auto: false, recoil: 1.1, range: 25, pellets: 1, projectile: null, blastR: 0, haptic: 20, sound: 'p12' },
   // --- v18.5: shotguns (8 pellets per shot, close range = one-shot kill) ---
-  { id: 'by15', name: 'B12 Breacher', cls: 'Shotgun', price: 1900, magSize: 5, dmg: 12, headMult: 2, rate: 0.9, reload: 2.5, spread: 0.05, zoom: 1.1, auto: false, recoil: 2.0, range: 18, pellets: 8, projectile: null, blastR: 0, haptic: 80, sound: 'shotgun' },
-  { id: 'krm', name: 'SG-12 Marauder', cls: 'Shotgun', price: 2100, magSize: 6, dmg: 11, headMult: 2, rate: 0.85, reload: 2.5, spread: 0.045, zoom: 1.1, auto: false, recoil: 1.9, range: 20, pellets: 8, projectile: null, blastR: 0, haptic: 80, sound: 'shotgun' },
+  { id: 'by15', name: 'B12 Breacher', cls: 'Shotgun', price: 1900, magSize: 5, dmg: 12, headMult: 2, rate: 0.9, reload: 2.5, spread: 0.05, zoom: 1.1, auto: false, recoil: 2.5, range: 18, pellets: 8, projectile: null, blastR: 0, haptic: 80, sound: 'shotgun' },
+  { id: 'krm', name: 'SG-12 Marauder', cls: 'Shotgun', price: 2100, magSize: 6, dmg: 11, headMult: 2, rate: 0.85, reload: 2.5, spread: 0.045, zoom: 1.1, auto: false, recoil: 2.4, range: 20, pellets: 8, projectile: null, blastR: 0, haptic: 80, sound: 'shotgun' },
   // --- v18.5: DMR / marksman (semi-auto, 2x scope, headshot 100-110) ---
   { id: 'kilo', name: 'KB-50 Longshot', cls: 'DMR', price: 2400, magSize: 10, dmg: 50, headMult: 2, rate: 0.5, reload: 2.2, spread: 0.004, zoom: 2.0, auto: false, recoil: 1.4, range: 70, pellets: 1, projectile: null, blastR: 0, haptic: 40, sound: 'dmr' },
   { id: 'sks', name: 'SKS', cls: 'DMR', price: 2300, magSize: 10, dmg: 55, headMult: 2, rate: 0.45, reload: 2.2, spread: 0.005, zoom: 2.0, auto: false, recoil: 1.5, range: 65, pellets: 1, projectile: null, blastR: 0, haptic: 40, sound: 'dmr' },
@@ -44,7 +44,7 @@ const RECOIL_PAT = {
   rpd: { up: 0.8, side: 0.3 }, m4lmg: { up: 0.9, side: 0.3 },
   lr50: { up: 2.2, side: 0 }, arctic: { up: 2.0, side: 0 },
   kilo: { up: 1.2, side: 0.1 }, sks: { up: 1.1, side: 0.1 },
-  by15: { up: 1.8, side: 0.2 }, krm: { up: 1.7, side: 0.2 },
+  by15: { up: 2.2, side: 0.2 }, krm: { up: 2.1, side: 0.2 },
 };
 for (const w of WEAPONS_DB) {
   w.pen = PEN_BY_CLS[w.cls] ?? 0.5;

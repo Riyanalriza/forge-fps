@@ -738,6 +738,27 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
     solid(x - hw, z - hd, x + hw, z + hd, 0, 5);
     return g;
   }
+  // Bomb-site sign (reference-style "SITE A" board): dark board, gold border,
+  // big label + site name. Flush to a wall, so it needs no collider.
+  function addSiteSign(x, z, rot = 0, label = 'SITE A', sub = 'FURNACE') {
+    const cv = document.createElement('canvas'); cv.width = 512; cv.height = 256;
+    const g = cv.getContext('2d');
+    g.fillStyle = '#1a1208'; g.fillRect(0, 0, 512, 256);
+    g.strokeStyle = '#f0a830'; g.lineWidth = 10; g.strokeRect(8, 8, 496, 240);
+    g.strokeStyle = 'rgba(240,168,48,0.35)'; g.lineWidth = 3; g.strokeRect(22, 22, 468, 212);
+    g.fillStyle = '#ffb020'; g.textAlign = 'center';
+    g.font = 'bold 92px Arial'; g.fillText(label, 256, 118);
+    g.fillStyle = '#ffffff'; g.font = 'bold 44px Arial'; g.fillText(sub, 256, 190);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const board = new THREE.Mesh(new THREE.PlaneGeometry(5, 2.5),
+      new THREE.MeshBasicMaterial({ map: tex }));
+    board.position.set(x, 2.6, z); board.rotation.y = rot; group.add(board);
+    board.userData.propType = 'site-sign';
+    const back = box(5.2, 2.7, 0.12, 0x14100a);
+    back.position.set(x, 2.6, z - 0.08); back.rotation.y = rot; group.add(back);
+    return board;
+  }
   function addCrane(x, z, rot = 0) {
     const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rot; group.add(g);
     const mast = box(0.8, 9, 0.8, 0xf0a830); mast.position.y = 4.5; g.add(mast); shootable(mast, 'metal');
@@ -1696,6 +1717,22 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
     shootable(plant, 'wood');
     return pot;
   }
+  // Planter box (reference dusk look): low wooden box + shrubs, small
+  // collider so bots and the player walk around it, not through it.
+  function addPlanter(x, z, rot = 0) {
+    const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rot; group.add(g);
+    const bx = box(1.9, 0.5, 0.9, 0x6b4a26); bx.position.y = 0.25; g.add(bx);
+    bx.userData.propType = 'planter'; shootable(bx, 'wood');
+    const soil = box(1.7, 0.06, 0.7, 0x2a1d12); soil.position.y = 0.52; g.add(soil);
+    for (const [sx, sy, sr] of [[-0.6, 0.75, 0.32], [0, 0.85, 0.4], [0.6, 0.75, 0.32]]) {
+      const shrub = new THREE.Mesh(new THREE.SphereGeometry(sr, 8, 6),
+        new THREE.MeshStandardMaterial({ color: 0x3a7a2a, roughness: 1 }));
+      shrub.position.set(sx, sy, 0); g.add(shrub);
+      shrub.userData.propType = 'planter';
+    }
+    solid(x - 1, z - 0.5, x + 1, z + 0.5, 0, 1);
+    return g;
+  }
   function addTrafficLight(x, z) {
     const pole = box(0.15, 3.4, 0.15, 0x333333);
     pole.position.set(x, 1.7, z); group.add(pole);
@@ -1943,7 +1980,7 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
     addBottles, addGasTank, addGenerator, addLift, addEscalator, addMud, addAmmoBox,
     addLootCrate,
     addBush, addPowerPole, addWoodPile, addTrashCan, addRoadSign, addRock,
-    addPlantPot, addTrafficLight, addHydrant, addVending, addATM, addPhoneBooth,
+    addPlantPot, addSiteSign, addPlanter, addTrafficLight, addHydrant, addVending, addATM, addPhoneBooth,
     addCart, addSuitcase, addDummy, addParkedCar, addMotorParked,
     addAnimal, addNPC, addFridge, addStove, addSafe, addWardrobe,
     addCropPatch, addFruitTree,

@@ -54,12 +54,18 @@ export function createEffects(scene, S, audio) {
   let poolIdx = 0;
   // ---- Tracer pool: glowing lines from the muzzle to the hit ----
   const tracers = [];
+  const tubeGeo = new THREE.CylinderGeometry(0.03, 0.03, 1, 6);
   for (let i = 0; i < 8; i++) {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
     const l = new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0xffdd55, transparent: true, opacity: 0 }));
     l.visible = false; l.frustumCulled = false; scene.add(l);
-    tracers.push({ line: l, life: 0 });
+    // Tube: a real 3D tracer the line alone can't give (WebGL ignores line
+    // width), so the shot reads as a bright streak from every angle.
+    const tube = new THREE.Mesh(tubeGeo,
+      new THREE.MeshBasicMaterial({ color: 0xffdd55, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+    tube.visible = false; tube.frustumCulled = false; scene.add(tube);
+    tracers.push({ line: l, tube, life: 0 });
   }
   let trIdx = 0;
   // ---- Shell pool: brass casings with gravity + spin, ting on first bounce ----
@@ -198,8 +204,17 @@ export function createEffects(scene, S, audio) {
     t.line.geometry.attributes.position.needsUpdate = true;
     // sniper = cyan, anything else = yellow; a color value/string (e.g. enemy
     // red 0xff2222) is used as-is.
-    t.line.material.color.set(typeof sniper === 'number' || typeof sniper === 'string' ? sniper : (sniper ? 0x55ddff : 0xffdd55));
+    const col = typeof sniper === 'number' || typeof sniper === 'string' ? sniper : (sniper ? 0x55ddff : 0xffdd55);
+    t.line.material.color.set(col);
     t.line.visible = true; t.line.material.opacity = 0.95; t.life = 0.09;
+    // Tube: midpoint + length + orientation from the same endpoints.
+    const dx = to.x - from.x, dy = to.y - from.y, dz = to.z - from.z;
+    const len = Math.hypot(dx, dy, dz) || 0.001;
+    t.tube.position.set((from.x + to.x) / 2, (from.y + to.y) / 2, (from.z + to.z) / 2);
+    t.tube.scale.set(1, len, 1);
+    t.tube.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(dx / len, dy / len, dz / len));
+    t.tube.material.color.set(col);
+    t.tube.material.opacity = 0.85; t.tube.visible = true;
   }
   function shell(tip, right) {
     const s = shells[shIdx]; shIdx = (shIdx + 1) % shells.length;
@@ -388,7 +403,8 @@ export function createEffects(scene, S, audio) {
       if (t.life <= 0) continue;
       t.life -= dt;
       t.line.material.opacity = Math.max(0, t.life / 0.09) * 0.95;
-      if (t.life <= 0) t.line.visible = false;
+      t.tube.material.opacity = Math.max(0, t.life / 0.09) * 0.85;
+      if (t.life <= 0) { t.line.visible = false; t.tube.visible = false; }
     }
     for (const s of shells) {
       if (s.life <= 0) continue;

@@ -6,6 +6,7 @@
 // (coins, quests, ELO, replay) via the cbs object from main.js.
 import * as THREE from 'three';
 import { STREAK_DEFS, MODE_DEFS, OPERATOR_DEFS, DEFAULT_OWNED } from './state.js';
+import { nearestSiteName } from './world.js';
 import { addXP } from './battlepass.js';
 
 export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
@@ -29,7 +30,7 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
   bombMesh.add(bombBody, bombLight);
   bombMesh.visible = false; scene.add(bombMesh);
   // Smoke meshes pool
-  const smokeMat = new THREE.MeshBasicMaterial({ color: 0x9aa0a0, transparent: true, opacity: 0.55, depthWrite: false });
+  const smokeMat = new THREE.MeshBasicMaterial({ color: 0xcfd4d4, transparent: true, opacity: 0.6, depthWrite: false });
   const smokeMeshes = [];
   // Sentry gun mesh (hidden until deployed)
   const sentryMesh = new THREE.Group();
@@ -892,7 +893,19 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
       const s = { x, z, r: 5, t: 4 };
       g.smokes.push(s);
       let m = smokeMeshes.find(m => !m.visible);
-      if (!m) { m = new THREE.Mesh(new THREE.SphereGeometry(5, 12, 10), smokeMat); scene.add(m); smokeMeshes.push(m); }
+      if (!m) {
+        // Billowing cluster (reference look): one big puff + two satellites,
+        // so the cloud reads as smoke, not a single ball.
+        m = new THREE.Group();
+        const big = new THREE.Mesh(new THREE.SphereGeometry(4, 12, 10), smokeMat);
+        m.add(big);
+        for (const [ox, oy, oz, r] of [[-2.2, 0.6, 1.0, 2.4], [2.2, 0.4, -1.1, 2.6]]) {
+          const puff = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 8), smokeMat);
+          puff.position.set(ox, oy, oz);
+          m.add(puff);
+        }
+        scene.add(m); smokeMeshes.push(m);
+      }
       m.position.set(x, 1.5, z); m.visible = true;
     } else if (gr.kind === 'molotov') {
       // Molotov (v20.0.11): a fire zone that burns for 5s.
@@ -1033,7 +1046,9 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
     const sub = `${S.lastVictim} • ${dist}m • ${wName} • +100 XP${spree ? ' • ' + spree : ''}`;
     if (hud.showKillMessage) hud.showKillMessage(title, sub);
     if (spreeTitle) hud.killfeed(`🔥 ${spreeTitle}! (${S.streak} kill beruntun)`, 'gold');
-    hud.killfeed(`YOU ▸ BOT-${bot.id + 1}${head ? ' [HEADSHOT]' : ''}  +$300`, S.mythic);
+    hud.killfeed(`YOU — ${wName} @ BOT-${bot.id + 1}${head ? ' [HEADSHOT]' : ''}  +$300`, S.mythic);
+    // Radio callout: the kill is called out by site name.
+    if (hud.showRadio) hud.showRadio(`${S.lastVictim} down at ${nearestSiteName(bot.x, bot.z)}`);
     const r = addXP(S.bp, 100, 'kill');
     if (head) addXP(S.bp, 50, 'headshot');
     if (r.tierUp) hud.killfeed(`🏆 BATTLE PASS TIER ${r.tierUp}! Reward: ${r.reward}`);

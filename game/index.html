@@ -11,8 +11,17 @@
 <body>
 <div id="game"></div>
 <div id="hud" aria-hidden="true">
-  <canvas id="minimap" width="148" height="100"></canvas>
-  <div id="topbar"><span id="round-label">ROUND 1 / 5</span><span id="compass">N 0°</span><span id="timer">1:40</span><span>YOU <b id="score-value">0 - 0</b> BOT</span></div>
+  <div id="minimap-wrap">
+    <canvas id="minimap" width="148" height="148"></canvas>
+    <div id="map-label">FOUNDRY YARD</div>
+  </div>
+  <div id="topbar">
+    <span class="team-chip team-you">YOU <b id="score-you">0</b> <span id="score-you-pips" class="pips"></span></span>
+    <span id="timer">1:40</span>
+    <span id="round-label">ROUND 1 / 5</span>
+    <span class="team-chip team-bot"><span id="score-bot-pips" class="pips"></span> <b id="score-bot">0</b> BOT</span>
+    <span id="compass">N 0°</span>
+  </div>
   <div id="objective"><b id="mode-name">SEARCH &amp; DESTROY</b> • <span id="objective-text">Plant the charge at Furnace or Crane Yard</span></div>
   <div id="killfeed"></div>
   <div id="killstreak-bar">
@@ -31,10 +40,11 @@
   <div id="plant-bar" hidden><div class="track"><div id="plant-fill"></div></div><div id="plant-label"></div></div>
   <div id="bottombar">
     <div class="stat"><span>HEALTH</span><b id="hp">100</b></div>
-    <div class="stat"><span>ARMOR</span><b id="armor">0</b></div>
-    <div class="stat"><span>MONEY</span><b id="money">$800</b></div>
-    <div class="stat" style="text-align:right"><span id="weapon-name">VK-9 Jackal</span><span><span id="ammo-mag">30</span><span id="ammo-reserve">/ 90</span></span></div>
+    <div class="stat"><span>ARMOUR</span><b id="armor">0</b></div>
+    <div class="stat"><span>CASH</span><b id="money">$800</b></div>
+    <div class="stat" style="text-align:right"><span id="weapon-name">VK-9 Jackal</span><span id="nade-row">Frag 1 · Flash 1 · Smoke 2 · Kit 2</span><span><span id="ammo-mag">30</span><span id="ammo-reserve">/ 90</span></span></div>
   </div>
+  <div id="radio-callout" hidden><b>RADIO</b> <span id="radio-text"></span></div>
   <div id="vignette"></div>
   <div id="flash"></div>
   <div id="lens-flare"></div>
@@ -89,7 +99,7 @@
   <div id="kill-message" hidden><div id="kill-title"></div><div id="kill-sub"></div></div>
   <div id="kill-confirm" hidden></div>
   <div id="weapon-fx"></div>
-  <canvas id="minimap-big" width="400" height="280" hidden></canvas>
+  <canvas id="minimap-big" width="360" height="360" hidden></canvas>
   <div id="scope-zoom" hidden></div>
   <div id="quick-emotes"></div>
   <button id="surrender-btn" type="button">🏳️ Menyerah</button>

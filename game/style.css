@@ -19,10 +19,15 @@
   #hitmarker i:nth-child(4){ top:13px; right:0; height:2px; width:9px; }
   #topbar { position:fixed; top:14px; left:50%; transform:translateX(-50%); display:flex; gap:18px; align-items:center; font-family:ui-monospace,Menlo,monospace; font-size:14px; background:rgba(10,12,10,.6); padding:6px 16px; border:1px solid #2c323a; border-radius:4px; }
   #timer { color:var(--amber); font-size:18px; font-weight:700; }
-  #score-value { color:var(--ink); font-weight:700; }
+  .team-chip { display:inline-flex; align-items:center; gap:6px; padding:2px 10px; border-radius:4px; font-weight:700; }
+  .team-you { background:rgba(42,122,255,.35); border:1px solid #2a7aff; }
+  .team-bot { background:rgba(255,90,77,.3); border:1px solid #ff5a4d; }
+  .team-chip .pips { font-size:10px; letter-spacing:2px; color:var(--amber); }
   #objective { position:fixed; top:60px; left:50%; transform:translateX(-50%); background:rgba(10,12,10,.6); padding:6px 16px; border:1px solid #2c323a; border-radius:99px; font-size:13px; white-space:nowrap; }
   #objective b { color:var(--amber); }
-  #minimap { position:fixed; top:14px; left:14px; border:1px solid #2c323a; border-radius:4px; }
+  #minimap-wrap { position:fixed; top:14px; left:14px; z-index:5; }
+#minimap { border:1px solid #2c323a; border-radius:50%; display:block; }
+#map-label { text-align:center; font-size:11px; letter-spacing:.12em; color:var(--ink); margin-top:4px; text-shadow:0 1px 4px #000; }
   #killfeed { position:fixed; top:14px; right:14px; text-align:right; font-size:13px; color:var(--ink); display:grid; gap:4px; }
   #killfeed div { background:rgba(10,12,10,.6); padding:3px 8px; border-radius:3px; }
   #killfeed .kill-firestorm { border-right:4px solid #ff5a1a; }
@@ -49,11 +54,13 @@
   #mythic-effect.void { background:radial-gradient(circle, rgba(138,0,255,.5), transparent 70%); }
   .mythic-pop { animation:emotePop 1s forwards; }
   #bottombar { position:fixed; left:0; right:0; bottom:0; display:flex; justify-content:space-between; align-items:flex-end; padding:18px 28px; font-family:ui-monospace,Menlo,monospace; }
+  .stat { background:rgba(10,12,10,.65); border:1px solid #2c323a; border-radius:6px; padding:6px 12px; }
   .stat b { font-size:34px; font-weight:600; }
   .stat span { color:var(--muted); font-size:12px; display:block; letter-spacing:.08em; }
   #ammo-mag { font-size:52px; }
   #ammo-reserve { font-size:16px; color:var(--muted); }
   #weapon-name { font-size:15px; color:var(--amber); }
+#nade-row { font-size:12px; color:var(--muted); letter-spacing:.04em; }
   #center-msg { position:fixed; top:22%; left:50%; transform:translateX(-50%); font-size:20px; font-weight:600; letter-spacing:.06em; text-shadow:0 2px 8px #000; text-align:center; }
   #plant-bar { position:fixed; top:32%; left:50%; transform:translateX(-50%); width:280px; text-align:center; }
   #plant-bar .track { height:8px; background:#2c323a; border-radius:4px; overflow:hidden; }
@@ -199,7 +206,7 @@
   #interact-hint { position:fixed; left:50%; bottom:150px; transform:translateX(-50%); background:rgba(0,0,0,.7); border:1px solid var(--amber); border-radius:99px; padding:8px 16px; font-size:13px; font-weight:700; display:none; pointer-events:none; }
 
 /* ---- v2 additions: killcam, spectator, scope, damage numbers, weather ---- */
-#profile-chip{position:absolute;top:44px;left:12px;background:rgba(10,12,10,.7);border:1px solid #333;border-radius:99px;padding:4px 10px;font-size:11px;color:#ffd76a;z-index:5}
+#profile-chip{position:absolute;top:192px;left:12px;background:rgba(10,12,10,.7);border:1px solid #333;border-radius:99px;padding:4px 10px;font-size:11px;color:#ffd76a;z-index:5}
 #dmg-number{position:absolute;top:44%;left:50%;transform:translate(-50%,0);font-size:20px;font-weight:900;color:#fff;text-shadow:0 0 6px #000;opacity:0;pointer-events:none;z-index:6}
 #dmg-number.show{opacity:1;animation:dmgFloat .7s ease-out}
 #dmg-number.head{color:#ff5a4d}
@@ -257,14 +264,14 @@
 @keyframes confFall{from{transform:translateY(0) rotate(0)}to{transform:translateY(320px) rotate(720deg)}}
 #scoreboard{position:fixed;left:50%;top:18%;transform:translateX(-50%);z-index:65;background:rgba(10,12,10,.92);border:1px solid var(--amber);border-radius:12px;padding:18px 26px;text-align:center;font-size:14px;line-height:1.9}
 #scoreboard[hidden]{display:none}
-#fps{position:fixed;left:14px;top:130px;font-size:12px;font-family:ui-monospace,monospace;color:#7ddc7d;z-index:5}
-#ping{position:fixed;left:14px;top:148px;font-size:12px;font-family:ui-monospace,monospace;color:#7ddc7d;z-index:5}
+#fps{position:fixed;left:14px;top:262px;font-size:12px;font-family:ui-monospace,monospace;color:#7ddc7d;z-index:5}
+#ping{position:fixed;left:14px;top:280px;font-size:12px;font-family:ui-monospace,monospace;color:#7ddc7d;z-index:5}
 #ping.ping-mid{color:#ffd24d}
 #ping.ping-bad{color:#ff5a4d}
-#fps-graph{position:fixed;left:14px;top:166px;display:flex;align-items:flex-end;gap:1px;height:20px;z-index:5}
+#fps-graph{position:fixed;left:14px;top:298px;display:flex;align-items:flex-end;gap:1px;height:20px;z-index:5}
 #fps-graph i{width:3px;display:block}
-#engine-stats{position:fixed;left:14px;top:192px;font-size:11px;font-family:ui-monospace,monospace;color:var(--muted);z-index:5}
-#stamina-bar{position:fixed;left:14px;bottom:120px;width:170px;height:8px;background:#222;border-radius:99px;overflow:hidden;z-index:5}
+#engine-stats{position:fixed;left:14px;top:324px;font-size:11px;font-family:ui-monospace,monospace;color:var(--muted);z-index:5}
+#stamina-bar{position:fixed;left:14px;bottom:110px;width:170px;height:8px;background:#222;border-radius:99px;overflow:hidden;z-index:5}
 #stamina-fill{height:100%;background:#7ddc7d;width:100%}
 #move-status{position:fixed;left:14px;bottom:84px;font-size:11px;color:var(--muted);letter-spacing:.1em;z-index:5}
 #surface-label{position:fixed;left:14px;bottom:100px;font-size:11px;color:var(--muted);z-index:5}
@@ -286,17 +293,27 @@
 #kill-sub{font-size:14px;color:#fff;text-shadow:0 1px 6px #000}
 #kill-confirm{position:fixed;left:50%;top:44%;transform:translateX(-50%);font-size:26px;font-weight:900;color:#7ddc7d;text-shadow:0 0 12px #000;z-index:40;pointer-events:none}
 #kill-confirm[hidden]{display:none}
-#weapon-fx{position:fixed;right:14px;bottom:120px;font-size:11px;color:var(--muted);background:rgba(10,12,10,.6);border:1px solid #2c323a;border-radius:8px;padding:6px 10px;z-index:5}
+#weapon-fx{position:fixed;left:14px;top:224px;font-size:11px;color:var(--muted);background:rgba(10,12,10,.6);border:1px solid #2c323a;border-radius:8px;padding:6px 10px;z-index:5}
 #minimap-big{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);border:2px solid var(--amber);border-radius:8px;z-index:30;background:#0a0c0a}
 #minimap-big[hidden]{display:none}
 #scope-zoom{position:fixed;right:20px;bottom:220px;font-size:13px;font-weight:700;color:#fff;background:rgba(0,0,0,.6);border-radius:99px;padding:4px 10px;z-index:6}
 #scope-zoom[hidden]{display:none}
-#quick-emotes{position:fixed;right:14px;bottom:60px;display:flex;gap:6px;z-index:7;pointer-events:auto}
+#quick-emotes{position:fixed;right:14px;bottom:175px;display:flex;gap:6px;z-index:7;pointer-events:auto}
 .qe-btn{background:rgba(20,22,26,.8);border:1px solid #555;color:#fff;border-radius:50%;width:40px;height:40px;font-size:20px;cursor:pointer}
 .qe-btn:hover{border-color:var(--amber);transform:scale(1.15)}
 #surrender-btn{position:fixed;right:14px;bottom:14px;z-index:7;pointer-events:auto;background:rgba(20,22,26,.8);border:1px solid #555;color:#fff;border-radius:99px;padding:6px 12px;font-size:12px;cursor:pointer}
 #ds-toggle{position:fixed;right:14px;bottom:250px;width:52px;height:52px;border-radius:50%;background:rgba(0,0,0,.6);border:1px solid #555;font-size:20px;cursor:pointer;pointer-events:auto;z-index:7}
 #ds-toggle.on{border-color:var(--cyan);box-shadow:0 0 12px var(--cyan)}
+/* Radio callout bar (reference HUD): bottom-centre, above the bottombar. */
+#radio-callout{position:fixed;bottom:110px;left:50%;transform:translateX(-50%);background:rgba(10,12,10,.75);border:1px solid #2c323a;border-radius:4px;padding:8px 16px;font-size:13px;letter-spacing:.04em;z-index:5;white-space:nowrap}
+#radio-callout b{color:var(--amber);margin-right:8px}
+#radio-callout[hidden]{display:none}
+/* Desktop (no touch): hide touch-only controls — the keyboard is the input. */
+body.no-touch #fire-btn,body.no-touch #fire-btn-left,body.no-touch #crouch-btn,
+body.no-touch #ads-btn,body.no-touch #dash-btn,body.no-touch #scope-btn,
+body.no-touch #reload-btn,body.no-touch #joystick,body.no-touch #wheel-btn{display:none!important}
+/* Dossier shots: hide the remaining click-only pills for a clean frame. */
+body.shot #surrender-btn,body.shot #ds-toggle{display:none!important}
 #dash-btn,#scope-btn,#reload-btn{position:absolute;width:52px;height:52px;border-radius:50%;background:rgba(20,22,26,.75);border:1px solid #666;color:#fff;font-size:20px;z-index:7}
 #dash-btn{right:170px;bottom:110px}
 #scope-btn{right:20px;bottom:250px}
@@ -346,11 +363,11 @@
 #vignette.low{opacity:.55}
 #vignette.crit{opacity:.9;animation:hpBlink 1s infinite}
 /* Hardcore / Realistic HUD hiding (v26.0.5) */
-#hud.hardcore #bottombar,#hud.hardcore #topbar,#hud.hardcore #objective,#hud.hardcore #killstreak-bar,#hud.hardcore #operator-box,#hud.hardcore #minimap,#hud.hardcore #weapon-fx,#hud.hardcore #fps,#hud.hardcore #ping,#hud.hardcore #engine-stats{display:none}
-#hud.realistic #minimap,#hud.realistic #crosshair{display:none}
+#hud.hardcore #bottombar,#hud.hardcore #topbar,#hud.hardcore #objective,#hud.hardcore #killstreak-bar,#hud.hardcore #operator-box,#hud.hardcore #minimap-wrap,#hud.hardcore #weapon-fx,#hud.hardcore #fps,#hud.hardcore #ping,#hud.hardcore #engine-stats{display:none}
+#hud.realistic #minimap-wrap,#hud.realistic #crosshair{display:none}
 /* Color-blind mode (v25.0.8) */
 #hud.colorblind #crosshair i{background:#00e5ff}
-#hud.colorblind #minimap{filter:saturate(1.6) contrast(1.2)}
+#hud.colorblind #minimap-wrap{filter:saturate(1.6) contrast(1.2)}
 /* Film grain (v25.0.7) */
 #hud::after{content:"";position:fixed;inset:0;pointer-events:none;opacity:.05;background-image:repeating-linear-gradient(0deg,rgba(255,255,255,.5) 0 1px,transparent 1px 3px)}
 /* Lens flare when looking at the sun (v18.6.5) */

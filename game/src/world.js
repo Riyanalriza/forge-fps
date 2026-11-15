@@ -23,6 +23,16 @@ export const SPAWNS = {
     { x: -14, z: -24 }, { x: -4, z: -25 }, { x: 6, z: -25 }, { x: 16, z: -24 }, { x: 0, z: -20 },
   ],
 };
+// Nearest bomb site by name (radio callouts + killfeed context).
+export function nearestSiteName(x, z) {
+  let best = null, bd = 1e9;
+  for (const k of ['A', 'B', 'C']) {
+    const s = SITES[k];
+    const d = Math.hypot(s.x - x, s.z - z);
+    if (d < bd) { bd = d; best = s; }
+  }
+  return best ? best.name : 'Mid Yard';
+}
 // Patrol waypoint graph (small loop routes through mid and both sites).
 export const WAYPOINTS = [
   { x: -30, z: -8 }, { x: -30, z: 8 }, { x: -12, z: 14 }, { x: 0, z: 6 },
@@ -97,6 +107,19 @@ function concreteTex(rng) {
     g.strokeRect(2, 2, s - 4, s - 4);
     g.lineWidth = 2; g.strokeStyle = 'rgba(20,16,10,0.6)';
     g.beginPath(); g.moveTo(s / 2, 0); g.lineTo(s / 2, s); g.moveTo(0, s / 2); g.lineTo(s, s / 2); g.stroke();
+    // Cobblestone cells (reference dusk look): index-hash shading only —
+    // NEVER rng() here, the gameplay random sequence must stay byte-identical.
+    const cell = 32;
+    for (let ry = 0; ry < 8; ry++) {
+      const off = (ry % 2) * (cell / 2);
+      for (let cx = -1; cx < 9; cx++) {
+        const h = (((ry * 31 + cx * 17 + 7) * 2654435761) >>> 0) % 1000 / 1000;
+        g.fillStyle = h < 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.07)';
+        g.fillRect(cx * cell + off, ry * cell, cell - 2, cell - 2);
+        g.strokeStyle = 'rgba(0,0,0,0.25)'; g.lineWidth = 1.5;
+        g.strokeRect(cx * cell + off + 0.5, ry * cell + 0.5, cell - 2, cell - 2);
+      }
+    }
   }, 16, 12);
 }
 function metalTex(rng) {
@@ -264,6 +287,10 @@ export function buildWorld(scene) {
     mapId = def.id;
     def.build(props);
     props.addBirds(); // 5 birds circling overhead on every map (v18.15)
+    // Bomb-site signs on the north wall (reference-style "SITE A" boards,
+    // flush to the wall so they need no collider).
+    props.addSiteSign(-27, -27.9, 0, 'SITE A', SITES.A.name.toUpperCase());
+    props.addSiteSign(27, -27.9, 0, 'SITE B', SITES.B.name.toUpperCase());
     placeDestructibles(); // red barrels + breakable table + broken lamp (v18)
     waypoints.length = 0;
     waypoints.push(...def.waypoints);

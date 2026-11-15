@@ -2,6 +2,7 @@
 // v2: killstreak bar, operator box, objective bar, UAV-gated minimap,
 // calling-card styled killfeed, battle-pass menu rendering.
 import { STREAK_DEFS, MODE_DEFS, OPERATOR_DEFS, MYTHIC_DEFS, EMOTE_DEFS } from './state.js';
+import { MAP_DEFS } from './maps.js';
 import { fxFor } from './weaponfx.js';
 import { xpInTier, missionList } from './battlepass.js';
 
@@ -12,6 +13,10 @@ export function createHud(S) {
     hp: $('hp'), armor: $('armor'), money: $('money'), ammoMag: $('ammo-mag'),
     ammoRes: $('ammo-reserve'), weapon: $('weapon-name'), timer: $('timer'),
     score: $('score-value'), round: $('round-label'), compass: $('compass'),
+    scoreYou: $('score-you'), scoreBot: $('score-bot'),
+    scoreYouPips: $('score-you-pips'), scoreBotPips: $('score-bot-pips'),
+    mapLabel: $('map-label'), nadeRow: $('nade-row'),
+    radio: $('radio-callout'), radioText: $('radio-text'),
     minimap: $('minimap'), killfeed: $('killfeed'), hitmarker: $('hitmarker'),
     msg: $('center-msg'), vignette: $('vignette'), flash: $('flash'),
     menu: $('menu'), buy: $('buy-menu'), buyItems: $('buy-items'),
@@ -60,7 +65,7 @@ export function createHud(S) {
   function update(world) {
     const p = S.player, w = S.weapons[S.player.weaponIdx];
     el.hp.textContent = Math.ceil(p.hp);
-    el.armor.textContent = Math.ceil(p.armor);
+    el.armor.textContent = Math.ceil(p.armor) + (p.armor > 0 ? ' +H' : '');
     // HP colour: green >60, yellow >30, red below (v24.0.3).
     if (el.hp) el.hp.className = p.hp > 60 ? 'hp-good' : p.hp > 30 ? 'hp-mid' : 'hp-low';
     // Vignette classes for low HP (v18.6.7).
@@ -69,6 +74,8 @@ export function createHud(S) {
     el.money.textContent = '$' + S.economy.money;
     el.ammoMag.textContent = w.mag;
     el.ammoRes.textContent = '/ ' + w.reserve + (w.reloading ? '  RELOADING' : '');
+    // Grenade row (reference HUD): Frag / Flash / Smoke / Kit counts.
+    if (el.nadeRow) el.nadeRow.textContent = `Frag ${S.grenades.he} · Flash ${S.grenades.flash} · Smoke ${S.grenades.smoke} · Kit ${S.medkits}`;
     // Ammo warning: red + blink at <=5, flashing RELOAD at 0 (v18.1.2).
     if (el.ammoMag) el.ammoMag.classList.toggle('ammo-low', w.mag <= 5);
     if (el.ammoMag) el.ammoMag.classList.toggle('ammo-empty', w.mag === 0);
@@ -141,10 +148,20 @@ export function createHud(S) {
     if (el.cycleTime && S.cycleText) el.cycleTime.textContent = S.cycleText;
     if (el.cycleCount && S.cycleCountdown) el.cycleCount.textContent = S.cycleCountdown;
     if (el.cycleBar && S.cycleProgress != null) el.cycleBar.style.width = Math.round(S.cycleProgress * 100) + '%';
-    if (S.mode === 'tdm') el.score.textContent = `${S.kills} - ${S.botKills}`;
-    else if (S.mode === 'dom') el.score.textContent = `${Math.floor(S.dom.points.you)} - ${Math.floor(S.dom.points.bot)}`;
-    else el.score.textContent = `${S.round.wins} - ${S.round.losses}`;
+    // Topbar team chips (reference layout): YOU vs BOT + round-win pips.
+    let you = S.kills, bot = S.botKills;
+    if (S.mode === 'dom') { you = Math.floor(S.dom.points.you); bot = Math.floor(S.dom.points.bot); }
+    else if (S.mode === 'snd' || S.mode === 'control') { you = S.round.wins; bot = S.round.losses; }
+    else if (S.mode === 'zombie' && S.zombieInfo) { you = S.zombieInfo.wave; bot = S.zombieInfo.alive; }
+    if (el.scoreYou) el.scoreYou.textContent = you;
+    if (el.scoreBot) el.scoreBot.textContent = bot;
+    if (el.score) el.score.textContent = `${you} - ${bot}`;
+    const pips = (n) => '▮'.repeat(Math.min(n, S.round.maxRounds)) + '▯'.repeat(Math.max(0, S.round.maxRounds - Math.min(n, S.round.maxRounds)));
+    if (el.scoreYouPips) el.scoreYouPips.textContent = (S.mode === 'snd' || S.mode === 'control') ? pips(S.round.wins) : '';
+    if (el.scoreBotPips) el.scoreBotPips.textContent = (S.mode === 'snd' || S.mode === 'control') ? pips(S.round.losses) : '';
     el.round.textContent = `ROUND ${S.round.num} / ${S.round.maxRounds}`;
+    // Map name under the round minimap (reference layout).
+    if (el.mapLabel) el.mapLabel.textContent = (MAP_DEFS[S.mapId] || MAP_DEFS.foundry).name.toUpperCase();
     // Compass: yaw 0 = N
     const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
     const deg = ((-p.yaw * 180 / Math.PI) % 360 + 360) % 360;
@@ -193,10 +210,12 @@ export function createHud(S) {
     drawMinimap(world);
   }
   function drawMinimap(world) {
-    const c = mm, W = 148, H = 100;
+    const c = mm, W = 148, H = 148;
     c.clearRect(0, 0, W, H);
     c.fillStyle = 'rgba(10,12,10,0.72)'; c.fillRect(0, 0, W, H);
-    const sx = (x) => (x + 40) / 80 * W, sz = (z) => (z + 28) / 56 * H;
+    // Square map, true aspect: one scale for x and z, z centred vertically.
+    const s = W / 80, zOff = (H - 56 * s) / 2;
+    const sx = (x) => (x + 40) * s, sz = (z) => (z + 28) * s + zOff;
     c.fillStyle = '#5c6b70';
     for (const col of world.colliders) {
       if (col.h < 1.2) continue;
@@ -216,7 +235,7 @@ export function createHud(S) {
     // BR zone circle
     if (S.mode === 'br') {
       c.strokeStyle = '#ff5a4d'; c.lineWidth = 1.5;
-      c.beginPath(); c.arc(sx(S.br.cx), sz(S.br.cz), S.br.radius / 80 * W, 0, 7); c.stroke();
+      c.beginPath(); c.arc(sx(S.br.cx), sz(S.br.cz), S.br.radius * s, 0, 7); c.stroke();
     }
     // Bots are hidden on the minimap unless UAV is up, they are close, or in combat.
     const p = S.player;
@@ -266,6 +285,15 @@ export function createHud(S) {
     el.killfeed.prepend(d);
     while (el.killfeed.children.length > 5) el.killfeed.lastChild.remove();
     setTimeout(() => d.remove(), 6000);
+  }
+  // Radio callout bar (reference HUD): shows a site callout for 4s.
+  let radioT = null;
+  function showRadio(text) {
+    if (!el.radio) return;
+    el.radioText.textContent = text;
+    el.radio.hidden = false;
+    if (radioT) clearTimeout(radioT);
+    radioT = setTimeout(() => { el.radio.hidden = true; }, 4000);
   }
   function hitmarker(head, kill, dmg, holdMs = 90) {
     el.hitmarker.classList.add('on');
@@ -567,7 +595,7 @@ export function createHud(S) {
     showFinisher, setFinisherProgress, hideFinisher,
     showKillcam, hideKillcam, showSpectate, hideSpectate,
     showLevelUp, setProfileChip, setFps, setFpsGraph, setEngineStats, showScoreboard,
-    showKillMessage, killConfirmVisual, bloodLens, setScopeZoom,
+    showKillMessage, killConfirmVisual, bloodLens, setScopeZoom, showRadio,
     chatLog, showChatBubble, showHint, setKillcamTimer,
     showDeathScreen, hideDeathScreen, setDeathTimer, showVictoryScreen, hideVictoryScreen,
     applyColors, renderQuickEmotes,

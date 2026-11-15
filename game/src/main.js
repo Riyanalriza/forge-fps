@@ -16,7 +16,7 @@ import { createEffects } from './effects.js';
 import { GUNSMITH_SLOTS, calcGunStats, adsFov, damageAtRange } from './gunsmith.js';
 import { createGame } from './game.js';
 import { MAP_DEFS, MAP_IDS } from './maps.js';
-import { buildWorld } from './world.js';
+import { buildWorld, nearestSiteName } from './world.js';
 import { createBots } from './bots.js';
 import { createWeapon } from './weapon.js';
 import { createHud } from './hud.js';
@@ -78,6 +78,8 @@ S.hint = '';
 S.binoZoom = false; // binocular zoom for non-sniper weapons (V, v18.0)
 // Mobile detection (v18.4): touch devices get bigger muzzle flash + HP recoil.
 S.isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+// Desktop (no touch): hide the touch-only buttons — the keyboard is the input.
+document.body.classList.toggle('no-touch', !S.isMobile);
 // Crash / bug reporter (v26.0.2): last 20 errors to localStorage, never sent anywhere.
 window.addEventListener('error', (e) => {
   try {
@@ -153,6 +155,12 @@ const bots = createBots(scene, world, S, rng, {
   onZoneDeath: (b) => hud.killfeedHtml(`<span style="color:#ff9a3d">☠️ SUICIDE! ${b.name} mati sendiri</span>`),
   // v23.0.5 Tracker: a bot that shoots at you is marked on the minimap.
   onBotShot: (b) => { S.trackMark = { x: b.x, z: b.z, t: 5 }; },
+  // Radio callout: first sighting per 10s names the nearest site.
+  onSpot: (b) => {
+    if (S.time - (S.radioCdT || 0) < 10) return;
+    S.radioCdT = S.time;
+    hud.showRadio(`Contact at ${nearestSiteName(b.x, b.z)}, rotating`);
+  },
 });
 const economy = createEconomy();
 const weather = createWeather(scene, S, world, audio);
@@ -1852,8 +1860,19 @@ function frame(now) {
 
 function settle(steps) { for (let i = 0; i < steps; i++) step(FIXED_STEP); }
 
+// Staged transient HUD for the play shot: applied at the 2nd paint (see
+// runShot) so the 4s/6s auto-hide timeouts start just before the capture.
+let shotFx = null;
+function applyShotFx() {
+  if (!shotFx) return;
+  if (shotFx.radio) hud.showRadio(shotFx.radio);
+  for (const k of shotFx.killfeed || []) hud.killfeed(k, shotFx.mythic);
+  if (shotFx.hitmarker) hud.hitmarker(false, false, 60, 4000);
+}
+
 function runShot(name) {
   hideLoading(); // frame() never runs in shot mode, so hide it here.
+  document.body.classList.add('shot'); // hide the click-only pills for a clean frame.
   hud.hideMenu(); hud.hideEnd(); hud.showBuy(false);
   const p = S.player;
   if (name === 'start') {
@@ -1861,6 +1880,7 @@ function runShot(name) {
     bots.spawnAll();
     settle(20);
     aimAt(0, 2.5, -10);
+    weather.applyWeather('sunset'); S.weatherManual = true;
     hud.showMenu('FOUNDRY YARD');
     hud.refreshBattlePass();
     hud.update(world);
@@ -1870,29 +1890,64 @@ function runShot(name) {
     S.card = 'dragon';
     S.perks = ['lightweight', 'quickfix'];
     S.operator = 'tempest';
+    // Reference look: B12 Breacher (double-barrel shotgun feel) on Foundry
+    // Yard at dusk, with a smoke grenade and a live tracer + muzzle flash.
+    S.loadout.primary = WEAPONS_DB.findIndex(w => w.id === 'by15');
+    S.player.weaponIdx = S.loadout.primary;
     weapon.applyMythic();
-    buildMap('twin'); // show a new map (Twin Court: houses + yellow bus)
+    buildMap('foundry');
+    // Shot mode: skip the 3-2-1 countdown, else game.step stalls during
+    // settle() and the staged smoke grenade never flies. (Scoped to the
+    // play shot only — the self-test relies on the countdown timing.)
+    S.noCountdown = true;
     game.startRound();
+    weather.applyWeather('sunset'); S.weatherManual = true;
     // Place 3 bots visible mid-map ahead of the player.
-    const spots = [[-4, 10, 100], [5, 6, 40], [9, 12, 100]];
+    const spots = [[-4, 10, 100], [1, 5, 40], [-9, 8, 100]];
     spots.forEach(([x, z, hp], i) => {
       const b = S.bots[i]; b.x = x; b.z = z; b.hp = hp; b.state = 'combat';
     });
     bots.syncMeshes();
     // Earned killstreak: 3-kill UAV ready + UAV reveal active.
     S.streak = 3; S.streaksReady = ['uav']; S.uavT = 20;
+    // Smoke grenade toward the right (bots held + blinded so they don't spot
+    // or shoot while it flies); the cloud lands at the frame's right edge,
+    // clear of the bots (the throw travels ~17m with its ground bounce).
+    S.bots.forEach(b => { b.state = 'hold'; b.blindT = 2; });
+    aimAt(9, 1.5, 10);
+    game.throwGrenade('smoke', camera);
+    settle(75);
+    S.bots.forEach(b => { b.state = 'combat'; b.blindT = 0; });
+    p.hp = 100;
     settle(10);
     aimAt(S.bots[0].x, 1.4, S.bots[0].z);
     // One bot already damaged: land a hit for a visible hitmarker.
     const b0 = S.bots[0];
     bots.damage(b0, 60);
-    hud.hitmarker(false, false, 60, 4000);
-    hud.killfeed('YOU ▸ BOT-1 — HIT', 'dragon');
-    hud.killfeed('🔥 KILLSTREAK READY: 🛰️ UAV — click it!');
+    // Staged transient HUD (killfeed / hitmarker / radio) is applied at the
+    // 2nd paint, not here: the 4s/6s timeouts would otherwise expire during
+    // the slow first WebGL render, before the screenshot is taken.
+    shotFx = {
+      radio: 'Contact at Mid Yard, rotating',
+      killfeed: ['YOU — B12 Breacher @ BOT-1 — HIT', '🔥 KILLSTREAK READY: 🛰️ UAV — click it!'],
+      mythic: 'dragon',
+      hitmarker: true,
+    };
     settle(2);
+    // Muzzle flash + tracer toward the aimed bot, added after the last
+    // settle so effects.step never fades them before the paint.
+    const camPos = new THREE.Vector3(); camera.getWorldPosition(camPos);
+    const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir);
+    const right = new THREE.Vector3().crossVectors(camDir, camera.up).normalize();
+    const tip = camPos.clone().addScaledVector(camDir, 0.7).addScaledVector(right, 0.18);
+    tip.y -= 0.12;
+    effects.muzzle(tip, camDir, camPos, 0.6);
+    effects.tracer(tip, new THREE.Vector3(b0.x, 1.4, b0.z), false);
+    S.msgT = 0;
     hud.update(world);
   } else if (name === 'buy') {
     game.startRound();
+    weather.applyWeather('sunset'); S.weatherManual = true;
     S.economy.money = 2400;
     settle(10);
     aimAt(0, 2, -10);
@@ -1903,6 +1958,7 @@ function runShot(name) {
     S.mode = 'tdm';
     S.noFinisher = true;
     game.startRound();
+    weather.applyWeather('sunset'); S.weatherManual = true;
     settle(10);
     aimAt(0, 2.5, -10);
     game.endRound(true, 'TEAM DEATHMATCH — 15 KILLS');
@@ -1933,7 +1989,7 @@ function paintTwiceThenReady() {
     let d = document.getElementById('shotdata');
     if (!d) { d = document.createElement('div'); d.id = 'shotdata'; d.style.display = 'none'; document.body.appendChild(d); }
     d.textContent = url;
-    if (painted === 2) { window.__shotReady = true; frozen = true; return; }
+    if (painted === 2) { applyShotFx(); window.__shotReady = true; frozen = true; return; }
     requestAnimationFrame(paint);
   }
   requestAnimationFrame(paint);

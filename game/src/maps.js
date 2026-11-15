@@ -75,6 +75,8 @@ export const MAP_DEFS = {
       api.addBillboard(-36, -20, Math.PI / 2, 0xf0a830);
       // v22.3/v22.4: bushes, power pole, trash cans, rocks, wood pile.
       api.addBush(-28, 22); api.addBush(28, -22); api.addBush(-34, 8);
+      // Reference-style planter boxes flanking the spawn approach.
+      api.addPlanter(-4.5, 18); api.addPlanter(4.5, 18);
       api.addPowerPole(-36, -14); api.addWoodPile(30, 14);
       api.addTrashCan(-26, -18); api.addTrashCan(26, 18);
       // v27.0 ambient: dog, mechanic, fridge/stove/safe/wardrobe.

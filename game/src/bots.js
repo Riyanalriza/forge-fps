@@ -13,6 +13,7 @@ export function createBots(scene, world, S, rng, deps = {}) {
   const group = new THREE.Group(); scene.add(group);
   const fx = deps.effects || null; // enemy tracers (red lines when bots fire)
   const sfx = deps.audio || null; // distance gunshots + enemy reload clicks
+  const onSpot = deps.onSpot || null; // radio callout when a bot first spots you
 
   function buildBot(i) {
     // Varied look per bot: weapon skin + weapon + operator + outfit + costume
@@ -282,6 +283,7 @@ export function createBots(scene, world, S, rng, deps = {}) {
       // timer — the bot does not shoot until it expires.
       if (seen) {
         if (!b.hasSeen) b.reactT = (DIFFICULTY_DEFS[S.difficulty] || DIFFICULTY_DEFS.normal).reaction;
+        if (b.state !== 'combat' && onSpot) onSpot(b);
         b.hasSeen = true; b.lastSeenX = p.x; b.lastSeenZ = p.z; b.state = 'combat';
       }
       // Bomb planted: nearest alive bots rush to defuse
