@@ -61,7 +61,23 @@ export const MAP_DEFS = {
       api.addContainer(-34, 16, 2.5, 6, 0x2a5a8a);
       api.addContainer(34, -14, 2.5, 6, 0x2a5a8a);
       api.addContainer(14, -20, 6, 2.5, 0x8a2a2a, { stack: true, stackColor: 0x5a7a3a });
-      scatterCrates(api, [[-12, 8], [-11, 8], [12, 6], [0, 14], [-4, -12], [24, 12], [-24, -2], [6, -14], [-27, -10], [27, -10], [-16, 20], [16, 20], [0, -22]]);
+      // Brick gate walls (reference look): two wall stubs flanking the mid
+      // lane, giant painted site letters on their south faces, hazard
+      // barriers framing the gate. Wide gaps at both ends keep every lane
+      // open (bots slide around the ends; stuckT retargets after 2s).
+      api.addBrickWall(-12.5, 6, 7, 1, 3.5);
+      api.addWallLetter(-12.5, 6.56, 0, 'A', 'FURNACE', '#f0a830');
+      api.addBrickWall(12.5, 6, 7, 1, 3.5);
+      api.addWallLetter(12.5, 6.56, 0, 'B', 'CRANE YARD', '#37c8d8');
+      api.addHazardBarrier(-8.5, 6, Math.PI / 2);
+      api.addHazardBarrier(8.5, 6, Math.PI / 2);
+      // Crates, grid-aligned (no overlaps): pairs 1.8m apart, plus a
+      // two-high stack at each site corner.
+      scatterCrates(api, [[-12, 8], [-10.2, 8], [12, 8], [13.8, 8], [0, 14], [-4, -12], [24, 12], [-24, -2], [6, -14], [-16, 20], [16, 20], [0, -22]]);
+      api.addCrate(-27, -10, 1.6, 'FY-7');
+      api.addCrate(-27, -10, 1.6, 'FY-7', 1.16);
+      api.addCrate(27, -10, 1.6, 'FY-7');
+      api.addCrate(27, -10, 1.6, 'FY-7', 1.16);
       scatterBarrels(api, [[-16, 4], [-15, 5], [16, -6], [26, 2], [-30, 2], [8, 18], [-6, 18], [30, -6]]);
       api.addSandbag(-23, -14); api.addSandbag(-21, -14);
       api.addSandbag(23, -14); api.addSandbag(21, -14);

@@ -122,22 +122,6 @@ function concreteTex(rng) {
     }
   }, 16, 12);
 }
-function metalTex(rng) {
-  return canvasTex(256, (g, s) => {
-    g.fillStyle = '#5c6b70'; g.fillRect(0, 0, s, s);
-    speckle(g, s, 500, ['#46545a', '#6e7d83', '#3d484d'], 1, 3, rng);
-    // panel seams + rivets
-    g.strokeStyle = 'rgba(20,24,26,0.7)'; g.lineWidth = 2;
-    for (let y = 0; y <= s; y += 64) { g.beginPath(); g.moveTo(0, y); g.lineTo(s, y); g.stroke(); }
-    g.fillStyle = 'rgba(20,24,26,0.8)';
-    for (let y = 32; y < s; y += 64) for (let x = 16; x < s; x += 32) {
-      g.beginPath(); g.arc(x, y, 3, 0, 7); g.fill();
-    }
-    // rust streaks
-    g.fillStyle = 'rgba(138,74,34,0.35)';
-    for (let i = 0; i < 8; i++) g.fillRect(rng() * s, rng() * s, 3 + rng() * 5, 20 + rng() * 50);
-  }, 2, 2);
-}
 function hazardTex() {
   return canvasTex(128, (g, s) => {
     g.fillStyle = '#f0a830'; g.fillRect(0, 0, s, s);
@@ -227,8 +211,13 @@ export function buildWorld(scene) {
     p.rotation.x = -Math.PI / 2; p.position.set(-36 + (i * 37 % 72), 0.01, -24 + (i * 29 % 48)); scene.add(p);
   }
 
-  // Perimeter walls (h 4) — metal panels
-  const wallTex = metalTex(rng);
+  // ---- Map system: props / waypoints / spawns rebuilt per map ----
+  // Created BEFORE the perimeter walls so the walls can use the shared
+  // brick texture from props (one canvas, reused by every map).
+  const props = createProps(scene, colliders, shootables, doors, levels, stairs);
+
+  // Perimeter walls (h 4) — red brick (shared props texture, one canvas).
+  const wallTex = props.brickTexture();
   const wallM = mat(0xffffff, 0.85, wallTex);
   const mkWall = (w, d, x, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, 4, d), wallM); m.position.y = 2; m.castShadow = true; m.receiveShadow = true; add(m, x, z, w, d, 4); };
   mkWall(W, 1, 0, -28.5); mkWall(W, 1, 0, 28.5); mkWall(1, D, -40.5, 0); mkWall(1, D, 40.5, 0);
@@ -275,7 +264,7 @@ export function buildWorld(scene) {
   const glowM = new THREE.PointLight(0xffa040, 20, 18); glowM.position.set(0, 2, 4); scene.add(glowM);
 
   // ---- Map system: props / waypoints / spawns rebuilt per map ----
-  const props = createProps(scene, colliders, shootables, doors, levels, stairs);
+  // (props created above, before the perimeter walls, for brickTexture)
   const waypoints = [...WAYPOINTS];
   const spawns = { player: { ...SPAWNS.player }, bots: SPAWNS.bots.map(s => ({ ...s })) };
   let mapId = 'foundry';

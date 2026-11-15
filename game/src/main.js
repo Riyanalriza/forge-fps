@@ -156,10 +156,12 @@ const bots = createBots(scene, world, S, rng, {
   // v23.0.5 Tracker: a bot that shoots at you is marked on the minimap.
   onBotShot: (b) => { S.trackMark = { x: b.x, z: b.z, t: 5 }; },
   // Radio callout: first sighting per 10s names the nearest site.
+  // The spotting bot also drops the same call into the team chat feed.
   onSpot: (b) => {
     if (S.time - (S.radioCdT || 0) < 10) return;
     S.radioCdT = S.time;
     hud.showRadio(`Contact at ${nearestSiteName(b.x, b.z)}, rotating`);
+    hud.chatLog(`BOT-${b.id + 1}: contact, ${nearestSiteName(b.x, b.z)}`);
   },
 });
 const economy = createEconomy();
@@ -1867,6 +1869,7 @@ function applyShotFx() {
   if (!shotFx) return;
   if (shotFx.radio) hud.showRadio(shotFx.radio);
   for (const k of shotFx.killfeed || []) hud.killfeed(k, shotFx.mythic);
+  for (const c of shotFx.comms || []) hud.chatLog(c);
   if (shotFx.hitmarker) hud.hitmarker(false, false, 60, 4000);
 }
 
@@ -1930,6 +1933,7 @@ function runShot(name) {
     shotFx = {
       radio: 'Contact at Mid Yard, rotating',
       killfeed: ['YOU — B12 Breacher @ BOT-1 — HIT', '🔥 KILLSTREAK READY: 🛰️ UAV — click it!'],
+      comms: ['BOT-2: go go, executing B'],
       mythic: 'dragon',
       hitmarker: true,
     };

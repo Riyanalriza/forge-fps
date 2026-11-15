@@ -3,7 +3,6 @@
 // calling-card styled killfeed, battle-pass menu rendering.
 import { STREAK_DEFS, MODE_DEFS, OPERATOR_DEFS, MYTHIC_DEFS, EMOTE_DEFS } from './state.js';
 import { MAP_DEFS } from './maps.js';
-import { fxFor } from './weaponfx.js';
 import { xpInTier, missionList } from './battlepass.js';
 
 export function createHud(S) {
@@ -92,21 +91,19 @@ export function createHud(S) {
     } else if (el.reloadBar) el.reloadBar.hidden = true;
     // Stamina bar + movement status + surface (v22.6.4).
     if (el.staminaFill) el.staminaFill.style.width = Math.round(Math.max(0, Math.min(100, S.stamina ?? 100))) + '%';
-    if (el.moveStatus) el.moveStatus.textContent = S.moveStatus || 'DIAM';
-    if (el.surfaceLabel) {
+    // Movement + surface as ONE tidy chip (was two stacked labels).
+    if (el.moveStatus) {
       const surfName = { concrete: 'beton', wood: 'kayu', grass: 'rumput', sand: 'pasir', snow: 'salju', metal: 'besi', water: 'air', mud: 'lumpur', stairs: 'tangga' };
-      el.surfaceLabel.textContent = surfName[S.surface] || S.surface || 'beton';
+      el.moveStatus.textContent = `${S.moveStatus || 'DIAM'} · ${surfName[S.surface] || S.surface || 'beton'}`;
     }
     // Crosshair pulse while firing (v18.1.16) + lock when aiming at a bot (v18.2).
     if (el.crosshair) {
       el.crosshair.classList.toggle('pulse', !!S.crossPulse);
       el.crosshair.classList.toggle('lock', !!S.crossLock);
     }
-    // Weapon FX panel (v22.1.7): active weapon + muzzle + recoil + barrel heat.
-    if (el.weaponFx) {
-      const fx = fxFor(w.id);
-      el.weaponFx.textContent = `🔫 ${w.name} · 🔊 ${fx.sound.pattern} · 💥 muzzle #${fx.muzzle.color.toString(16).padStart(6, '0')} · recoil ${fx.recoil.up}/${fx.recoil.side}${w.barrelHot ? ' · 🌡️ BARREL PANAS!' : ''}`;
-    }
+    // Weapon FX panel removed from the play HUD (debug read-out: sound
+    // pattern, muzzle hex, recoil numbers). Element stays in the DOM.
+    if (el.weaponFx) el.weaponFx.style.display = 'none';
     // Night vision / thermal overlays (v27.0) + rain on lens (v28.0.3).
     if (el.nvOverlay) el.nvOverlay.classList.toggle('on', !!S.nightVision);
     if (el.thermalOverlay) el.thermalOverlay.classList.toggle('on', !!S.thermal);

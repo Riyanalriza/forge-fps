@@ -267,6 +267,102 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
   function mat(color, rough = 0.9, extra = {}) {
     return new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: 0.08, ...extra });
   }
+  // ---- Shared procedural textures (built once per world, reused by every
+  // map — one canvas per texture, never one per prop). All variation comes
+  // from an index hash, NEVER from a random call, so the deterministic
+  // gameplay sequence is untouched.
+  function ptex(size, draw, rx = 1, ry = 1) {
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    draw(c.getContext('2d'), size);
+    const t = new THREE.CanvasTexture(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(rx, ry);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }
+  const _hash = (i) => (((i * 2654435761) >>> 0) % 1000) / 1000;
+  // Red brick wall: running-bond courses, mortar joints, per-brick colour
+  // variation + grime. Tile = 2.5m wide x 4m tall at repeat (32,1) on an
+  // 80m wall, so one brick reads ~0.6m x 0.25m at play distance.
+  let _brickTex = null;
+  function brickTexture() {
+    if (_brickTex) return _brickTex;
+    _brickTex = ptex(256, (g, s) => {
+      g.fillStyle = '#a89a86'; g.fillRect(0, 0, s, s); // mortar
+      const shades = ['#8a3b28', '#96422e', '#7c3323', '#a34a33', '#8f4030', '#74301f', '#5f2a1c'];
+      const bw = 64, bh = 16;
+      for (let row = 0; row < 16; row++) {
+        const off = (row % 2) * (bw / 2);
+        for (let cx = -1; cx < 5; cx++) {
+          const h = _hash(row * 7 + cx * 13 + 3);
+          g.fillStyle = shades[Math.floor(h * shades.length)];
+          g.fillRect(cx * bw + off + 1, row * bh + 1, bw - 2, bh - 2);
+          // per-brick tone: lighter top edge, darker bottom edge
+          g.fillStyle = h < 0.5 ? 'rgba(255,220,190,0.10)' : 'rgba(0,0,0,0.12)';
+          g.fillRect(cx * bw + off + 1, row * bh + 1, bw - 2, 5);
+          g.fillStyle = 'rgba(0,0,0,0.18)';
+          g.fillRect(cx * bw + off + 1, row * bh + bh - 5, bw - 2, 4);
+        }
+      }
+      // grime blotches (index-hash positions only)
+      for (let i = 0; i < 7; i++) {
+        const x = (i * 97 + 31) % 256, y = (i * 57 + 113) % 256, r = 20 + (i * 37) % 40;
+        const gr = g.createRadialGradient(x, y, 0, x, y, r);
+        gr.addColorStop(0, 'rgba(30,20,12,0.28)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+        g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+      }
+    }, 32, 1);
+    return _brickTex;
+  }
+  // Wooden supply crate: horizontal planks + grain + stencilled code.
+  // Two shared variants (FY-4 / FY-7) cover every crate on every map.
+  const _crateTex = {};
+  function crateTexture(code = 'FY-4') {
+    if (_crateTex[code]) return _crateTex[code];
+    const tex = ptex(256, (g, s) => {
+      g.fillStyle = '#8a6f4a'; g.fillRect(0, 0, s, s);
+      for (let p = 0; p < 4; p++) {
+        const y = p * 64;
+        const h = _hash(p * 11 + 5);
+        g.fillStyle = h < 0.5 ? '#93784f' : '#7d6242';
+        g.fillRect(0, y + 2, s, 60);
+        g.strokeStyle = 'rgba(40,26,12,0.8)'; g.lineWidth = 3;
+        g.strokeRect(-2, y + 1, s + 4, 62);
+        // grain lines (index-hash only)
+        g.strokeStyle = 'rgba(60,40,18,0.45)'; g.lineWidth = 1.5;
+        for (let k = 0; k < 3; k++) {
+          const gy = y + 12 + ((p * 7 + k * 23) % 44);
+          g.beginPath(); g.moveTo(0, gy);
+          g.bezierCurveTo(80, gy + 4, 170, gy - 4, s, gy + 2); g.stroke();
+        }
+        // nail dots
+        g.fillStyle = 'rgba(30,20,10,0.7)';
+        g.beginPath(); g.arc(12, y + 32, 3, 0, 7); g.arc(s - 12, y + 32, 3, 0, 7); g.fill();
+      }
+      // frame battens + stencil
+      g.strokeStyle = 'rgba(52,36,16,0.9)'; g.lineWidth = 8;
+      g.strokeRect(6, 6, s - 12, s - 12);
+      g.fillStyle = 'rgba(30,22,10,0.85)'; g.textAlign = 'center';
+      g.font = 'bold 64px Arial'; g.fillText(code, s / 2, s / 2 + 8);
+      g.font = 'bold 26px Arial'; g.fillText('KEEP DRY', s / 2, s / 2 + 52);
+    }, 1, 1);
+    _crateTex[code] = tex;
+    return tex;
+  }
+  // Hazard stripes (yellow/black diagonal) for gate barriers.
+  let _hazardTex = null;
+  function hazardTexture() {
+    if (_hazardTex) return _hazardTex;
+    _hazardTex = ptex(128, (g, s) => {
+      g.fillStyle = '#f0a830'; g.fillRect(0, 0, s, s);
+      g.fillStyle = '#14161a';
+      for (let x = -s; x < s * 2; x += 32) {
+        g.beginPath(); g.moveTo(x, 0); g.lineTo(x + 16, 0); g.lineTo(x + 16 - s, s); g.lineTo(x - s, s); g.fill();
+      }
+    }, 4, 1);
+    return _hazardTex;
+  }
   function box(w, h, d, color, extra = {}) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color, 0.9, extra));
     m.castShadow = true; m.receiveShadow = true;
@@ -351,16 +447,73 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
     }
     return m;
   }
-  function addCrate(x, z, s = 1.6) {
-    const m = box(s, 1.1, s, 0x8a6f4a);
-    m.position.set(x, 0.55, z); group.add(m); shootable(m, 'wood');
-    solid(x - s / 2, z - s / 2, x + s / 2, z + s / 2, 0, 1.1);
+  // Wooden crate with plank + stencil texture (shared FY-4 / FY-7
+  // variants). code: stencil code; y: base height (1.1 = stacked on a crate).
+  function addCrate(x, z, s = 1.6, code = 'FY-4', y = 0) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(s, 1.1, s),
+      mat(0xffffff, 0.9, { map: crateTexture(code) }));
+    m.castShadow = true; m.receiveShadow = true;
+    m.position.set(x, y + 0.55, z); group.add(m); shootable(m, 'wood');
+    solid(x - s / 2, z - s / 2, x + s / 2, z + s / 2, y, y + 1.1);
     // cross planks on top
     for (const a of [0.5, -0.5]) {
       const p = box(s * 1.1, 0.06, 0.18, 0x6b5636);
-      p.position.set(x, 1.12, z); p.rotation.y = a; group.add(p);
+      p.position.set(x, y + 1.12, z); p.rotation.y = a; group.add(p);
     }
     return m;
+  }
+  // Brick wall segment (red brick texture, shared with the perimeter
+  // walls). rot 0 = spans x; rot 90 = spans z. h defaults to 3.5m.
+  function addBrickWall(x, z, w, d, h = 3.5, o = {}) {
+    const rot = o.rot || 0;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d),
+      mat(0xffffff, 0.9, { map: brickTexture() }));
+    m.castShadow = true; m.receiveShadow = true;
+    m.position.set(x, h / 2, z); m.rotation.y = rot;
+    group.add(m); shootable(m, 'wall');
+    const hw = rot ? d / 2 : w / 2, hd = rot ? w / 2 : d / 2;
+    solid(x - hw, z - hd, x + hw, z + hd, 0, h);
+    return m;
+  }
+  // Giant painted site letter on a wall face (like the reference's big "B"):
+  // transparent canvas, bold letter + site name under it, no collider.
+  // rot 0 faces +z (south, toward the player spawn); rot Math.PI faces -z.
+  function addWallLetter(x, z, rot = 0, letter = 'A', sub = 'FURNACE', color = '#f0a830') {
+    const cv = document.createElement('canvas'); cv.width = 256; cv.height = 256;
+    const g = cv.getContext('2d');
+    g.clearRect(0, 0, 256, 256);
+    g.textAlign = 'center';
+    g.font = 'bold 170px Arial';
+    g.lineWidth = 10; g.strokeStyle = 'rgba(20,12,6,0.85)';
+    g.strokeText(letter, 128, 168);
+    g.fillStyle = color; g.fillText(letter, 128, 168);
+    g.font = 'bold 30px Arial';
+    g.lineWidth = 6; g.strokeText(sub, 128, 222);
+    g.fillStyle = '#ffffff'; g.fillText(sub, 128, 222);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 3.2),
+      new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
+    mesh.position.set(x, 2.1, z); mesh.rotation.y = rot; group.add(mesh);
+    mesh.userData.propType = 'wall-letter';
+    return mesh;
+  }
+  // Hazard-striped gate barrier: concrete block + yellow/black stripe band.
+  // rot 0 = spans x; rot 90 = spans z.
+  function addHazardBarrier(x, z, rot = 0) {
+    const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rot; group.add(g);
+    const base = box(2.4, 0.9, 0.5, 0x6a655c); base.position.y = 0.45; g.add(base); shootable(base, 'wall');
+    const band = new THREE.Mesh(new THREE.BoxGeometry(2.42, 0.34, 0.52),
+      mat(0xffffff, 0.7, { map: hazardTexture() }));
+    band.position.y = 0.62; band.castShadow = true; g.add(band);
+    const cap = box(2.4, 0.08, 0.54, 0x3a3f44); cap.position.y = 0.94; g.add(cap);
+    for (const s of [-1, 1]) {
+      const foot = box(0.5, 0.14, 0.7, 0x3a3f44);
+      foot.position.set(s * 0.9, 0.07, 0); g.add(foot);
+    }
+    const hw = rot ? 0.35 : 1.2, hd = rot ? 1.2 : 0.35;
+    solid(x - hw, z - hd, x + hw, z + hd, 0, 1.0);
+    return g;
   }
   function addBarrel(x, z, color = 0x8a4a22) {
     const m = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 1.15, 12), mat(color, 0.7));
@@ -1984,6 +2137,7 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
     addCart, addSuitcase, addDummy, addParkedCar, addMotorParked,
     addAnimal, addNPC, addFridge, addStove, addSafe, addWardrobe,
     addCropPatch, addFruitTree,
+    addBrickWall, addWallLetter, addHazardBarrier, brickTexture,
     propFall, setLightsOut, dropLeaves, recolor, setSeason, setLightColor,
     animateDecor, decorCounts, destructibles, houseRects, pools,
     treeRecs, flowerSpots, ammoBoxes, lifts, mudRects, lootCrates,
