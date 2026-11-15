@@ -1682,6 +1682,19 @@ function step(dt) {
     }
   }
   weapon.step(dt);
+  // Projectiles (gameplay pass 2026-11-15): stepProjectiles was defined
+  // and exported but NEVER called from the game loop — rockets, FHJ
+  // rockets, thumper grenades and crossbow arrows spawned at the muzzle
+  // and then froze in mid-air forever. They now fly on the fixed step,
+  // with the same hit meshes / resolver the hitscan path uses.
+  weapon.stepProjectiles(dt,
+    S.mode === 'zombie' ? bots.hitMeshes().concat(zombies.hitMeshes()) : bots.hitMeshes(),
+    world.shootables, rng, onBotHit,
+    (ud) => ud.zombieId !== undefined ? zombies.zombies.find(z => z.id === ud.zombieId) : S.bots[ud.botId]);
+  // Fall damage (v22.2.4): player.step records S.fallDmg on a hard
+  // landing, but nothing ever read it — falls were free. Apply it here
+  // (game.hurtPlayer respects spawn protection and armor).
+  if (S.fallDmg > 0) { const fd = S.fallDmg; S.fallDmg = 0; game.hurtPlayer(fd); }
   bots.step(dt, onPlayerHit, (target, ally) => hud.killfeed(`🤝 ${ally.name} killed ${target.name}!`));
   if (S.mode === 'zombie') zombies.step(dt, onPlayerHit);
   game.step(dt, input.state.keys);
@@ -1873,7 +1886,7 @@ function runShot(name) {
     // One bot already damaged: land a hit for a visible hitmarker.
     const b0 = S.bots[0];
     bots.damage(b0, 60);
-    hud.hitmarker(false, 4000);
+    hud.hitmarker(false, false, 60, 4000);
     hud.killfeed('YOU ▸ BOT-1 — HIT', 'dragon');
     hud.killfeed('🔥 KILLSTREAK READY: 🛰️ UAV — click it!');
     settle(2);

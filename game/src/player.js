@@ -102,8 +102,16 @@ export function createPlayer(world, S) {
     const frBase = surf === 'sand' ? 3 : surf === 'metal' ? 5 : 9;
     const fr = p.sliding ? Math.exp(-0.8 * dt) : p.onGround ? Math.exp(-frBase * dt) : Math.exp(-0.4 * dt);
     if (ix === 0 && iz === 0) { p.vx *= fr; p.vz *= fr; }
-    const sp = Math.hypot(p.vx, p.vz), max = base * 1.05 * (p.sliding ? 1.2 : 1);
-    if (sp > max && !p.sliding) { p.vx *= max / sp; p.vz *= max / sp; }
+    const sp = Math.hypot(p.vx, p.vz);
+    // Speed cap (gameplay pass 2026-11-15): the old `!p.sliding` exemption
+    // let a slide accelerate without limit while holding W (accel 42/s with
+    // no friction on input) — measured ~14 m/s average, terminal ~26 m/s.
+    // A slide keeps sprint momentum but caps at 12 m/s (~tac-sprint 10.5
+    // + margin). Note the cap must NOT use `base`: while sliding the
+    // player counts as crouched (base 3.0), which would clamp the slide
+    // to 5.7 m/s — slower than running.
+    const max = p.sliding ? 12 : base * 1.05;
+    if (sp > max) { p.vx *= max / sp; p.vz *= max / sp; }
     // Axis-separated movement: try X, then Z — slides along walls instead of
     // sticking on corners. The y passed is the current floor height (stairs /
     // floor 2), so a closed door blocks only below 3m and railings only at
@@ -114,15 +122,19 @@ export function createPlayer(world, S) {
     if (!world.isColliding(p.x, nz, R, p.y)) p.z = nz; else p.vz = 0;
     // Parkour: Space (fresh press) near a low wall (<=1.3m) vaults onto it.
     // Gravity variants (v28.0.4): Moon 0.16 / Mars 0.38 — lower gravity
-    // means a higher jump (capped at 2.5x) and a slower fall.
+    // already raises the jump (same vy, slower fall), so NO extra boost:
+    // the old jumpBoost (1/sqrt(g), capped 2.5x) double-dipped gravity and
+    // launched the player 29m on the Moon (gameplay pass 2026-11-15).
     const gMul = S.gravityMul || 1;
-    const jumpBoost = Math.min(2.5, 1 / Math.sqrt(gMul));
     const spaceEdge = keys.has('Space') && !wasSpace;
     if (spaceEdge && p.onGround && !knocked) {
       const fx = p.x - Math.sin(p.yaw) * 0.7, fz = p.z - Math.cos(p.yaw) * 0.7;
       const ob = world.obstacleAt ? world.obstacleAt(fx, fz, p.y) : null;
-      if (ob && ob.h <= 1.3) { p.vy = 6.5 * jumpBoost; p.onGround = false; p.vaultT = 0.5; p._jumped = true; }
-      else { p.vy = 5.2 * jumpBoost; p.onGround = false; p._jumped = true; }
+      if (ob && ob.h <= 1.3) { p.vy = 6.5; p.onGround = false; p.vaultT = 0.5; p._jumped = true; }
+      else { p.vy = 5.2; p.onGround = false; p._jumped = true; }
+      // Fall tracking starts at the takeoff height, so a later teleport
+      // can never poison the next landing's drop (gameplay pass).
+      p._fallTop = p.y;
     }
     p.vy -= 14 * gMul * dt;
     // Parachute (v20.0.1): fall capped at −3.5 m/s while parachuting.
@@ -137,7 +149,9 @@ export function createPlayer(world, S) {
     if (p.y <= gy) {
       if (wasAir && p._fallTop != null) {
         const drop = p._fallTop - gy;
-        if (drop > 5) { S.fallDmg = 2 * (drop - 5); S.fallDrop = drop; }
+        // Parachute landings are soft (descent capped at -3.5 m/s) — no
+        // fall damage, however high the drop started (gameplay pass).
+        if (drop > 5 && !S.parachuting) { S.fallDmg = 2 * (drop - 5); S.fallDrop = drop; }
         else if (drop > 1) S.landedSoft = true;
         if (p.diving) { S.diveLanded = true; p.diving = false; }
         if (S.parachuting) { S.parachuting = false; S.msg = '🪂 Mendarat! Looting!'; S.msgT = 2; }
@@ -172,7 +186,9 @@ export function createPlayer(world, S) {
     p.speed = Math.hypot(p.vx, p.vz);
     p.moving = p.speed > 0.6;
     // Recoil recovery: the camera kick decays back on its own.
-    if (p.recoilPitch > 0) p.recoilPitch = Math.max(0, p.recoilPitch - dt * 0.09);
+    // (Gameplay pass 2026-11-15: 0.09/s cancelled the old kick every shot;
+    // 0.08/s lets a burst climb ~3-5° and settle in under a second.)
+    if (p.recoilPitch > 0) p.recoilPitch = Math.max(0, p.recoilPitch - dt * 0.08);
     // Spread bloom: fast reset after 0.5s without firing.
     const bloomDecay = (S.time - (p.lastShotT || -99) > 0.5) ? 0.3 : 0.05;
     p.spreadBloom = Math.max(0, p.spreadBloom - dt * bloomDecay);

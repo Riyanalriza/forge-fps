@@ -51,7 +51,7 @@ export function createHud(S) {
     dashBtn: $('dash-btn'), scopeBtn: $('scope-btn'), reloadBtn: $('reload-btn'),
   };
   const mm = el.minimap.getContext('2d');
-  let hitT = null;
+  let hitT = null, dmgT = null;
   // Emote wheel selection state (mouse-vector based, works with pointer lock)
   const wheelVec = { x: 0, y: 0 };
   let wheelSel = 0;
@@ -278,8 +278,12 @@ export function createHud(S) {
       el.dmgNum.textContent = (head ? 'HEADSHOT ' : '') + Math.round(dmg) + (kill ? ' 💀' : '');
       el.dmgNum.className = 'show' + (head ? ' head' : '') + (kill ? ' kill' : '');
       el.dmgNum.style.left = `calc(50% + ${(Math.random() * 30 - 15).toFixed(0)}px)`;
-      clearTimeout(hitT._dmg);
-      hitT._dmg = setTimeout(() => { el.dmgNum.className = ''; }, 700);
+      // BUGFIX (gameplay pass): hitT is a numeric setTimeout id — writing
+      // hitT._dmg on it throws in strict mode on EVERY player hit, aborting
+      // onBotHit before game.onKill (kills never counted, no killstreaks).
+      // The damage-number timer gets its own variable.
+      clearTimeout(dmgT);
+      dmgT = setTimeout(() => { el.dmgNum.className = ''; }, 700);
     }
   }
   function vignette() { el.vignette.classList.add('on'); setTimeout(() => el.vignette.classList.remove('on'), 220); }

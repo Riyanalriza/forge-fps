@@ -72,8 +72,42 @@ export function createEffects(scene, S, audio) {
   }
   let shIdx = 0;
   // ---- Muzzle flash: bright plane + 3D point light + growing smoke puff ----
+  // (Gameplay pass 2026-11-15: the flash was a flat solid-yellow square
+  // (plain MeshBasicMaterial, no texture). It now uses a procedural
+  // starburst texture — white-hot core, orange spikes, transparent
+  // edges — so it reads as a flame burst, not a yellow card.)
+  function makeFlashTexture() {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const g = c.getContext('2d');
+    const cx = 64, cy = 64;
+    // Spikes: 6 elongated flame tongues radiating from the centre.
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 + (i % 2 ? 0.35 : -0.2);
+      const len = 58 - (i % 3) * 10;
+      const wdt = 0.16 + (i % 2) * 0.06;
+      g.save(); g.translate(cx, cy); g.rotate(a);
+      const grad = g.createLinearGradient(0, 0, len, 0);
+      grad.addColorStop(0, 'rgba(255,240,180,0.95)');
+      grad.addColorStop(0.5, 'rgba(255,180,60,0.8)');
+      grad.addColorStop(1, 'rgba(255,120,20,0)');
+      g.fillStyle = grad;
+      g.beginPath(); g.moveTo(0, 0);
+      g.lineTo(len, -Math.sin(wdt) * len * 0.5);
+      g.lineTo(len, Math.sin(wdt) * len * 0.5);
+      g.closePath(); g.fill(); g.restore();
+    }
+    // Hot core: white centre fading to yellow, then transparent.
+    const core = g.createRadialGradient(cx, cy, 0, cx, cy, 42);
+    core.addColorStop(0, 'rgba(255,255,240,1)');
+    core.addColorStop(0.35, 'rgba(255,220,120,0.9)');
+    core.addColorStop(0.7, 'rgba(255,150,40,0.45)');
+    core.addColorStop(1, 'rgba(255,120,20,0)');
+    g.fillStyle = core; g.beginPath(); g.arc(cx, cy, 42, 0, Math.PI * 2); g.fill();
+    const tex = new THREE.CanvasTexture(c);
+    return tex;
+  }
   const flash = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.34),
-    new THREE.MeshBasicMaterial({ color: 0xffcc44, transparent: true, opacity: 0, depthWrite: false }));
+    new THREE.MeshBasicMaterial({ map: makeFlashTexture(), color: 0xffffff, transparent: true, opacity: 0, depthWrite: false }));
   flash.visible = false; scene.add(flash);
   const flashLight = new THREE.PointLight(0xffaa33, 0, 6);
   scene.add(flashLight);

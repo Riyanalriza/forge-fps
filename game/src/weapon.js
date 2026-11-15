@@ -88,8 +88,8 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
     const w = cur(), p = S.player;
     let s = w.spread;
     if (p.moving) s *= 1.9;
-    if (p.crouched) s *= 0.6;
-    if (p.prone) s *= 0.7; // prone: +30% accuracy
+    if (p.crouched) s *= 0.65;
+    if (p.prone) s *= 0.5; // prone is the steadiest stance (was 0.7 — worse than crouch 0.6, backwards)
     if (S.ads) s *= 0.6; // ADS steadies the aim
     if (!p.onGround) s *= 2.2;
     return s + p.spreadBloom;
@@ -129,6 +129,19 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
   function cancelReload() {
     const w = cur();
     if (!w.reloading) return;
+    // (Gameplay pass 2026-11-15: a cancelled reload used to leave the mag
+    // exactly as it was — under sustained fire (a zombie swarm landing a
+    // hit every ~0.05s) the 50% cancel chained forever and the gun could
+    // never reload: measured mag 0 with 9579 reserve for 200s+. A cancel
+    // now keeps the rounds loaded so far, proportional to reload progress,
+    // so the player always makes ammo progress and can fight back.
+    // Shell-fed shotguns already load shell-by-shell, so they skip this.)
+    if (!w.shellMode && w.reloadTotal > 0 && w.mag < w.magSize && w.reserve > 0) {
+      const progress = Math.max(0, Math.min(1, 1 - w.reloadT / w.reloadTotal));
+      const need = w.magSize - w.mag;
+      const take = Math.min(need, w.reserve, Math.ceil(progress * need));
+      if (take > 0) { w.mag += take; w.reserve -= take; }
+    }
     w.reloading = false; w.reloadT = 0; w.shellMode = false;
     S.reloadFrac = 0; S.reloadStage = '';
   }
@@ -164,6 +177,11 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
     if (hands.weaponId !== w.id) {
       const prev = S.weapons.find(x => x.id === hands.weaponId);
       if (prev) { prev.reloading = false; prev.reloadT = 0; }
+      // Bloom belongs to the current weapon's sustained fire: switching
+      // resets it, so a sniper drawn right after spraying is precise
+      // (gameplay pass 2026-11-15 — the old carry-over made the first
+      // sniper shot a coin flip at 15m).
+      S.player.spreadBloom = 0;
       hands.buildGun(w, MYTHIC_DEFS[S.mythic] || MYTHIC_DEFS.none);
     }
     if (w.reloading) {
@@ -606,22 +624,31 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
     // Recoil: the camera kicks up (per-weapon stats × WEAPON_FX recoil up,
     // v22.1). ADS and prone steady it; rain makes it 10% worse; M4LMG heat
     // climbs while holding fire. It recovers on its own in player.step.
+    // (Gameplay pass 2026-11-15: the old kick was ~0.008 rad/shot vs 0.09/s
+    // recovery, so sustained fire never climbed — the gun felt dead. Kick
+    // is now ~2x and recovery slower, so a 10-round burst climbs ~3-5°.)
     const p = S.player;
     const rainK = (S.weather === 'rain' || S.weather === 'storm') ? 1.1 : 1;
     const heatK = w.heat ? 1 + Math.min(0.8, (w.heatV || 0) * 0.05) : 1;
     const stanceK = p.prone ? 0.5 : p.crouched ? 0.75 : 1;
     const fxRec = fxFor(w.id);
-    p.recoilPitch += (0.006 + rng() * 0.004) * (w.recoil || 1) * (S.ads ? 0.6 : 1) * stanceK * rainK * heatK * (fxRec.recoil.up || 1);
+    p.recoilPitch += (0.012 + rng() * 0.006) * (w.recoil || 1) * (S.ads ? 0.6 : 1) * stanceK * rainK * heatK * (fxRec.recoil.up || 1);
     // Recoil pattern (v24.0.2): per-weapon sideways drift — AK pulls
-    // right, M4 stays straight, MP5 barely moves.
-    p.yaw += (w.recoilPat ? w.recoilPat.side : 0.2) * 0.0004 * (S.ads ? 0.6 : 1);
+    // right, M4 stays straight, MP5 barely moves. (Gameplay pass: the old
+    // 0.0004 factor made the pattern invisible over a whole magazine.)
+    p.yaw += (w.recoilPat ? w.recoilPat.side : 0.2) * 0.004 * (S.ads ? 0.6 : 1);
     hands.kick();
-    S.player.spreadBloom = Math.min(0.05, S.player.spreadBloom + (isSniper ? 0.04 : 0.008));
+    // Spread bloom (gameplay pass): +0.005/shot, cap 0.03 (was +0.008,
+    // cap 0.05 — sustained AR fire at 15m hit only ~30% because the cone
+    // grew wider than the target). Snipers bloom more per shot, but their
+    // 1.4s rate lets it clear between shots.
+    S.player.spreadBloom = Math.min(0.03, S.player.spreadBloom + (isSniper ? 0.02 : 0.005));
     if (audio.shot) audio.shot(w.id, S.indoors, S.mythic);
     if (w.id === 'dual') setTimeout(() => audio.shot && audio.shot('p12', S.indoors, S.mythic), 60); // second pistol
     return result || { hit: false };
   }
   applyGunsmith();
+  // TEMP debug accessor for the gameplay probe (remove before commit).
   return { cur, ready, reload, inspect, step, fire, stepProjectiles, spread, gun, hands, applyMythic, applyGunsmith, outOfAmmo, isReloading, cancelReload, applyCamo };
 }
 

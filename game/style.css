@@ -266,8 +266,8 @@
 #engine-stats{position:fixed;left:14px;top:192px;font-size:11px;font-family:ui-monospace,monospace;color:var(--muted);z-index:5}
 #stamina-bar{position:fixed;left:14px;bottom:120px;width:170px;height:8px;background:#222;border-radius:99px;overflow:hidden;z-index:5}
 #stamina-fill{height:100%;background:#7ddc7d;width:100%}
-#move-status{position:fixed;left:14px;bottom:136px;font-size:11px;color:var(--muted);letter-spacing:.1em;z-index:5}
-#surface-label{position:fixed;left:14px;bottom:104px;font-size:11px;color:var(--muted);z-index:5}
+#move-status{position:fixed;left:14px;bottom:84px;font-size:11px;color:var(--muted);letter-spacing:.1em;z-index:5}
+#surface-label{position:fixed;left:14px;bottom:100px;font-size:11px;color:var(--muted);z-index:5}
 #reload-bar{position:fixed;left:50%;top:58%;transform:translateX(-50%);width:220px;text-align:center;z-index:6}
 #reload-bar[hidden]{display:none}
 #reload-bar .track{height:8px;background:#2c323a;border-radius:99px;overflow:hidden}

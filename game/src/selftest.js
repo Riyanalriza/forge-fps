@@ -151,7 +151,7 @@ export function runSelfTest(ctx) {
     // enemy indicator, first-person hands, walk/idle/death animation.
     check('5 bot skins defined', BOT_SKINS.length === 5);
     check('4 bot weapons defined', BOT_WEAPONS.length === 4);
-    const model = createBotModel('gold', 'dlq33', 'BOT-1');
+    const model = createBotModel('gold', 'kb50', 'BOT-1');
     check('Bot model has legs + arms + head + gun',
       !!(model.parts.legL && model.parts.legR && model.parts.armL && model.parts.armR && model.parts.head && model.parts.gun));
     check('Bot model has name sprite + indicator', !!(model.parts.nameSprite && model.parts.indicator));
@@ -300,7 +300,7 @@ export function runSelfTest(ctx) {
     check('Explosion spawns particles', effects.debugCounts().particles > 0);
     // 27. v17.2 per-map weather params: 7 maps, each with fog/sun/ambient.
     check('MAP_WEATHER_FULL has 7 maps', Object.keys(MAP_WEATHER_FULL).length === 7);
-    check('MAP_WEATHER_FULL ember is sand + fog 15m', MAP_WEATHER_FULL.ember.weather === 'sand' && MAP_WEATHER_FULL.ember.fog[1] === 15);
+    check('MAP_WEATHER_FULL ember is sand + fog 30m', MAP_WEATHER_FULL.ember.weather === 'sand' && MAP_WEATHER_FULL.ember.fog[1] === 30);
     // 28. v17.1 decor counts: Twin Court has props on the map.
     world.buildMap('twin');
     check('Decor counts non-zero', world.decorCounts().total > 20);

@@ -123,7 +123,7 @@ export const MAP_DEFS = {
       api.addCarpet(-10, 0, 3, 2, 0x8a2a2a); api.addCarpet(10, 0, 3, 2, 0x2a5a8a);
       api.addTableSet(-6, 14, 0); api.addTableSet(6, -14, 0);
       api.addCactus(-24, -18); api.addCactus(24, 18); api.addCactus(-36, -8);
-      api.addStatue(0, 20);
+      api.addStatue(0, 0); // market centrepiece — clear of the (0,24) spawn lane and waypoint (0,20)
       api.addFlag(-30, 22, 0xffcc00); api.addFlag(30, 22, 0x2a5a8a);
       // v18.9 market ambience: campfire, neon sign, oil puddle, cable spark.
       api.addCampfire(-20, -16);
@@ -257,6 +257,10 @@ export const MAP_DEFS = {
       let ci = 0;
       for (const rz of [-18, -6, 6, 18]) {
         for (const rx of [-28, -14, 0, 14, 28]) {
+          // (Gameplay pass 2026-11-15: leave a gap at (0,18) — the container
+          // there sat 6m in front of the (0,24) spawn and walled off the
+          // whole spawn view. The gap opens a central lane into the yard.)
+          if (rx === 0 && rz === 18) { ci++; continue; }
           const rot = (ci % 2 === 0) ? 0 : Math.PI / 2;
           const stack = ci % 5 === 0;
           if (rot === 0) api.addContainer(rx, rz, 6, 2.5, cols[ci % 4], { stack, stackColor: cols[(ci + 1) % 4] });
@@ -323,7 +327,7 @@ export const MAP_DEFS = {
       api.addTree(-20, 22); api.addTree(20, 22); api.addTree(-36, -22); api.addTree(36, -22);
       api.addTower(34, -22, 14);
       api.addCar(10, 18, 0, 0x3a5a2a);
-      api.addCar(0, 22, 0, 0x8a8a2a);
+      api.addCar(-12, 18, 0, 0x8a8a2a); // was (0,22): sat 2m in front of the (0,24) spawn and walled off the view
       scatterCrates(api, [[-12, 8], [12, 6], [0, 14], [-4, -12], [24, 12], [-24, -2]]);
       scatterBarrels(api, [[-16, 4], [16, -6], [26, 2], [-30, 2], [8, 18], [-6, 18]]);
       // v17.1 garden details: pool, swing, mailboxes, TV.
@@ -373,7 +377,8 @@ export const MAP_DEFS = {
       api.addContainer(20, -10, 2.5, 6, 0x4a4a4a);
       api.addContainer(-34, 20, 6, 2.5, 0x2e2e2e);
       api.addContainer(34, -20, 6, 2.5, 0x3a3a3a);
-      api.addContainer(0, 18, 6, 2.5, 0x4a4a4a);
+      // (Gameplay pass 2026-11-15: no container at (0,18) — it sat 6m in
+      // front of the (0,24) spawn and walled off the view, same as cargo.)
       scatterCrates(api, [[-12, 8], [12, 6], [0, 14], [-4, -12], [24, 12], [-24, -2]]);
       scatterBarrels(api, [[-16, 4], [16, -6], [26, 2], [-30, 2], [8, 18], [-6, 18]]);
       api.addSandbag(-23, -14); api.addSandbag(23, -14);

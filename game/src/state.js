@@ -8,29 +8,29 @@
 export const WEAPONS_DB = [
   { id: 'vk9', name: 'VK-9 Jackal', cls: 'AR', price: 0, magSize: 30, dmg: 34, headMult: 4, rate: 0.11, reload: 2.1, spread: 0.011, zoom: 1.15, auto: true, recoil: 1.0, range: 45, pellets: 1, projectile: null, blastR: 0, haptic: 25, sound: 'vk9' },
   { id: 'm4', name: 'M4 Carbine', cls: 'AR', price: 1400, magSize: 30, dmg: 28, headMult: 4, rate: 0.09, reload: 1.9, spread: 0.009, zoom: 1.2, auto: true, recoil: 0.85, range: 42, pellets: 1, projectile: null, blastR: 0, haptic: 40, sound: 'm4' },
-  { id: 'ak117', name: 'AK-117', cls: 'AR', price: 1800, magSize: 30, dmg: 30, headMult: 4, rate: 0.095, reload: 2.0, spread: 0.010, zoom: 1.2, auto: true, recoil: 0.95, range: 44, pellets: 1, projectile: null, blastR: 0, haptic: 40, sound: 'ak117' },
+  { id: 'ak117', name: 'AX-117 Wolverine', cls: 'AR', price: 1800, magSize: 30, dmg: 30, headMult: 4, rate: 0.095, reload: 2.0, spread: 0.010, zoom: 1.2, auto: true, recoil: 0.95, range: 44, pellets: 1, projectile: null, blastR: 0, haptic: 40, sound: 'ak117' },
   { id: 'lr50', name: 'LR-50 Longbow', cls: 'Sniper', price: 2700, magSize: 5, dmg: 110, headMult: 4, rate: 1.4, reload: 3.0, spread: 0.0015, zoom: 3.2, auto: false, recoil: 2.2, range: 120, pellets: 1, projectile: null, blastR: 0, haptic: 100, sound: 'lr50' },
-  { id: 'qq9', name: 'QQ9', cls: 'SMG', price: 1600, magSize: 40, dmg: 24, headMult: 4, rate: 0.07, reload: 1.7, spread: 0.016, zoom: 1.1, auto: true, recoil: 0.7, range: 28, pellets: 1, projectile: null, blastR: 0, haptic: 25, sound: 'qq9' },
+  { id: 'qq9', name: 'VX-9 Hornet', cls: 'SMG', price: 1600, magSize: 40, dmg: 24, headMult: 4, rate: 0.07, reload: 1.7, spread: 0.016, zoom: 1.1, auto: true, recoil: 0.7, range: 28, pellets: 1, projectile: null, blastR: 0, haptic: 25, sound: 'qq9' },
   { id: 'rpd', name: 'RPD', cls: 'LMG', price: 2200, magSize: 75, dmg: 32, headMult: 4, rate: 0.13, reload: 3.4, spread: 0.014, zoom: 1.15, auto: true, recoil: 1.3, range: 55, pellets: 1, projectile: null, blastR: 0, haptic: 60, sound: 'rpd' },
   { id: 'p12', name: 'P-12 Sidewinder', cls: 'Pistol', price: 500, magSize: 7, dmg: 45, headMult: 2, rate: 0.32, reload: 1.6, spread: 0.008, zoom: 1.1, auto: false, recoil: 1.1, range: 25, pellets: 1, projectile: null, blastR: 0, haptic: 20, sound: 'p12' },
   // --- v18.5: shotguns (8 pellets per shot, close range = one-shot kill) ---
-  { id: 'by15', name: 'BY15', cls: 'Shotgun', price: 1900, magSize: 5, dmg: 12, headMult: 2, rate: 0.9, reload: 2.5, spread: 0.05, zoom: 1.1, auto: false, recoil: 2.0, range: 18, pellets: 8, projectile: null, blastR: 0, haptic: 80, sound: 'shotgun' },
-  { id: 'krm', name: 'KRM-262', cls: 'Shotgun', price: 2100, magSize: 6, dmg: 11, headMult: 2, rate: 0.85, reload: 2.5, spread: 0.045, zoom: 1.1, auto: false, recoil: 1.9, range: 20, pellets: 8, projectile: null, blastR: 0, haptic: 80, sound: 'shotgun' },
+  { id: 'by15', name: 'B12 Breacher', cls: 'Shotgun', price: 1900, magSize: 5, dmg: 12, headMult: 2, rate: 0.9, reload: 2.5, spread: 0.05, zoom: 1.1, auto: false, recoil: 2.0, range: 18, pellets: 8, projectile: null, blastR: 0, haptic: 80, sound: 'shotgun' },
+  { id: 'krm', name: 'SG-12 Marauder', cls: 'Shotgun', price: 2100, magSize: 6, dmg: 11, headMult: 2, rate: 0.85, reload: 2.5, spread: 0.045, zoom: 1.1, auto: false, recoil: 1.9, range: 20, pellets: 8, projectile: null, blastR: 0, haptic: 80, sound: 'shotgun' },
   // --- v18.5: DMR / marksman (semi-auto, 2x scope, headshot 100-110) ---
-  { id: 'kilo', name: 'Kilo Bolt', cls: 'DMR', price: 2400, magSize: 10, dmg: 50, headMult: 2, rate: 0.5, reload: 2.2, spread: 0.004, zoom: 2.0, auto: false, recoil: 1.4, range: 70, pellets: 1, projectile: null, blastR: 0, haptic: 40, sound: 'dmr' },
+  { id: 'kilo', name: 'KB-50 Longshot', cls: 'DMR', price: 2400, magSize: 10, dmg: 50, headMult: 2, rate: 0.5, reload: 2.2, spread: 0.004, zoom: 2.0, auto: false, recoil: 1.4, range: 70, pellets: 1, projectile: null, blastR: 0, haptic: 40, sound: 'dmr' },
   { id: 'sks', name: 'SKS', cls: 'DMR', price: 2300, magSize: 10, dmg: 55, headMult: 2, rate: 0.45, reload: 2.2, spread: 0.005, zoom: 2.0, auto: false, recoil: 1.5, range: 65, pellets: 1, projectile: null, blastR: 0, haptic: 40, sound: 'dmr' },
   // --- v18.5: launchers (projectile + area blast) ---
   { id: 'rpg', name: 'RPG-7', cls: 'Launcher', price: 3000, magSize: 1, dmg: 150, headMult: 1, rate: 1.0, reload: 3.0, spread: 0.002, zoom: 1.1, auto: false, recoil: 2.5, range: 60, pellets: 1, projectile: 'rocket', blastR: 5, haptic: 120, sound: 'launcher' },
-  { id: 'fhj', name: 'FHJ-18', cls: 'Launcher', price: 3200, magSize: 2, dmg: 130, headMult: 1, rate: 1.2, reload: 3.0, spread: 0.002, zoom: 1.1, auto: false, recoil: 2.4, range: 60, pellets: 1, projectile: 'fhj', blastR: 4, haptic: 120, sound: 'launcher' },
-  { id: 'thumper', name: 'Thumper', cls: 'Launcher', price: 2600, magSize: 1, dmg: 120, headMult: 1, rate: 1.0, reload: 2.8, spread: 0.002, zoom: 1.1, auto: false, recoil: 2.2, range: 45, pellets: 1, projectile: 'thumper', blastR: 3, haptic: 100, sound: 'launcher' },
+  { id: 'fhj', name: 'AP-18 Prowler', cls: 'Launcher', price: 3200, magSize: 2, dmg: 130, headMult: 1, rate: 1.2, reload: 3.0, spread: 0.002, zoom: 1.1, auto: false, recoil: 2.4, range: 60, pellets: 1, projectile: 'fhj', blastR: 4, haptic: 120, sound: 'launcher' },
+  { id: 'thumper', name: 'TH-40 Lobber', cls: 'Launcher', price: 2600, magSize: 1, dmg: 120, headMult: 1, rate: 1.0, reload: 2.8, spread: 0.002, zoom: 1.1, auto: false, recoil: 2.2, range: 45, pellets: 1, projectile: 'thumper', blastR: 3, haptic: 100, sound: 'launcher' },
   // --- v18.5: pistols / melee / crossbow / SMG / LMG / sniper ---
   { id: 'dual', name: 'Dual Pistol', cls: 'Pistol', price: 1500, magSize: 24, dmg: 22, headMult: 2, rate: 0.18, reload: 2.0, spread: 0.012, zoom: 1.1, auto: false, recoil: 0.9, range: 22, pellets: 2, projectile: null, blastR: 0, haptic: 20, sound: 'p12' },
   { id: 'katana', name: 'Katana', cls: 'Melee', price: 1200, magSize: 1, dmg: 75, headMult: 1, rate: 0.6, reload: 0, spread: 0, zoom: 1.0, auto: false, recoil: 0, range: 2.5, pellets: 1, projectile: null, blastR: 0, haptic: 30, sound: 'melee', melee: true },
   { id: 'crossbow', name: 'Crossbow', cls: 'Crossbow', price: 2500, magSize: 1, dmg: 70, headMult: 3, rate: 1.2, reload: 2.0, spread: 0.001, zoom: 1.5, auto: false, recoil: 0.5, range: 80, pellets: 1, projectile: 'arrow', blastR: 0, haptic: 20, sound: 'crossbow' },
   { id: 'mp5', name: 'MP5', cls: 'SMG', price: 1700, magSize: 40, dmg: 22, headMult: 4, rate: 0.08, reload: 1.8, spread: 0.014, zoom: 1.1, auto: true, recoil: 0.6, range: 26, pellets: 1, projectile: null, blastR: 0, haptic: 25, sound: 'qq9' },
-  { id: 'pdw', name: 'PDW-57', cls: 'SMG', price: 1800, magSize: 50, dmg: 21, headMult: 4, rate: 0.09, reload: 1.9, spread: 0.015, zoom: 1.1, auto: true, recoil: 0.65, range: 24, pellets: 1, projectile: null, blastR: 0, haptic: 25, sound: 'qq9' },
+  { id: 'pdw', name: 'PW-9 Wasp', cls: 'SMG', price: 1800, magSize: 50, dmg: 21, headMult: 4, rate: 0.09, reload: 1.9, spread: 0.015, zoom: 1.1, auto: true, recoil: 0.65, range: 24, pellets: 1, projectile: null, blastR: 0, haptic: 25, sound: 'qq9' },
   { id: 'm4lmg', name: 'M4LMG', cls: 'LMG', price: 2400, magSize: 75, dmg: 30, headMult: 4, rate: 0.12, reload: 3.8, spread: 0.013, zoom: 1.15, auto: true, recoil: 1.2, range: 55, pellets: 1, projectile: null, blastR: 0, haptic: 60, sound: 'rpd', heat: true },
-  { id: 'arctic', name: 'Arctic .50', cls: 'Sniper', price: 3000, magSize: 5, dmg: 100, headMult: 1.8, rate: 1.5, reload: 3.2, spread: 0.001, zoom: 3.2, auto: false, recoil: 2.4, range: 130, pellets: 1, projectile: null, blastR: 0, haptic: 100, sound: 'lr50' },
+  { id: 'arctic', name: 'GL-50 Frostbite', cls: 'Sniper', price: 3000, magSize: 5, dmg: 100, headMult: 1.8, rate: 1.5, reload: 3.2, spread: 0.001, zoom: 3.2, auto: false, recoil: 2.4, range: 130, pellets: 1, projectile: null, blastR: 0, haptic: 100, sound: 'lr50' },
 ];
 // Back-compat alias: older modules import WEAPONS.
 export const WEAPONS = WEAPONS_DB;
@@ -69,7 +69,7 @@ export function calcHitboxDamage(dmg, part) {
 export const DEFAULT_OWNED = WEAPONS_DB.map(w => w.id === 'vk9' || w.id === 'p12');
 
 export const PERK_DEFS = [
-  { id: 'ghost', name: 'Ghost', icon: '👻', desc: 'Bots spot you at half range' },
+  { id: 'ghost', name: 'Phantom', icon: '👻', desc: 'Bots spot you at half range' },
   { id: 'lightweight', name: 'Lightweight', icon: '⚡', desc: '+15% move speed' },
   { id: 'hardline', name: 'Hardline', icon: '🎯', desc: 'Killstreaks need 1 fewer kill' },
   { id: 'quickfix', name: 'Quick Fix', icon: '💚', desc: 'Health regen 2x faster' },
@@ -128,13 +128,13 @@ export const MODE_DEFS = {
   br: { name: 'Battle Royale Mini', desc: 'The zone shrinks. Stay inside it and be the last one standing.', timer: 180, target: 5 },
   zombie: { name: 'Zombie Mode', desc: 'Waves 1-20 of zombies. Boss every 5 waves. Survive them all.', timer: 9999, target: 20 },
   hardpoint: { name: 'Hardpoint', desc: 'Hold the center point — 1 point per second inside it. First to 50 wins.', timer: 300, target: 50 },
-  gungame: { name: 'Gun Game', desc: 'Each kill upgrades your weapon: Pistol → MP5 → AK-47 → BY15 → DL Q33 → RPG-7 → Knife. First to finish the ladder wins.', timer: 300, target: 7 },
+  gungame: { name: 'Gun Game', desc: 'Each kill upgrades your weapon: Pistol → MP5 → AX-117 → B12 → LR-50 → RPG-7 → Knife. First to finish the ladder wins.', timer: 300, target: 7 },
   prophunt: { name: 'Prop Hunt', desc: 'You are a prop (box or chair). Hide for 20 seconds while the bot hunters search.', timer: 20, target: 1 },
   control: { name: 'Control', desc: 'Capture points A and B. Win when both are yours.', timer: 300, target: 2 },
   // v23.0.1: three new modes.
   killconfirmed: { name: 'Kill Confirmed', desc: 'Bots drop dog tags when they die. Collect tags — first to 20 wins.', timer: 300, target: 20 },
   ffa: { name: 'Free-For-All', desc: 'Everyone against everyone. First to 20 kills wins.', timer: 300, target: 20 },
-  sniperonly: { name: 'Sniper Only', desc: 'Only DL Q33 and Arctic .50. One shot, one lesson.', timer: 300, target: 15 },
+  sniperonly: { name: 'Sniper Only', desc: 'Only KB-50 and GL-50 Frostbite. One shot, one lesson.', timer: 300, target: 15 },
 };
 
 // Bot difficulty (v25.0.5): reaction time + aim error + damage scale.

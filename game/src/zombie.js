@@ -2,6 +2,7 @@
 // Boss every 5 waves. +50 coins per kill. Next wave 5s after the last one falls.
 // Local single-player only — the zombies are NOT the regular bots.
 import * as THREE from 'three';
+import { losClear } from './world.js';
 
 function hpSprite(name) {
   const canvas = document.createElement('canvas');
@@ -228,6 +229,30 @@ export function createZombies(scene, world, S, rng) {
         if (!world.isColliding(z.x, z.z + mz, 0.4, 0)) z.z += mz;
         // Shamble: arms sway, body bobs.
         z.mesh.group.position.y = Math.abs(Math.sin(S.time * 5 + z.id)) * 0.06;
+        // Unstuck (gameplay pass 2026-11-15): axis-separated movement has
+        // no lateral component when the player is directly behind a wall
+        // (dx ~ 0), so a zombie can push into the same wall forever and
+        // the wave soft-locks — measured 2 zombies stuck 220s at (0,-7.4)
+        // with no line of sight. If it makes <0.3m progress in 5s, move
+        // it to an open spot 12m from the player with line of sight.
+        if (z._lx === undefined) { z._lx = z.x; z._lz = z.z; z._lt = S.time; z._stuckT = 0; }
+        if (S.time - z._lt >= 1) {
+          const moved = Math.hypot(z.x - z._lx, z.z - z._lz);
+          z._stuckT = moved < 0.3 ? z._stuckT + 1 : 0;
+          z._lx = z.x; z._lz = z.z; z._lt = S.time;
+          if (z._stuckT >= 5) {
+            z._stuckT = 0;
+            let placed = false;
+            for (let a = 0; a < 8 && !placed; a++) {
+              const ang = (a / 8) * Math.PI * 2 + (z.id % 8) * 0.4;
+              const nx = p.x + Math.cos(ang) * 12, nz = p.z + Math.sin(ang) * 12;
+              if (world.isColliding(nx, nz, 0.4, 0)) continue;
+              if (!losClear(p.x, p.z, nx, nz, world.colliders)) continue;
+              z.x = nx; z.z = nz; z._lx = nx; z._lz = nz; placed = true;
+            }
+            if (!placed) { const sp = spawnAtEdge(); z.x = sp.x; z.z = sp.z; z._lx = sp.x; z._lz = sp.z; }
+          }
+        }
       }
     }
     syncMeshes();

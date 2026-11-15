@@ -126,7 +126,7 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
   const fx = cbs.effects || null; // combat effects (explosions, tracers)
   // Dropped weapons (v18.5): a killed bot drops its gun for 30s; F picks it up.
   const dropGroup = new THREE.Group(); scene.add(dropGroup);
-  const BOT_WEAPON_IDX = { ak47: 2, dlq33: 3, qq9: 4, mp5: 0 };
+  const BOT_WEAPON_IDX = { ax117: 2, kb50: 3, vx9: 4, mp5: 0 };
   function dropWeapon(bot) {
     const idx = BOT_WEAPON_IDX[bot.weapon] ?? 0;
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.25, 0.18), lootMats.weapon);
@@ -707,10 +707,10 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
     S.kcTags = []; S.kcScore = 0; S.ffaKills = 0;
     // Spawn protection (v25.0.8): 3s of no damage after the round starts.
     S.spawnProtT = 3;
-    // Sniper Only (v23.0.1): force DL Q33 (idx 3); Arctic .50 (idx 20) via buy.
+    // Sniper Only (v23.0.1): force KB-50 (idx 3); GL-50 (idx 20) via buy.
     if (S.mode === 'sniperonly') {
       S.loadout.primary = 3; S.player.weaponIdx = 3;
-      S.msg = '🎯 SNIPER ONLY — DL Q33 / Arctic .50 saja!'; S.msgT = 3;
+      S.msg = '🎯 SNIPER ONLY — KB-50 / GL-50 saja!'; S.msgT = 3;
     }
     if (S.c4 && S.c4.mesh) scene.remove(S.c4.mesh);
     S.c4 = null;
@@ -1505,7 +1505,7 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
       if (b.alive || b.ammoTaken || (b.corpseT || 0) <= 0) continue;
       if (Math.hypot(p.x - b.x, p.z - b.z) < 1.5) {
         b.ammoTaken = true;
-        const idx = { ak47: 2, dlq33: 3, qq9: 4, mp5: 0 }[b.weapon] ?? 0;
+        const idx = { ax117: 2, kb50: 3, vx9: 4, mp5: 0 }[b.weapon] ?? 0;
         const w = S.weapons[idx];
         const gain = Math.round(w.magSize * 0.5);
         w.reserve += gain;

@@ -75,7 +75,7 @@ export const DEFAULT_ATTS = { barrel: 'standard', scope: 'iron', grip: 'none', s
 export const BLUEPRINT_DEFS = {
   forge_fang: { name: 'Forge Fang', weapon: 'vk9', dmgBonus: 1.1, skin: 'red', desc: 'VK-9 Jackal dengan laras panjang dan cat merah menyala. +10% damage.' },
   ember_king: { name: 'Ember King', weapon: 'lr50', dmgBonus: 1.15, skin: 'gold', desc: 'LR-50 Longbow emas — satu tembakan, satu cerita. +15% damage.' },
-  void_ripper: { name: 'Void Ripper', weapon: 'qq9', dmgBonus: 1.12, skin: 'purple', desc: 'QQ9 ungu void, fire rate liar. +12% damage.' },
+  void_ripper: { name: 'Void Ripper', weapon: 'qq9', dmgBonus: 1.12, skin: 'purple', desc: 'VX-9 ungu void, fire rate liar. +12% damage.' },
 };
 // Camo unlock progression (v23.0.2): Gold = 100 kills with that weapon,
 // Diamond = 500, Damascus = every weapon Gold. Kills are tracked in

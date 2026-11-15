@@ -6,8 +6,8 @@ import { PALETTE } from './palette.js';
 
 // Weapon skins (the gun's look + mythic aura), varied per bot at spawn.
 export const BOT_SKINS = ['default', 'gold', 'neon', 'crimson', 'frost'];
-export const BOT_WEAPONS = ['ak47', 'dlq33', 'qq9', 'mp5'];
-export const BOT_WEAPON_NAMES = { ak47: 'AK-47', dlq33: 'DL Q33', qq9: 'QQ9', mp5: 'MP5' };
+export const BOT_WEAPONS = ['ax117', 'kb50', 'vx9', 'mp5'];
+export const BOT_WEAPON_NAMES = { ax117: 'AX-117', kb50: 'KB-50', vx9: 'VX-9', mp5: 'MP5' };
 const WEAPON_SKIN = {
   default: { body: 0x2b2f33, glow: 0x222222, fx: null },
   gold: { body: 0xc9a227, glow: 0xffd700, fx: 'gold' },
@@ -90,9 +90,9 @@ function box(w, h, d, mat) {
 // A bot's gun, by weapon id. Forward is local -z. Distinct per weapon class
 // so a sniper, an LMG and a launcher read differently even at distance.
 const BOT_GUN_CLS = {
-  ak47: 'ar', vk9: 'ar', m4: 'ar', ak117: 'ar',
-  dlq33: 'sniper', lr50: 'sniper', arctic: 'sniper',
-  qq9: 'smg', mp5: 'smg', pdw: 'smg',
+  ax117: 'ar', vk9: 'ar', m4: 'ar', ak117: 'ar',
+  kb50: 'sniper', lr50: 'sniper', arctic: 'sniper',
+  vx9: 'smg', mp5: 'smg', pdw: 'smg',
   rpd: 'lmg', m4lmg: 'lmg', by15: 'shotgun', krm: 'shotgun',
   kilo: 'dmr', sks: 'dmr',
   rpg: 'launcher', fhj: 'launcher', thumper: 'launcher',

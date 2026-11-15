@@ -1,5 +1,5 @@
 // Bots: 5 opponents. patrol / hold / combat / react / defuse. Seeded RNG. No wall-vision (LOS check).
-// v2: Ghost shortens bot vision, Dead Silence shortens bot hearing, TDM respawn,
+// v2: Phantom shortens bot vision, Dead Silence shortens bot hearing, TDM respawn,
 // Domination zone capture, Battle Royale zone damage.
 import * as THREE from 'three';
 import { PALETTE } from './palette.js';
@@ -124,7 +124,7 @@ export function createBots(scene, world, S, rng, deps = {}) {
     const p = S.player;
     if (!p.alive || b.blindT > 0) return false;
     const d = Math.hypot(p.x - b.x, p.z - b.z);
-    // Ghost perk: bots spot you at half range. Camo (v18.7.2): a matching
+    // Phantom perk: bots spot you at half range. Camo (v18.7.2): a matching
     // camo costume shrinks the spot range by another 20%.
     let range = hasPerk('ghost') ? 23 : 46;
     const cost = COSTUME_DEFS[S.costume];
@@ -397,17 +397,21 @@ export function createBots(scene, world, S, rng, deps = {}) {
             // Tracker perk (v23.0.5): an enemy shot marks it on the minimap.
             if (hasPerk('tracker') && deps.onBotShot) deps.onBotShot(b);
             const diff = DIFFICULTY_DEFS[S.difficulty] || DIFFICULTY_DEFS.normal;
+            // (Gameplay pass 2026-11-15: the old code rolled the reload
+            // BEFORE the hit roll, so every 6th shot was a guaranteed
+            // non-hit. The hit now rolls first, then the reload triggers.
+            // Accuracy/damage also buffed — a single bot's TTK at 10m was
+            // 17-30s, below the 4 HP/s regen at range.)
+            const acc = Math.max(0.05, 0.55 - d * 0.008 - diff.aimErr);
+            if (rng() < acc) {
+              const dmg = (11 + rng() * 9) * diff.dmg;
+              onPlayerHit && onPlayerHit(dmg, b);
+            }
             if (b.shotsFired >= 6) {
               b.shotsFired = 0; b.reloadT = 1.5;
               if (d < 40 && sfx && sfx.enemyReload) sfx.enemyReload();
-            } else {
-              const acc = Math.max(0.05, 0.5 - d * 0.011 - diff.aimErr);
-              if (rng() < acc) {
-                const dmg = (9 + rng() * 9) * diff.dmg;
-                onPlayerHit && onPlayerHit(dmg, b);
-              }
             }
-            if (b.burst <= 0) b.shootT = 0.55 + rng() * 0.5;
+            if (b.burst <= 0) b.shootT = 0.45 + rng() * 0.4;
           }
         } else {
           b.shootT -= dt;
