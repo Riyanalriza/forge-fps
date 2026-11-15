@@ -4,73 +4,27 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FOUNDRY YARD — Tactical FPS</title>
-<style>
-  :root { --amber:#f0a830; --cyan:#37c8d8; --ink:#e9e6df; --muted:#98a0a8; --red:#ff5a4d; --green:#7ddc7d; }
-  * { box-sizing:border-box; }
-  html,body { margin:0; height:100%; overflow:hidden; background:#1a1611; color:var(--ink); font-family:system-ui,-apple-system,'Segoe UI',sans-serif; }
-  #game,#game canvas { position:fixed; inset:0; display:block; }
-  #hud { position:fixed; inset:0; pointer-events:none; }
-  #crosshair { position:fixed; left:50%; top:50%; width:22px; height:22px; transform:translate(-50%,-50%); }
-  #crosshair i { position:absolute; background:var(--ink); opacity:.9; }
-  #crosshair i:nth-child(1){ left:10px; top:0; width:2px; height:7px; }
-  #crosshair i:nth-child(2){ left:10px; bottom:0; width:2px; height:7px; }
-  #crosshair i:nth-child(3){ top:10px; left:0; height:2px; width:7px; }
-  #crosshair i:nth-child(4){ top:10px; right:0; height:2px; width:7px; }
-  #hitmarker { position:fixed; left:50%; top:50%; width:28px; height:28px; transform:translate(-50%,-50%) rotate(45deg); opacity:0; }
-  #hitmarker.on { opacity:1; }
-  #hitmarker i { position:absolute; background:var(--red); }
-  #hitmarker.head i { background:var(--amber); }
-  #hitmarker i:nth-child(1){ left:13px; top:0; width:2px; height:9px; }
-  #hitmarker i:nth-child(2){ left:13px; bottom:0; width:2px; height:9px; }
-  #hitmarker i:nth-child(3){ top:13px; left:0; height:2px; width:9px; }
-  #hitmarker i:nth-child(4){ top:13px; right:0; height:2px; width:9px; }
-  #topbar { position:fixed; top:14px; left:50%; transform:translateX(-50%); display:flex; gap:18px; align-items:center; font-family:ui-monospace,Menlo,monospace; font-size:14px; background:rgba(10,12,10,.6); padding:6px 16px; border:1px solid #2c323a; border-radius:4px; }
-  #timer { color:var(--amber); font-size:18px; font-weight:700; }
-  #score-value { color:var(--ink); font-weight:700; }
-  #minimap { position:fixed; top:14px; left:14px; border:1px solid #2c323a; border-radius:4px; }
-  #killfeed { position:fixed; top:14px; right:14px; text-align:right; font-size:13px; color:var(--ink); display:grid; gap:4px; }
-  #killfeed div { background:rgba(10,12,10,.6); padding:3px 8px; border-radius:3px; }
-  #bottombar { position:fixed; left:0; right:0; bottom:0; display:flex; justify-content:space-between; align-items:flex-end; padding:18px 28px; font-family:ui-monospace,Menlo,monospace; }
-  .stat b { font-size:34px; font-weight:600; }
-  .stat span { color:var(--muted); font-size:12px; display:block; letter-spacing:.08em; }
-  #ammo-mag { font-size:52px; }
-  #ammo-reserve { font-size:16px; color:var(--muted); }
-  #weapon-name { font-size:15px; color:var(--amber); }
-  #center-msg { position:fixed; top:22%; left:50%; transform:translateX(-50%); font-size:20px; font-weight:600; letter-spacing:.06em; text-shadow:0 2px 8px #000; text-align:center; }
-  #plant-bar { position:fixed; top:32%; left:50%; transform:translateX(-50%); width:280px; text-align:center; }
-  #plant-bar .track { height:8px; background:#2c323a; border-radius:4px; overflow:hidden; }
-  #plant-fill { height:100%; width:0; background:var(--amber); }
-  #plant-label { font-size:12px; letter-spacing:.12em; color:var(--amber); margin-top:6px; }
-  #vignette { position:fixed; inset:0; pointer-events:none; opacity:0; background:radial-gradient(ellipse at center, transparent 55%, rgba(255,30,20,.55) 100%); transition:opacity .2s; }
-  #vignette.on { opacity:1; }
-  #flash { position:fixed; inset:0; pointer-events:none; opacity:0; background:#fff; }
-  #flash.on { opacity:.9; }
-  .overlay { position:fixed; inset:0; display:grid; place-items:center; padding:24px; background:rgba(20,16,12,.82); }
-  .overlay[hidden] { display:none; }
-  .panel { width:min(480px,100%); padding:32px; background:#1e2228; border:1px solid #2c323a; border-radius:6px; }
-  .panel h1 { margin:0 0 6px; font-size:34px; letter-spacing:-.02em; }
-  .panel h1 em { color:var(--amber); font-style:normal; }
-  .panel p { margin:0 0 20px; color:var(--muted); line-height:1.5; }
-  .panel button { font:inherit; font-weight:600; padding:12px 18px; border:1px solid var(--amber); border-radius:6px; background:var(--amber); color:#14161a; cursor:pointer; }
-  .panel button:hover { background:var(--ink); border-color:var(--ink); }
-  .keys { margin:22px 0 0; padding:0; list-style:none; display:grid; gap:7px; font-size:13px; color:var(--muted); }
-  .keys kbd { padding:2px 6px; border:1px solid #2c323a; border-radius:4px; font-family:ui-monospace,Menlo,monospace; font-size:11px; color:var(--ink); }
-  #buy-menu { position:fixed; inset:0; display:grid; place-items:center; background:rgba(20,16,12,.7); pointer-events:auto; }
-  #buy-menu[hidden] { display:none; }
-  .buy-panel { width:min(520px,94%); background:#1e2228; border:1px solid var(--amber); border-radius:6px; padding:24px; }
-  .buy-panel h2 { margin:0 0 14px; color:var(--amber); letter-spacing:.08em; }
-  .buy-row { display:flex; justify-content:space-between; gap:12px; width:100%; text-align:left; font:inherit; color:var(--ink); background:#262b31; border:1px solid #2c323a; border-radius:5px; padding:12px; margin-bottom:8px; cursor:pointer; }
-  .buy-row:hover { border-color:var(--amber); }
-  .buy-row span { color:var(--muted); font-size:13px; }
-  .buy-note { color:var(--muted); font-size:13px; margin-top:6px; }
-</style>
+<link rel="stylesheet" href="./style.css">
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#f0a830">
 </head>
 <body>
 <div id="game"></div>
 <div id="hud" aria-hidden="true">
   <canvas id="minimap" width="148" height="100"></canvas>
   <div id="topbar"><span id="round-label">ROUND 1 / 5</span><span id="compass">N 0°</span><span id="timer">1:40</span><span>YOU <b id="score-value">0 - 0</b> BOT</span></div>
+  <div id="objective"><b id="mode-name">SEARCH &amp; DESTROY</b> • <span id="objective-text">Plant the charge at Furnace or Crane Yard</span></div>
   <div id="killfeed"></div>
+  <div id="killstreak-bar">
+    <div id="streak-info">🔥 Streak: <b id="streak-count">0</b></div>
+    <div id="ks-list"></div>
+  </div>
+  <div id="operator-box">
+    <div class="lbl">OPERATOR SKILL</div>
+    <div id="operator-name">⚡ Tempest</div>
+    <div class="track"><div id="operator-bar"></div></div>
+    <div id="operator-cd">Ready! Press [X]</div>
+  </div>
   <div id="crosshair"><i></i><i></i><i></i><i></i></div>
   <div id="hitmarker"><i></i><i></i><i></i><i></i></div>
   <div id="center-msg"></div>
@@ -83,18 +37,388 @@
   </div>
   <div id="vignette"></div>
   <div id="flash"></div>
+  <div id="lens-flare"></div>
+  <div id="flash-purple"></div>
+  <div id="emote-pop"></div>
+  <div id="mythic-effect"></div>
+  <div id="interact-hint"></div>
+  <button id="wheel-btn" type="button" title="Emote wheel">🎭</button>
+  <button id="crouch-btn" type="button" title="Crouch">⬇️</button>
+  <button id="ads-btn" type="button" title="Aim down sights">🎯</button>
+  <div id="emote-wheel" hidden></div>
+  <div id="profile-chip">🥉 Bronze · 1000 ELO · 🪙 1000</div>
+  <div id="dmg-number"></div>
+  <div id="weather-flash"></div>
+  <div id="scope-overlay" hidden><div class="scope-tube"></div></div>
+  <div id="killcam" hidden>
+    <div class="kc-card">
+      <div style="font-size:12px;letter-spacing:.2em;color:#ff8a80">💀 KILLED BY</div>
+      <div id="killcam-body"></div>
+      <div id="killcam-detail" hidden></div>
+      <div style="font-size:12px;color:var(--muted)">Auto-spectate dalam <b id="killcam-timer">3</b> detik</div>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
+        <button id="killcam-detail-btn" class="mini-btn" type="button">👁️ Lihat Pembunuh Full</button>
+        <button id="killcam-skip" class="mini-btn" type="button">⏭️ Skip — Spectate</button>
+      </div>
+    </div>
+  </div>
+  <div id="spectate-bar" hidden>👁️ Spectating <b id="spectate-name"></b>
+    <button id="spec-prev" type="button">⏮️ Prev</button>
+    <button id="spec-next" type="button">Next ⏭️</button>
+    <button id="spec-free" type="button">🎥 Free Cam</button>
+    <button id="spec-exit" type="button">✖️ Keluar</button>
+  </div>
+  <div id="blood-splatter"></div>
+  <div id="blood-lens"></div>
+  <div id="lens-rain"></div>
+  <div id="nv-overlay"></div>
+  <div id="thermal-overlay"></div>
+  <div id="levelup" hidden></div>
+  <div id="scoreboard" hidden></div>
+  <div id="fps"></div>
+  <div id="ping"></div>
+  <div id="fps-graph"></div>
+  <div id="engine-stats"></div>
+  <div id="stamina-bar"><div id="stamina-fill"></div></div>
+  <div id="move-status">DIAM</div>
+  <div id="surface-label">beton</div>
+  <div id="reload-bar" hidden><div class="track"><div id="reload-fill"></div></div><div id="reload-label"></div></div>
+  <div id="hint-bar"></div>
+  <div id="chat-log"></div>
+  <div id="chat-bubble" hidden></div>
+  <div id="kill-message" hidden><div id="kill-title"></div><div id="kill-sub"></div></div>
+  <div id="kill-confirm" hidden></div>
+  <div id="weapon-fx"></div>
+  <canvas id="minimap-big" width="400" height="280" hidden></canvas>
+  <div id="scope-zoom" hidden></div>
+  <div id="quick-emotes"></div>
+  <button id="surrender-btn" type="button">🏳️ Menyerah</button>
+  <button id="ds-toggle" type="button" title="Dead Silence">🤫 DS</button>
+  <button id="dash-btn" type="button" title="Lompat / Slide">💨</button>
+  <button id="scope-btn" type="button" title="Scope">🔭</button>
+  <button id="reload-btn" type="button" title="Reload">🔄</button>
+  <div id="joystick"><div id="joystick-knob"></div></div>
+  <button id="fire-btn" type="button">🔥</button>
+  <button id="fire-btn-left" type="button">🔥</button>
+  <div id="death-screen" hidden>
+    <div class="death-card">
+      <div style="font-size:28px">💀 KAMU MATI</div>
+      <div id="death-info"></div>
+      <div>Respawn dalam <b id="death-timer">3</b> detik…</div>
+      <button id="death-skip" class="mini-btn" type="button">⏭️ Skip Respawn</button>
+    </div>
+  </div>
+  <div id="victory-screen" hidden>
+    <div class="victory-card">
+      <div id="victory-title" style="font-size:28px">🏆 MENANG!</div>
+      <div id="victory-info"></div>
+      <button id="victory-close" class="mini-btn" type="button">Lanjut</button>
+    </div>
+  </div>
+</div>
+
+<div id="loading">
+  <div class="load-box">
+    <div style="font-size:22px;letter-spacing:.2em">FOUNDRY YARD</div>
+    <div class="load-bar"><div id="load-fill"></div></div>
+    <div id="load-tip">Memuat map…</div>
+  </div>
+</div>
+<div id="tutorial" hidden>
+  <div class="tut-card">
+    <div id="tut-title">TUTORIAL 1/6</div>
+    <div id="tut-body"></div>
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:14px">
+      <button id="tut-skip" class="mini-btn" type="button">Skip Tutorial</button>
+      <button id="tut-next" class="mini-btn" type="button">Lanjut →</button>
+    </div>
+  </div>
+</div>
+<div id="paused" hidden>
+  <div class="paused-card">⏸️ PAUSED — klik untuk lanjut</div>
+</div>
+
+<div id="finisher" hidden>
+  <div class="letterbox top"></div>
+  <div class="letterbox bottom"></div>
+  <div id="finisher-center">
+    <div id="finisher-cine">SLOW-MO 0.2x • CINEMATIC</div>
+    <div id="finisher-title"></div>
+    <div id="finisher-sub"></div>
+    <div id="finisher-desc"></div>
+    <div class="fin-track"><div id="finisher-bar"></div></div>
+  </div>
 </div>
 
 <div id="menu" class="overlay">
   <section class="panel" role="dialog" aria-modal="true">
     <h1 id="menu-title">FOUNDRY <em>YARD</em></h1>
-    <p>Single-player tactical FPS. Five hostiles hold the foundry yard. Plant the charge at <b>Furnace</b> or <b>Crane Yard</b>, defend it until it blows — or clear every hostile. First to 3 rounds takes the match.</p>
-    <button id="play" type="button">CLICK TO PLAY</button>
+    <p>Single-player tactical FPS. Five hostiles hold the foundry yard. Four modes, a full loadout, perks, operator skills and killstreaks — everything runs offline against bots.</p>
+    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted)">
+      <span id="lobby-clock"></span>
+      <span id="version-note">v2.0</span>
+    </div>
+    <div class="menu-grid">
+      <div class="menu-sec">
+        <h3>🎮 GAME MODE</h3>
+        <div class="mode-btns" id="mode-btns">
+          <button class="mode-btn sel" data-mode="snd">Search &amp; Destroy</button>
+          <button class="mode-btn" data-mode="tdm">Team Deathmatch</button>
+          <button class="mode-btn" data-mode="dom">Domination</button>
+          <button class="mode-btn" data-mode="br">Battle Royale Mini</button>
+          <button class="mode-btn" data-mode="zombie">🧟 Zombie Mode</button>
+          <button class="mode-btn" data-mode="hardpoint">Hardpoint</button>
+          <button class="mode-btn" data-mode="gungame">Gun Game</button>
+          <button class="mode-btn" data-mode="killconfirmed">Kill Confirmed</button>
+          <button class="mode-btn" data-mode="ffa">Free For All</button>
+          <button class="mode-btn" data-mode="sniperonly">Sniper Only</button>
+          <button class="mode-btn" data-mode="prophunt">Prop Hunt</button>
+          <button class="mode-btn" data-mode="control">Control</button>
+        </div>
+        <div id="mode-desc" style="font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5">Plant the charge at Furnace or Crane Yard, defend it until it blows — or clear every hostile.</div>
+        <label style="display:block;margin-top:8px">Kesulitan bot</label>
+        <select id="difficulty-select">
+          <option value="easy">😊 Easy — reaksi 1.2s, aim error besar</option>
+          <option value="normal" selected>😐 Normal — reaksi 0.8s</option>
+          <option value="hard">😠 Hard — reaksi 0.5s, damage +20%</option>
+          <option value="veteran">💀 Veteran — reaksi 0.3s, damage +50%</option>
+        </select>
+        <label style="display:block;margin-top:6px">Gravitasi</label>
+        <select id="gravity-select">
+          <option value="1" selected>🌍 Bumi (1x)</option>
+          <option value="0.38">🪐 Mars (0.38x — lompat lebih tinggi)</option>
+          <option value="0.16">🌙 Bulan (0.16x — lompat jauh)</option>
+        </select>
+        <label style="display:block;margin-top:6px"><input type="checkbox" id="flag-hardcore"> 💀 Hardcore — tanpa HUD, 1 hit kill</label>
+        <label style="display:block"><input type="checkbox" id="flag-realistic"> 🎯 Realistic — tanpa minimap &amp; crosshair</label>
+        <label style="display:block"><input type="checkbox" id="flag-colorblind"> 👁️ Mode buta warna (crosshair + tim kontras tinggi)</label>
+      </div>
+      <div class="menu-sec">
+        <h3>🗺️ MAP — 7 maps, click to preview</h3>
+        <div class="map-grid" id="map-picker"></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px">Houses have interiors: open doors with [E], climb the stairs, shoot from the 2nd-floor windows.</div>
+      </div>
+      <div class="menu-sec">
+        <h3>🌤️ CUACA + SIKLUS SIANG-MALAM</h3>
+        <label>Weather</label>
+        <select id="weather-select"></select>
+        <label style="display:block;margin-top:6px"><input type="checkbox" id="weather-auto"> 🎲 Random tiap ronde</label>
+        <label style="display:block"><input type="checkbox" id="weather-map" checked> 🗺️ Cuaca ikut map (gurun = badai pasir, reruntuhan = kabut, kota = sore)</label>
+        <label style="display:block"><input type="checkbox" id="cycle-toggle"> 🌗 Siklus siang-malam otomatis (10 menit: Siang → Sore → Malam → Subuh)</label>
+        <div id="cycle-bar-wrap"><div id="cycle-bar"></div></div>
+        <div style="font-size:12px"><span id="cycle-time">☀️ Siang (10:00)</span> · <span id="cycle-countdown"></span></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">Cuaca manual (hujan/badai/pasir/salju/kabut) tidak ditimpa siklus.</div>
+      </div>
+      <div class="menu-sec">
+        <h3>🎒 LOADOUT</h3>
+        <label>Primary weapon</label>
+        <select id="load-primary">
+          <option value="0">VK-9 Jackal — AR · 34 dmg</option>
+          <option value="1">M4 Carbine — AR · 28 dmg</option>
+          <option value="2">AK-117 — AR · 30 dmg</option>
+          <option value="3">LR-50 Longbow — Sniper · 110 dmg</option>
+          <option value="4">QQ9 — SMG · 24 dmg</option>
+          <option value="5">RPD — LMG · 32 dmg</option>
+        </select>
+        <div id="weapon-selector" style="margin-top:8px"></div>
+        <label>Secondary</label>
+        <select id="load-secondary" disabled><option>P-12 Sidewinder — Pistol · 53 dmg</option></select>
+        <label>Operator skill</label>
+        <select id="load-operator">
+          <option value="tempest">⚡ Tempest — one-hit lightning shot (60s)</option>
+          <option value="annihilator">🔫 Annihilator — 6 shots at 200 dmg (50s)</option>
+          <option value="gravity">💥 Gravity Spikes — 80 dmg within 8m (70s)</option>
+          <option value="warmachine">💣 War Machine — 6 HE grenades (70s)</option>
+          <option value="hive">🐝 H.I.V.E — 3 trap mines (65s)</option>
+          <option value="bull">🐂 Bull Charge — 100 dmg in path (55s)</option>
+          <option value="purifier">🔥 Purifier — flamethrower cone (75s)</option>
+          <option value="sparrow">🏹 Sparrow — explosive arrow (60s)</option>
+          <option value="tak5">💚 Tak-5 — heal full + revive ally (80s)</option>
+          <option value="k9">🐕 K9 — attack dog 30s (70s)</option>
+        </select>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <button id="loadout-export" class="mini-btn" type="button">📤 Export Loadout</button>
+          <button id="loadout-import" class="mini-btn" type="button">📥 Import Loadout</button>
+        </div>
+        <div id="loadout-code" style="font-size:11px;word-break:break-all;color:var(--muted);margin-top:6px"></div>
+      </div>
+      <div class="menu-sec">
+        <h3>🔫 PREVIEW SENJATA 3D</h3>
+        <canvas id="preview-canvas" width="320" height="180" style="width:100%;background:#111;border-radius:8px"></canvas>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">Model senjata berputar — ganti primary di Loadout untuk melihat senjata lain.</div>
+      </div>
+      <div class="menu-sec">
+        <h3>🧑‍🚀 KARAKTER — operator + outfit</h3>
+        <label>Operator (bot pakai operator bervariasi)</label>
+        <select id="load-charop"></select>
+        <label>Skin karakter (baju, bukan senjata)</label>
+        <select id="load-charskin"></select>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">Specter (masker tengkorak) · Blade (jenggot + topi) · Captain (baret + kumis) · Viper (cewek, rambut panjang) · Scout (cewek, kacamata) · Skull (masker tengkorak putih). Skin terkunci bisa dibeli di Shop dengan coin.</div>
+      </div>
+      <div class="menu-sec">
+        <h3>🔧 GUNSMITH — 5 attachment</h3>
+        <div id="gunsmith-slots"></div>
+        <div id="gunsmith-stats" style="margin-top:8px"></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">Damage drop by range: &gt;range = 50%, &gt;1.5x range = 30%. ADS +10% damage. Scope 4x/8x = FOV 35/30 saat ADS.</div>
+      </div>
+      <div class="menu-sec">
+        <h3>✨ PERKS — pick up to 3</h3>
+        <div class="perk-grid" id="perk-grid">
+          <label><input type="checkbox" class="perk" value="ghost"> 👻 Ghost</label>
+          <label><input type="checkbox" class="perk" value="lightweight" checked> ⚡ Lightweight</label>
+          <label><input type="checkbox" class="perk" value="hardline"> 🎯 Hardline</label>
+          <label><input type="checkbox" class="perk" value="quickfix" checked> 💚 Quick Fix</label>
+          <label><input type="checkbox" class="perk" value="dead_silence"> 🤫 Dead Silence</label>
+          <label><input type="checkbox" class="perk" value="flak_jacket"> 🛡️ Flak Jacket</label>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5">Ghost: bots spot you at half range · Lightweight: +15% speed · Hardline: streaks need 1 fewer kill · Quick Fix: regen 2x · Dead Silence: bots hear shots at half range · Flak Jacket: -40% blast damage</div>
+      </div>
+      <div class="menu-sec">
+        <h3>👑 MYTHIC SKIN</h3>
+        <div class="mythic-opt" id="mythic-opt">
+          <button class="mythic-btn sel" data-mythic="none">Standard</button>
+          <button class="mythic-btn" data-mythic="gold">🟡 Gold</button>
+          <button class="mythic-btn" data-mythic="neon">🟢 Neon</button>
+          <button class="mythic-btn" data-mythic="crimson">🔴 Crimson</button>
+          <button class="mythic-btn" data-mythic="frost">❄️ Frost</button>
+          <button class="mythic-btn" data-mythic="rainbow">🌈 Rainbow</button>
+          <button class="mythic-btn dragon" data-mythic="dragon">🐉 Inferno Dragon</button>
+          <button class="mythic-btn void" data-mythic="void">👑 Void Reaper</button>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px">Mythic skins glow, shed particles and change your killfeed. Gold Tier 5 · Neon 10 · Crimson 25 · Frost 35 · Rainbow 40 · Void 45 · Dragon 50. Dragon kills summon a 3D dragon, Void kills open a portal.</div>
+      </div>
+      <div class="menu-sec">
+        <h3>🏆 BATTLE PASS — SEASON 1 <span id="bp-tier" style="float:right">Tier 1/50</span></h3>
+        <div class="bp-bar"><div id="bp-bar"></div></div>
+        <div id="bp-missions" style="font-size:12px;line-height:1.8">
+          <div>🎯 Kill 5 enemies: <span>0/5</span> → +100 XP</div>
+          <div>🎯 Headshot 3 times: <span>0/3</span> → +150 XP</div>
+          <div>🏆 Win 1 round: <span>0/1</span> → +200 XP</div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">Tier 5 Gold · 10 Neon · 20 Dragon · 25 Crimson · 30 Galaxy Card · 35 Frost · 40 Rainbow · 45 👑 Void Reaper · 50 🐉 Inferno Dragon</div>
+      </div>
+      <div class="menu-sec">
+        <h3>🎬 MYTHIC FINISHER — round-win cinematic</h3>
+        <div class="fin-grid" id="finisher-grid"></div>
+        <div style="display:flex;gap:6px;margin-top:10px">
+          <button id="finisher-preview" class="mini-btn" type="button">▶ Preview Finisher</button>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">Plays on the last kill of a won round: slow-mo 0.2x, letterbox, cinematic camera, dramatic music. Mythic finishers grant +200 XP.</div>
+      </div>
+      <div class="menu-sec">
+        <h3>🎭 EMOTE WHEEL — custom</h3>
+        <div class="wheel-preview" id="wheel-preview"></div>
+        <div style="font-size:11px;color:var(--muted)">Click a wheel slot, then click an emote from the pool to assign it.</div>
+        <div class="pool-grid" id="emote-pool" style="margin-top:8px"></div>
+        <div style="display:flex;gap:6px;margin-top:10px;align-items:center">
+          <button id="wheel-reset" class="mini-btn" type="button">Reset Default</button>
+          <input id="preset-name" class="mini-input" placeholder="Preset name…" maxlength="24">
+          <button id="preset-save" class="mini-btn" type="button">⭐ Save as Preset</button>
+        </div>
+        <h3 style="margin-top:14px">🎡 WHEEL PRESETS</h3>
+        <div class="preset-grid" id="preset-cards"></div>
+      </div>
+      <div class="menu-sec" style="grid-column:1 / -1">
+        <div id="daily-card"></div>
+      </div>
+      <div class="menu-sec">
+        <h3>🃏 CALLING CARD</h3>
+        <div class="card-grid" id="card-grid">
+          <div class="calling-card card-firestorm sel" data-card="firestorm"><b>🔥 Firestorm</b><span>Burning fire</span></div>
+          <div class="calling-card card-galaxy" data-card="galaxy"><b>🌌 Galaxy</b><span>Moving stars</span></div>
+          <div class="calling-card card-lightning" data-card="lightning"><b>⚡ Lightning</b><span>Striking bolts</span></div>
+          <div class="calling-card card-dragon" data-card="dragon"><b>🐉 Dragon Lord</b><span>Flying dragon</span></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px">Your card styles the killfeed and shows in the lobby.</div>
+      </div>
+      <div class="menu-sec">
+        <h3>🛒 SHOP <span id="shop-coins" style="float:right">🪙 1000</span></h3>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Coin didapat dari bermain (kill +50, win +200, quest, zombie kill). Bukan uang asli.</div>
+        <div id="shop-grid"></div>
+        <h3 style="margin-top:12px">🎰 GACHA</h3>
+        <div style="display:flex;gap:6px">
+          <button id="gacha-1" class="mini-btn" type="button">🎰 1x — 100 🪙</button>
+          <button id="gacha-10" class="mini-btn" type="button">🎰 10x — 900 🪙</button>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">Common 60% · Rare 25% · Epic 10% · Legendary 5%. Duplikat → +50 🪙.</div>
+        <h3 style="margin-top:12px">🍀 LUCKY DRAW &amp; CRATE</h3>
+        <div style="display:flex;gap:6px">
+          <button id="lucky-draw" class="mini-btn" type="button">🍀 Lucky Draw — 80 🪙</button>
+          <button id="crate-buy" class="mini-btn" type="button">📦 Crate — 10 🪙</button>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">Lucky Draw: skin 25% · camo 25% · emote 20% · +120 🪙 30%. Crate: +15 🪙 50% · +60 ammo 30% · +1 medkit 20%. Semua pakai coin lokal — bukan uang asli.</div>
+      </div>
+      <div class="menu-sec">
+        <h3>🎯 QUESTS</h3>
+        <div id="quest-list" style="font-size:12px;line-height:1.8"></div>
+      </div>
+      <div class="menu-sec">
+        <h3>👤 PROFIL + RANK</h3>
+        <div id="profile-card" style="font-size:13px;line-height:1.8"></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">ELO: menang +25, kalah −15. Rank: Bronze → Silver → Gold → Platinum → Diamond → Master → Legendary.</div>
+      </div>
+      <div class="menu-sec">
+        <h3>📼 REPLAY — match history</h3>
+        <div id="replay-list"></div>
+      </div>
+      <div class="menu-sec">
+        <h3>⚙️ PENGATURAN — 5 tab</h3>
+        <div id="settings-panel"></div>
+        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+          <button id="sound-test" class="mini-btn" type="button">🔊 Tes Semua Suara</button>
+          <button id="voice-cmd" class="mini-btn" type="button">🎤 Voice Command</button>
+          <button id="settings-export" class="mini-btn" type="button">📤 Export Setting</button>
+          <button id="settings-import" class="mini-btn" type="button">📥 Import Setting</button>
+          <button id="settings-reset" class="mini-btn" type="button">♻️ Reset Semua</button>
+        </div>
+        <div id="settings-code" style="font-size:11px;word-break:break-all;color:var(--muted);margin-top:6px"></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">Pointer lock sudah raw — tidak ada setting Raw Input / akselerasi mouse palsu. Mute Voice tidak ada — tidak ada voice chat di single-player.</div>
+      </div>
+      <div class="menu-sec">
+        <h3>🎨 WARNA — semua benda</h3>
+        <div id="color-section"></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">Pilihan warna tersimpan otomatis (localStorage) dan diterapkan saat map dimuat.</div>
+      </div>
+      <div class="menu-sec">
+        <h3>🏆 ACHIEVEMENT</h3>
+        <div id="achievement-list" style="font-size:12px;line-height:1.8"></div>
+      </div>
+      <div class="menu-sec">
+        <h3>🚪 CUSTOM ROOM (lokal)</h3>
+        <label>Nama room</label>
+        <input id="room-name" class="mini-input" value="Room Saya" maxlength="24">
+        <label style="display:block;margin-top:6px">Password (opsional, lokal saja)</label>
+        <input id="room-pass" class="mini-input" type="password" maxlength="24" placeholder="—">
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">Room lokal: map + mode + nama tersimpan sebagai konfigurasi saja. Tidak ada pemain lain yang bisa join — game ini single-player offline.</div>
+      </div>
+      <div class="menu-sec">
+        <h3>🎆 EVENT DUNIA</h3>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="mini-btn event-btn" data-event="quake" type="button">🌋 Gempa</button>
+          <button class="mini-btn event-btn" data-event="fireworks" type="button">🎆 Kembang Api</button>
+          <button class="mini-btn event-btn" data-event="rainbow" type="button">🌈 Pelangi</button>
+          <button class="mini-btn event-btn" data-event="nightmarket" type="button">🌙 Pasar Malam (+50 🪙)</button>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+          <button id="props-table-btn" class="mini-btn" type="button">🧱 Tabel Benda</button>
+          <button id="fx-table-btn" class="mini-btn" type="button">🔫 Tabel Efek Senjata</button>
+        </div>
+        <div id="ref-table" style="font-size:11px;line-height:1.6;margin-top:8px"></div>
+      </div>
+      <div class="menu-sec" style="grid-column:1 / -1">
+        <h3>ℹ️ TENTANG GAME INI</h3>
+        <div style="font-size:12px;line-height:1.7;color:var(--muted)">Game single-player offline — tidak ada akun, tidak ada uang asli, tidak ada data yang dikumpulkan. Semua progres (Battle Pass, coin, setting, warna, achievement) tersimpan lokal di browser kamu (localStorage), bukan cloud save. Versi <b id="version-note-2">v2.0</b> — changelog: mode baru (Kill Confirmed, FFA, Sniper Only, Prop Hunt, Control, Hardpoint, Gun Game), senjata 21 + Gunsmith 8 slot, Pack-a-Punch &amp; Perk-a-Cola di Zombie, hewan &amp; NPC ambient, gravitasi Bulan/Mars, perbaikan bug movement &amp; reload.</div>
+      </div>
+    </div>
+    <button id="play" class="cta" type="button">CLICK TO PLAY</button>
     <ul class="keys">
-      <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move &nbsp; <kbd>Shift</kbd> Sprint &nbsp; <kbd>C</kbd> Crouch &nbsp; <kbd>Space</kbd> Jump</li>
-      <li><kbd>Mouse</kbd> Aim &nbsp; <kbd>Click</kbd> Fire &nbsp; <kbd>Right-click</kbd> Aim down sights &nbsp; <kbd>R</kbd> Reload</li>
-      <li><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> Weapons &nbsp; <kbd>B</kbd> Buy &nbsp; <kbd>E</kbd> Plant (hold, at a site)</li>
-      <li><kbd>G</kbd> Smoke &nbsp; <kbd>F</kbd> Flash &nbsp; <kbd>Q</kbd> Frag grenade</li>
+      <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move &nbsp; <kbd>Shift</kbd> Sprint (tahan 1 dtk = Tactical Sprint 10.5) &nbsp; <kbd>C</kbd> Crouch / Slide (saat lari) &nbsp; <kbd>C</kbd><kbd>C</kbd> Dolphin Dive (di udara) &nbsp; <kbd>Z</kbd> Prone &nbsp; <kbd>Space</kbd> Jump / Parkour</li>
+      <li><kbd>Mouse</kbd> Aim &nbsp; <kbd>Click</kbd> Fire &nbsp; <kbd>Right-click</kbd> Aim down sights &nbsp; <kbd>R</kbd> Reload &nbsp; <kbd>I</kbd> Inspect &nbsp; <kbd>V</kbd> Zoom sniper 2x/4x/8x (teropong kalau bukan sniper)</li>
+      <li><kbd>1</kbd><kbd>2</kbd> Weapons &nbsp; <kbd>N</kbd> Buy &nbsp; <kbd>E</kbd> Interaksi (pintu / naik kendaraan / ambil senjata / buka crate / lift / NPC / kulkas / panen) / Plant (tahan, di site) / Revive ally (BR)</li>
+      <li><kbd>F</kbd> Enter vehicle / Flash &nbsp; <kbd>G</kbd> Exit vehicle / Smoke &nbsp; <kbd>Q</kbd> Frag grenade &nbsp; <kbd>H</kbd> Use medkit &nbsp; <kbd>J</kbd> Armor +50 &nbsp; <kbd>K</kbd> Senter</li>
+      <li><kbd>Digit7</kbd> Trophy System &nbsp; <kbd>Digit8</kbd> Gas Grenade &nbsp; <kbd>U</kbd> Cryo Bomb &nbsp; <kbd>Digit9</kbd> Molotov &nbsp; <kbd>Digit0</kbd> C4 &nbsp; <kbd>-</kbd> Trip Mine</li>
+      <li><kbd>X</kbd> Operator skill &nbsp; <kbd>4</kbd><kbd>5</kbd><kbd>6</kbd> Emotes (Dance / Wave / Laugh) &nbsp; <kbd>←</kbd><kbd>→</kbd> Lean &nbsp; <kbd>P</kbd> Ping &nbsp; <kbd>M</kbd> Minimap besar &nbsp; <kbd>Tab</kbd> Scoreboard &nbsp; <kbd>Y</kbd> Chat lokal &nbsp; <kbd>T</kbd> Voice callout</li>
+      <li><kbd>B</kbd> (hold) Emote wheel — steer with the mouse, release to trigger (semua 8 emote) &nbsp; <kbd>🎭</kbd> button for touch &nbsp; Di kendaraan: <kbd>H</kbd> klakson, <kbd>L</kbd> lampu, <kbd>R</kbd> radio, <kbd>Space</kbd> drift/roket/meriam, <kbd>Q</kbd>/<kbd>E</kbd> turret tank</li>
     </ul>
   </section>
 </div>
@@ -104,10 +428,10 @@
 </div>
 
 <div id="end" class="overlay" hidden>
-  <section class="panel" role="dialog" aria-modal="true">
+  <section class="panel" role="dialog" aria-modal="true" style="width:min(480px,100%)">
     <h1 id="end-title">ROUND WON</h1>
     <p id="end-sub"></p>
-    <button id="restart" type="button">CONTINUE</button>
+    <button id="restart" class="cta" type="button">CONTINUE</button>
   </section>
 </div>
 
