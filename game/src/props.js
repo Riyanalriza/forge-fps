@@ -279,7 +279,11 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
   }
   function shootable(m, mat = 'wall') { m.userData.mat = mat; shootables.push(m); propShootables.push(m); return m; }
   function clear() {
-    scene.remove(group);
+    // GRAPHICS FIX (2026-11-15): the group must STAY in the scene — only its
+    // children are cleared. scene.remove(group) here deleted every map prop
+    // (houses, containers, crates, trees) on every map after the first build,
+    // while their colliders stayed active (invisible walls). That is why Twin
+    // Court rendered with no houses/containers in the v2 screenshots.
     group.clear();
     for (const c of propColliders) { const i = colliders.indexOf(c); if (i >= 0) colliders.splice(i, 1); }
     for (const m of propShootables) { const i = shootables.indexOf(m); if (i >= 0) shootables.splice(i, 1); }
@@ -401,7 +405,22 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
   function addCar(x, z, rot = 0, color = 0x7a2a2a) {
     const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rot; group.add(g);
     const body = box(4.2, 0.7, 1.9, color); body.position.y = 0.55; g.add(body); shootable(body, 'metal');
-    const cabin = box(2.2, 0.6, 1.7, 0x22262a); cabin.position.set(-0.2, 1.2, 0); g.add(cabin); shootable(cabin, 'metal');
+    // GRAPHICS FIX: bumpers, grille, mirrors, hubcaps + brighter glass and a
+    // body-coloured roof, so the car reads as a car, not a coloured box.
+    const chromeM = mat(0xd8d8d8, 0.3);
+    const bumperF = box(0.18, 0.22, 1.9, chromeM); bumperF.position.set(2.14, 0.42, 0); g.add(bumperF);
+    const bumperR = box(0.18, 0.22, 1.9, chromeM); bumperR.position.set(-2.14, 0.42, 0); g.add(bumperR);
+    const grille = box(0.06, 0.2, 1.1, 0x14161a); grille.position.set(2.12, 0.62, 0); g.add(grille);
+    for (const s of [-1, 1]) {
+      const mir = box(0.12, 0.1, 0.18, chromeM); mir.position.set(0.7, 1.15, s * 0.95); g.add(mir);
+    }
+    const cabin = box(2.2, 0.6, 1.7, new THREE.MeshStandardMaterial({ color: 0x3a6a8a, roughness: 0.2, metalness: 0.4 })); cabin.position.set(-0.2, 1.2, 0); g.add(cabin); shootable(cabin, 'metal');
+    const carRoof = box(2.0, 0.08, 1.6, color); carRoof.position.set(-0.2, 1.52, 0); g.add(carRoof);
+    const hubM = mat(0xc8c8c8, 0.3);
+    for (const [wx, wz] of [[-1.4, 0.95], [1.4, 0.95], [-1.4, -0.95], [1.4, -0.95]]) {
+      const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.32, 10), hubM);
+      hub.rotation.x = Math.PI / 2; hub.position.set(wx, 0.36, wz); g.add(hub);
+    }
     const wheelG = new THREE.CylinderGeometry(0.36, 0.36, 0.3, 10);
     const wheelM = mat(0x14161a, 0.9);
     const wheels = [];
@@ -432,13 +451,22 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
   function addBus(x, z, rot = 0, color = 0xe8b800) {
     const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rot; group.add(g);
     const body = box(10, 2.6, 2.6, color); body.position.y = 1.5; g.add(body); shootable(body, 'metal');
-    const winM = mat(0x1a2a3a, 0.3);
+    const winM = new THREE.MeshStandardMaterial({ color: 0x2a4a6a, roughness: 0.2, metalness: 0.3, emissive: 0x1a2a4a, emissiveIntensity: 0.4 });
     for (let i = 0; i < 5; i++) {
       for (const s of [-1, 1]) {
         const w = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.9, 0.06), winM);
         w.position.set(-3.6 + i * 1.8, 1.9, s * 1.32); g.add(w);
       }
     }
+    // GRAPHICS FIX: a white side stripe + destination sign + roof trim so the
+    // bus reads as a bus from across the map.
+    const stripeM = mat(0xf0ead8, 0.6);
+    for (const s of [-1, 1]) {
+      const stripe = box(9.6, 0.28, 0.06, stripeM); stripe.position.set(0, 1.05, s * 1.32); g.add(stripe);
+    }
+    const sign = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.4, 1.2), new THREE.MeshBasicMaterial({ color: 0xffa040 }));
+    sign.position.set(5.02, 2.35, 0); g.add(sign);
+    const roofTrim = box(10.1, 0.1, 2.7, stripeM); roofTrim.position.set(0, 2.82, 0); g.add(roofTrim);
     const wheelG = new THREE.CylinderGeometry(0.45, 0.45, 0.3, 10);
     const wheelM = mat(0x14161a, 0.9);
     for (const [wx, wz] of [[-3.2, 1.3], [3.2, 1.3], [-3.2, -1.3], [3.2, -1.3]]) {
@@ -1223,7 +1251,30 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
     // One window opening (sill + header) inside a wall run, with a
     // breakable glass pane (v18.4): shoot it and it shatters.
     function windowGlass(cx, yBase, z, ww, alongX) {
-      const glassMat = new THREE.MeshStandardMaterial({ color: 0x9fd8ff, roughness: 0.1, metalness: 0.2, transparent: true, opacity: 0.35 });
+      // GRAPHICS FIX: a bright frame + mullion cross around the pane, and a
+      // faintly glowing glass, so windows read as windows from across the map.
+      const frameM = new THREE.MeshStandardMaterial({ color: 0xe8e4da, roughness: 0.7 });
+      const fb = (fw, fh, fd, fx, fy, fz) => {
+        const b = new THREE.Mesh(new THREE.BoxGeometry(fw, fh, fd), frameM);
+        b.position.set(fx, fy, fz); b.castShadow = true; g.add(b);
+      };
+      const T2 = T + 0.06;
+      if (alongX) {
+        fb(ww + 0.24, 0.12, T2, cx, yBase + 2.86, z);
+        fb(ww + 0.24, 0.12, T2, cx, yBase + 1.14, z);
+        fb(0.12, 1.84, T2, cx - ww / 2 - 0.06, yBase + 2.0, z);
+        fb(0.12, 1.84, T2, cx + ww / 2 + 0.06, yBase + 2.0, z);
+        fb(0.06, 1.6, 0.06, cx, yBase + 2.0, z);
+        fb(ww, 0.06, 0.06, cx, yBase + 2.0, z);
+      } else {
+        fb(T2, 0.12, ww + 0.24, cx, yBase + 2.86, z);
+        fb(T2, 0.12, ww + 0.24, cx, yBase + 1.14, z);
+        fb(T2, 1.84, 0.12, cx, yBase + 2.0, z - ww / 2 - 0.06);
+        fb(T2, 1.84, 0.12, cx, yBase + 2.0, z + ww / 2 + 0.06);
+        fb(0.06, 1.6, 0.06, cx, yBase + 2.0, z);
+        fb(0.06, 0.06, ww, cx, yBase + 2.0, z);
+      }
+      const glassMat = new THREE.MeshStandardMaterial({ color: 0x9fd8ff, roughness: 0.1, metalness: 0.2, transparent: true, opacity: 0.35, emissive: 0x2a4a6a, emissiveIntensity: 0.5 });
       const pane = new THREE.Mesh(new THREE.BoxGeometry(alongX ? ww : 0.05, 1.6, alongX ? 0.05 : ww), glassMat);
       pane.position.set(cx, yBase + 2.0, z); g.add(pane);
       tagColor(pane, 'window');
@@ -1254,7 +1305,7 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
     function addDoor(cx, yBase, z, alongX = true) {
       const hinge = new THREE.Group();
       hinge.position.set(alongX ? cx - 0.6 : cx, yBase, alongX ? z : z - 0.6);
-      const panel = box(1.2, 2.6, 0.08, 0x4a3421);
+      const panel = box(1.2, 2.6, 0.08, 0x7a4a26);
       panel.position.set(alongX ? 0.6 : 0, 1.3, alongX ? 0 : 0.6);
       if (!alongX) panel.rotation.y = Math.PI / 2;
       hinge.add(panel);
@@ -1263,6 +1314,16 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
       handle.position.set(alongX ? 1.05 : 0.08, 1.1, alongX ? 0.08 : 1.05);
       hinge.add(handle);
       g.add(hinge);
+      // Door frame: warm-white posts + lintel so the entrance reads from far.
+      const dFrameM = new THREE.MeshStandardMaterial({ color: 0xe8e4da, roughness: 0.7 });
+      const dPost = (px, pz) => { const p = box(0.14, 2.7, 0.14, dFrameM); p.position.set(px, yBase + 1.35, pz); g.add(p); };
+      if (alongX) {
+        dPost(cx - 0.68, z); dPost(cx + 0.68, z);
+        const lin = box(1.5, 0.14, 0.14, dFrameM); lin.position.set(cx, yBase + 2.68, z); g.add(lin);
+      } else {
+        dPost(cx, z - 0.68); dPost(cx, z + 0.68);
+        const lin = box(0.14, 0.14, 1.5, dFrameM); lin.position.set(cx, yBase + 2.68, z); g.add(lin);
+      }
       shootable(panel);
       const r = mapRect(cx - 0.65, z - 0.12, cx + 0.65, z + 0.12);
       const col = solid(r.x0, r.z0, r.x1, r.z1, yBase, yBase + 2.6);
@@ -1404,6 +1465,17 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
       panel.rotation.x = -s * 0.35;
       g.add(panel);
     }
+    // GRAPHICS FIX: a light fascia board along the roof edge + a chimney, so
+    // the roofline reads as a house silhouette from across the map.
+    const fasciaM = new THREE.MeshStandardMaterial({ color: 0xe8e4da, roughness: 0.7 });
+    for (const s of [-1, 1]) {
+      const fas = box(w + 0.9, 0.16, 0.08, fasciaM);
+      fas.position.set(0, roofY + 0.28, s * (d / 2 + 0.42)); g.add(fas);
+    }
+    const chimney = box(0.6, 1.1, 0.6, 0x8a4a3a);
+    chimney.position.set(w / 4, roofY + 0.9, -d / 4); g.add(chimney);
+    const chimneyCap = box(0.8, 0.12, 0.8, 0x5a3a2a);
+    chimneyCap.position.set(w / 4, roofY + 1.5, -d / 4); g.add(chimneyCap);
     // Interior furniture (floor 1).
     if (o.furniture !== false) {
       const furn = (lx, lz, ww, hh, dd, color, y1) => {

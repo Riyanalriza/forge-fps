@@ -63,7 +63,25 @@ function mulberry(seed) {
 function concreteTex(rng) {
   return canvasTex(256, (g, s) => {
     g.fillStyle = '#4a4036'; g.fillRect(0, 0, s, s);
-    speckle(g, s, 900, ['#3a332a', '#5a5044', '#2e2820', '#6b5f4d'], 1, 4, rng);
+    // Large tonal blotches (dust, oil, wear) so the ground is never one flat
+    // colour. Positions come from an index hash, NOT the shared rng — the
+    // gameplay random sequence (loot, spawns) must stay byte-identical, so
+    // this texture consumes exactly the same rng() calls as before: speckle
+    // 900 + cracks 5, nothing else.
+    for (let i = 0; i < 9; i++) {
+      const x = (i * 97 + 31) % 256, y = (i * 57 + 113) % 256, r = 26 + (i * 37) % 55;
+      const gr = g.createRadialGradient(x, y, 0, x, y, r);
+      gr.addColorStop(0, i % 2 === 0 ? 'rgba(22,18,12,0.30)' : 'rgba(210,190,160,0.16)');
+      gr.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+    }
+    speckle(g, s, 900, ['#3a332a', '#5a5044', '#2e2820', '#6b5f4d', '#7a6a52'], 1, 4, rng);
+    // tyre arcs (index hash, no rng)
+    g.strokeStyle = 'rgba(18,14,10,0.35)'; g.lineWidth = 7;
+    for (let i = 0; i < 3; i++) {
+      const x = (i * 131 + 41) % 256, y = (i * 89 + 173) % 256, r = 40 + (i * 53) % 50;
+      g.beginPath(); g.arc(x, y, r, i * 1.1, i * 1.1 + 1.4); g.stroke();
+    }
     // cracks
     g.strokeStyle = 'rgba(20,16,10,0.55)'; g.lineWidth = 1.5;
     for (let i = 0; i < 5; i++) {
@@ -73,10 +91,13 @@ function concreteTex(rng) {
       for (let k = 0; k < 4; k++) { x += (rng() - 0.5) * 90; y += (rng() - 0.5) * 90; g.lineTo(x, y); }
       g.stroke();
     }
-    // expansion joints
-    g.strokeStyle = 'rgba(20,16,10,0.8)'; g.lineWidth = 3;
-    g.strokeRect(1, 1, s - 2, s - 2);
-  }, 10, 7);
+    // Expansion joints: heavy outer tile edge + a 2x2 sub-plate grid, so
+    // plates still read at play distance (repeat 16x12 => ~6.5 m tiles).
+    g.strokeStyle = 'rgba(20,16,10,0.85)'; g.lineWidth = 4;
+    g.strokeRect(2, 2, s - 4, s - 4);
+    g.lineWidth = 2; g.strokeStyle = 'rgba(20,16,10,0.6)';
+    g.beginPath(); g.moveTo(s / 2, 0); g.lineTo(s / 2, s); g.moveTo(0, s / 2); g.lineTo(s, s / 2); g.stroke();
+  }, 16, 12);
 }
 function metalTex(rng) {
   return canvasTex(256, (g, s) => {
@@ -122,18 +143,21 @@ function camoTex(rng) {
 const SKY_DUSK = { top: '#0e1424', mid: '#3a2a3a', horizon: '#e07a2a', glow: 'rgba(255,190,90,0.9)', stars: true };
 function skyTex(p = SKY_DUSK) {
   return canvasTex(512, (g, s) => {
+    // Canvas top (v=1) is the zenith; the visible horizon sits near v=0.5,
+    // so the horizon colour must peak there — the old stops (0.62-0.72) put
+    // it below the visible horizon and left the whole sky a flat mid colour.
     const grad = g.createLinearGradient(0, 0, 0, s);
-    grad.addColorStop(0, p.top); grad.addColorStop(0.45, p.mid);
-    grad.addColorStop(0.62, p.horizon); grad.addColorStop(0.72, p.horizon);
-    grad.addColorStop(0.78, '#2e241a'); grad.addColorStop(1, '#241c14');
+    grad.addColorStop(0, p.top); grad.addColorStop(0.22, p.mid);
+    grad.addColorStop(0.42, p.horizon); grad.addColorStop(0.5, p.horizon);
+    grad.addColorStop(0.56, '#2e241a'); grad.addColorStop(1, '#241c14');
     g.fillStyle = grad; g.fillRect(0, 0, s, s);
     // faint stars up top
     if (p.stars) {
       g.fillStyle = 'rgba(255,255,255,0.7)';
       for (let i = 0; i < 90; i++) { g.fillRect(Math.random() * s, Math.random() * s * 0.35, 1.5, 1.5); }
     }
-    // low sun glow
-    const sun = g.createRadialGradient(s * 0.7, s * 0.68, 4, s * 0.7, s * 0.68, 90);
+    // low sun glow — centred on the horizon band (v≈0.5), not below it
+    const sun = g.createRadialGradient(s * 0.7, s * 0.5, 4, s * 0.7, s * 0.5, 120);
     sun.addColorStop(0, p.glow); sun.addColorStop(1, 'rgba(255,120,30,0)');
     g.fillStyle = sun; g.fillRect(0, 0, s, s);
   });
@@ -215,7 +239,13 @@ export function buildWorld(scene) {
   const sun = new THREE.DirectionalLight(0xffb45e, 2.4);
   sun.position.set(-30, 38, 20); sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
-  Object.assign(sun.shadow.camera, { left: -45, right: 45, top: 35, bottom: -35, far: 120 });
+  Object.assign(sun.shadow.camera, { left: -45, right: 45, top: 35, bottom: -35, near: 1, far: 120 });
+  // The projection must be rebuilt after changing the camera bounds —
+  // without this the shadow frustum stays at the ±5 default and almost
+  // nothing outside the map centre casts a shadow.
+  sun.shadow.camera.updateProjectionMatrix();
+  sun.shadow.bias = -0.0004;
+  sun.shadow.normalBias = 0.03;
   scene.add(sun);
   const glowA = new THREE.PointLight(0xff7a1a, 30, 22); glowA.position.set(SITES.A.x, 3, SITES.A.z); scene.add(glowA);
   const glowB = new THREE.PointLight(0x37c8d8, 18, 20); glowB.position.set(SITES.B.x, 3, SITES.B.z); scene.add(glowB);

@@ -153,8 +153,8 @@ export const MAP_DEFS = {
     ],
     spawns: DEFAULT_SPAWNS,
     build(api) {
-      api.addHouse({ x: -16, z: 20, rot: 0, floors: 2, color: 0x8a7a5a, roof: 0x6b4a2a });
-      api.addHouse({ x: 16, z: -20, rot: 180, floors: 2, color: 0x7a6a8a, roof: 0x4a3a5a });
+      api.addHouse({ x: -16, z: 20, rot: 0, floors: 2, color: 0xa8906a, roof: 0x7a5232 });
+      api.addHouse({ x: 16, z: -20, rot: 180, floors: 2, color: 0x9888b8, roof: 0x5a4a6a });
       api.addBus(0, 2, 0, 0xe8b800);
       api.addCar(-8, 12, 0, 0x7a2a2a); api.addCar(8, -8, Math.PI / 2, 0x2a4a7a);
       api.addCar(0, -14, Math.PI / 2, 0x8a8a2a);

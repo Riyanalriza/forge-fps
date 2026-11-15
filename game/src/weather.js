@@ -69,17 +69,31 @@ export function createWeather(scene, S, world, audio) {
   moonMesh.position.set(60, 55, -40);
   moonMesh.visible = false;
   scene.add(moonMesh);
-  // Clouds: 15 flattened spheres drifting with the wind.
-  const cloudGeo = new THREE.SphereGeometry(1, 8, 6);
-  const cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, fog: false });
+  // Clouds: 15 puffy clusters (3-5 overlapping spheres each) drifting
+  // with the wind — a cluster reads as a cloud from the ground, while one
+  // flattened sphere reads as a white ellipse.
+  const cloudGeo = new THREE.SphereGeometry(1, 10, 8);
+  const cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, fog: false });
   const clouds = [];
   for (let i = 0; i < 15; i++) {
-    const c = new THREE.Mesh(cloudGeo, cloudMat);
-    c.scale.set(4 + Math.random() * 3, 1.1 + Math.random() * 0.6, 2.5 + Math.random() * 1.5);
+    const c = new THREE.Group();
+    const puffs = 3 + Math.floor(Math.random() * 3);
+    for (let j = 0; j < puffs; j++) {
+      const p = new THREE.Mesh(cloudGeo, cloudMat);
+      p.scale.set(2.2 + Math.random() * 2.8, 1 + Math.random() * 0.9, 1.6 + Math.random() * 1.6);
+      p.position.set((j - puffs / 2) * 2.4 + (Math.random() - 0.5), (Math.random() - 0.5) * 0.9, (Math.random() - 0.5) * 1.6);
+      c.add(p);
+    }
     c.position.set((Math.random() * 2 - 1) * 60, 26 + Math.random() * 14, (Math.random() * 2 - 1) * 55);
     scene.add(c);
     clouds.push(c);
   }
+  // Sun halo: a big soft additive shell around the sun so it glows instead
+  // of sitting as a flat yellow ball.
+  const sunHalo = new THREE.Mesh(new THREE.SphereGeometry(11, 16, 12),
+    new THREE.MeshBasicMaterial({ color: 0xffdf80, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+  sunHalo.position.copy(sunMesh.position);
+  scene.add(sunHalo);
   // Stars: 100 twinkling points in a dome.
   const starGeo = new THREE.BufferGeometry();
   {
@@ -183,12 +197,13 @@ export function createWeather(scene, S, world, audio) {
     world.hemi.color.setHex(def.hemi.sky);
     world.hemi.groundColor.setHex(def.hemi.ground);
     world.hemi.intensity = def.hemi.int;
-    sunMesh.visible = id !== 'night';
+    sunMesh.visible = id !== 'night'; sunHalo.visible = id !== 'night';
     sunMesh.material.color.setHex(id === 'sunset' ? 0xff5a2a : id === 'dawn' ? 0xffb080 : 0xffdf80);
+    sunHalo.material.color.setHex(id === 'sunset' ? 0xff5a2a : id === 'dawn' ? 0xffb080 : 0xffdf80);
     sunMesh.scale.setScalar(id === 'sunset' ? 1.8 : 1);
     moonMesh.visible = id === 'night';
     const nClouds = def.clouds;
-    clouds.forEach((c, i) => { c.visible = i < nClouds; c.material = cloudMat; });
+    clouds.forEach((c, i) => { c.visible = i < nClouds; }); // clusters share cloudMat
     cloudMat.color.setHex(id === 'night' ? 0x2a2a3a : id === 'storm' || id === 'rain' ? 0x3a4550 : id === 'dawn' ? 0xffc8d0 : (over && over.sky) ? 0x6a6a72 : 0xffffff);
     cloudMat.opacity = id === 'storm' || id === 'rain' ? 0.95 : 0.8;
     stars.visible = !!def.stars;

@@ -92,7 +92,7 @@ export function createZombies(scene, world, S, rng) {
 
   function makeZombie(isBoss) {
     const g = new THREE.Group();
-    const green = new THREE.MeshStandardMaterial({ color: isBoss ? 0x2a4a1a : 0x4a7a2a, roughness: 0.9 });
+    const green = new THREE.MeshStandardMaterial({ color: isBoss ? 0x2a4a1a : (zombies.length % 2 === 0 ? 0x4a7a2a : 0x3a6a2a), roughness: 0.9 });
     const dark = new THREE.MeshStandardMaterial({ color: 0x2a2a22, roughness: 0.9 });
     const skinM = new THREE.MeshStandardMaterial({ color: 0x5a8a3a, roughness: 0.8 });
     const mk = (w, h, d, m, x, y, z) => { const q = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); q.position.set(x, y, z); q.castShadow = true; g.add(q); return q; };
@@ -100,10 +100,16 @@ export function createZombies(scene, world, S, rng) {
     mk(0.22, 0.78, 0.22, dark, -0.14, 0.39, 0);
     mk(0.22, 0.78, 0.22, dark, 0.14, 0.39, 0);
     const chest = mk(0.62, 0.72, 0.34, green, 0, 1.14, 0);
+    mk(0.2, 0.16, 0.03, dark, -0.12, 1.2, -0.18); // torn-shirt patch
     const armL = mk(0.16, 0.62, 0.16, skinM, -0.38, 1.35, -0.25);
     const armR = mk(0.16, 0.62, 0.16, skinM, 0.38, 1.35, -0.25);
     armL.rotation.x = -1.4; armR.rotation.x = -1.4; // arms forward, reaching
+    for (const sx of [-0.38, 0.38]) {
+      const hand = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), skinM);
+      hand.position.set(sx, 1.4, -0.56); hand.castShadow = true; g.add(hand);
+    }
     const head = mk(0.34, 0.34, 0.34, skinM, 0, 1.67, 0);
+    head.rotation.z = 0.12; // slight tilt — reads as a shambling zombie
     const eyeM = new THREE.MeshBasicMaterial({ color: 0xff2222 });
     for (const ex of [-0.08, 0.08]) {
       const eye = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 0.02), eyeM);

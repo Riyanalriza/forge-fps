@@ -43,7 +43,7 @@ function box(w, h, d, mat, x = 0, y = 0, z = 0) {
 
 export function createVehicles(scene, world, S, audio = null, effects = null, cbs = {}) {
   const group = new THREE.Group(); scene.add(group);
-  const glassM = new THREE.MeshStandardMaterial({ color: 0x1a2a3a, roughness: 0.2, metalness: 0.6 });
+  const glassM = new THREE.MeshStandardMaterial({ color: 0x3a6a8a, roughness: 0.2, metalness: 0.4, emissive: 0x1a2a4a, emissiveIntensity: 0.3 });
   const darkM = new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.7 });
   const list = [];
   let gas = { x: 34, z: 20 }; // SPBU position for the current map (v22.4.1)
@@ -54,6 +54,10 @@ export function createVehicles(scene, world, S, audio = null, effects = null, cb
       const w = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.24, 10), darkM);
       w.rotation.z = Math.PI / 2; w.position.set(x, 0.36, z); w.castShadow = true;
       g.add(w);
+      const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.26, 10),
+        new THREE.MeshStandardMaterial({ color: 0xc8c8c8, roughness: 0.3, metalness: 0.7 }));
+      hub.rotation.z = Math.PI / 2; hub.position.set(x, 0.36, z); hub.castShadow = true;
+      g.add(hub);
       g.userData.wheels = (g.userData.wheels || []).concat(w);
     }
   }
@@ -114,6 +118,22 @@ export function createVehicles(scene, world, S, audio = null, effects = null, cb
     // car / boat / truck / bus / police / ambulance / firetruck: body + cabin
     g.add(box(w, h, d, bodyM, 0, 0.55, 0));
     g.add(box(w * 0.85, 0.5, d * 0.5, glassM, 0, 1.05, -0.2));
+    // GRAPHICS FIX: bumpers, grille, mirrors and a side stripe so the
+    // drivable car/bus reads as a vehicle, not a coloured box.
+    if (type !== 'boat' && type !== 'jetski') {
+      const chromeM = new THREE.MeshStandardMaterial({ color: 0xd8d8d8, roughness: 0.3, metalness: 0.7 });
+      g.add(box(w * 0.95, 0.18, 0.14, chromeM, 0, 0.4, -d / 2 - 0.02));
+      g.add(box(w * 0.95, 0.18, 0.14, chromeM, 0, 0.4, d / 2 + 0.02));
+      g.add(box(w * 0.6, 0.18, 0.06, darkM, 0, 0.62, -d / 2 - 0.03));
+      for (const s of [-1, 1]) {
+        g.add(box(0.1, 0.09, 0.16, chromeM, s * (w / 2 + 0.03), 1.1, -d * 0.25));
+      }
+      if (type === 'bus' || type === 'truck') {
+        for (const s of [-1, 1]) {
+          g.add(box(0.05, 0.22, d * 0.85, new THREE.MeshStandardMaterial({ color: 0xf0ead8, roughness: 0.6 }), s * (w / 2 + 0.01), 0.85, 0));
+        }
+      }
+    }
     addWheels(g, [[-w / 2 + 0.15, d / 2 - 0.7], [w / 2 - 0.15, d / 2 - 0.7], [-w / 2 + 0.15, -(d / 2 - 0.7)], [w / 2 - 0.15, -(d / 2 - 0.7)]]);
     if (type === 'police') {
       const strobe = new THREE.Group();
