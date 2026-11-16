@@ -185,7 +185,15 @@ export function createBots(scene, world, S, rng, deps = {}) {
     let moved = false;
     if (!world.isColliding(b.x + mx, b.z, R, 0)) { b.x += mx; moved = true; }
     if (!world.isColliding(b.x, b.z + mz, R, 0)) { b.z += mz; moved = true; }
-    if (moved) { b.yaw = Math.atan2(-dx, -dz); b.stuckT = 0; }
+    if (moved) {
+      b.yaw = Math.atan2(-dx, -dz); b.stuckT = 0;
+      b.stepAcc = (b.stepAcc || 0) + speed * dt;
+      if (b.stepAcc > 2.2) {
+        b.stepAcc = 0;
+        const pd = Math.hypot(S.player.x - b.x, S.player.z - b.z);
+        if (sfx && pd < 20) sfx.step(deps.surfaceAt ? deps.surfaceAt(b.x, b.z) : 'concrete', 0.04 * (1 - pd / 20));
+      }
+    }
     else b.stuckT = (b.stuckT || 0) + dt;
     return false;
   }

@@ -219,7 +219,7 @@ export function createZombies(scene, world, S, rng) {
         z.atkT -= dt;
         if (z.atkT <= 0) {
           z.atkT = 1;
-          if (p.alive) onPlayerHit && onPlayerHit(z.dmg, null);
+          if (p.alive) onPlayerHit && onPlayerHit(z.dmg, null, z);
         }
       } else {
         // Walk to the player, axis-separated so zombies slide along walls.

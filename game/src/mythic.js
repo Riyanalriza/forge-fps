@@ -1,10 +1,6 @@
-// Mythic 3D effects — all procedural, all client-side, single-player.
-// Reusable factories (createDragon3D / createVoidPortal3D) feed both the
-// mythic kill effects and the round-win finishers. No network, no server.
 import * as THREE from 'three';
 import { FINISHER_DEFS } from './state.js';
 
-// ---- Procedural dragon: 5 body segments, flapping wings, horns, yellow eyes ----
 export function createDragon3D(scale = 1) {
   const g = new THREE.Group();
   const bodyM = new THREE.MeshStandardMaterial({ color: 0xff2200, roughness: 0.5, metalness: 0.3, emissive: 0x881100, emissiveIntensity: 0.5 });
@@ -18,7 +14,6 @@ export function createDragon3D(scale = 1) {
     seg.castShadow = true;
     g.add(seg); segments.push(seg);
   }
-  // Head + horns + eyes
   const head = new THREE.Mesh(new THREE.ConeGeometry(0.34, 0.9, 8), bodyM);
   head.rotation.x = -Math.PI / 2; head.position.set(0, 0.1, 0.75);
   g.add(head);
@@ -30,7 +25,6 @@ export function createDragon3D(scale = 1) {
     eye.position.set(sx * 0.18, 0.16, 0.95);
     g.add(eye);
   }
-  // Wings (pivot at the body so they can flap)
   const wingGeo = new THREE.BoxGeometry(1.6, 0.06, 0.8);
   const wingL = new THREE.Group(), wingR = new THREE.Group();
   const wl = new THREE.Mesh(wingGeo, darkM); wl.position.x = -0.9;
@@ -48,7 +42,6 @@ export function createDragon3D(scale = 1) {
   };
 }
 
-// ---- Procedural void portal: 2 counter-rotating rings + orbiting particles ----
 export function createVoidPortal3D(scale = 1) {
   const g = new THREE.Group();
   const ring1 = new THREE.Mesh(
@@ -90,7 +83,6 @@ const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
 
 export function createMythicFx(scene, S, audio, hud) {
-  // ---- Shared particle pool (reused spheres) ----
   const POOL = 220;
   const pGeo = new THREE.SphereGeometry(0.09, 6, 6);
   const parts = [];
@@ -116,7 +108,6 @@ export function createMythicFx(scene, S, audio, hud) {
   function burst(x, y, z, opts) {
     for (let i = 0; i < (opts.count || 20); i++) spawnParticle(x, y, z, opts);
   }
-  // ---- Shared ring pool (expanding rings) ----
   const rings = [];
   for (let i = 0; i < 8; i++) {
     const m = new THREE.Mesh(
@@ -155,7 +146,6 @@ export function createMythicFx(scene, S, audio, hud) {
     }
   }
 
-  // ---- Kill effects ----
   const dragons = []; // {dragon, t, dur, from, ctrl, to}
   const portals = []; // {portal, t, dur, bot}
   function dragonKill(from, to) {
@@ -184,7 +174,6 @@ export function createMythicFx(scene, S, audio, hud) {
       const d = dragons[i];
       d.t += dt;
       const k = Math.min(1, d.t / d.dur);
-      // Quadratic bezier
       const u = 1 - k;
       const x = u * u * d.from.x + 2 * u * k * d.ctrl.x + k * k * d.to.x;
       const y = u * u * d.from.y + 2 * u * k * d.ctrl.y + k * k * d.to.y;
@@ -193,7 +182,6 @@ export function createMythicFx(scene, S, audio, hud) {
       _v2.set(d.to.x - x, d.to.y - y, d.to.z - z);
       if (_v2.lengthSq() > 0.01) d.dragon.group.lookAt(d.to.x, d.to.y, d.to.z);
       d.dragon.flap(S.time);
-      // Fire trail
       if (Math.random() < 0.7) spawnParticle(x, y, z, { count: 1, colors: [0xff5500, 0xffaa00], speed: 0.5, up: 0.3, gravity: 2, size: 1.4, life: 0.5 });
       if (k >= 1) {
         burst(d.to.x, 1.2, d.to.z, { count: 40, colors: [0xff5500, 0xffaa00, 0xff2200, 0xffee00], speed: 7, up: 4, gravity: -9, size: 1.6, life: 1.2 });
@@ -207,7 +195,6 @@ export function createMythicFx(scene, S, audio, hud) {
       p.t += dt;
       const k = Math.min(1, p.t / p.dur);
       p.portal.spin(dt, S.time);
-      // Victim is sucked in: shrink + spin.
       const s = Math.max(0.01, 1 - k);
       p.bot.mesh.group.scale.setScalar(s);
       p.bot.mesh.group.rotation.y += dt * 12;
@@ -220,7 +207,6 @@ export function createMythicFx(scene, S, audio, hud) {
     }
   }
 
-  // ---- Finishers (round-win cinematics) ----
   const fin = { active: null }; // {kind, t, dur, cx, cz, objs: [{update}]}
   const finisherObjs = [];
   function clearFinisherObjs() {
@@ -253,7 +239,6 @@ export function createMythicFx(scene, S, audio, hud) {
     const p = createVoidPortal3D(4);
     p.group.position.set(cx, 2, cz);
     addFinisherObj(p.group, (dt, t) => p.spin(dt, t));
-    // Suck-in particles: spawn around the rim, spiral inward.
     const suck = { t: 0 };
     finisherObjs.push({ group: null, update: (dt, t) => {
       suck.t += dt;
@@ -388,7 +373,6 @@ export function createMythicFx(scene, S, audio, hud) {
         if (c.position.y < 0.1) { c.position.y = 0.1; c.userData.vy = 0; }
       }
     });
-    // Rainbow arc: 7 half-torus, one per color.
     const arc = new THREE.Group();
     cols.forEach((col, i) => {
       const t = new THREE.Mesh(

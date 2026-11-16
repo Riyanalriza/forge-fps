@@ -10,6 +10,7 @@ import { SHOP_ITEMS } from './economy.js';
 import { defaultSettings, rebindKey } from './settings.js';
 import { loadColorChoices, saveColorChoices } from './palette.js';
 import { FLAGS, setFlag } from './state.js';
+import { dmgAngle } from './hud.js';
 
 export function runSelfTest(ctx) {
   const { S, game, bots, hud, mythicFx, world, weapon, player, doEmote, settle, FIXED_STEP, createDragon3D, createVoidPortal3D, weather, zombies, vehicles, economy, effects, audio, input } = ctx;
@@ -443,6 +444,48 @@ export function runSelfTest(ctx) {
     settle(60 * 8);
     check('Easy bots never use tactics',
       ez.skillCd <= 0 && ez.grenadesUsed === 0 && ez.flankedOnce !== true);
+    // FPS-feel: damage direction + footsteps. Restart the round first:
+    // the long settles above can run the round timer out (phase roundEnd),
+    // and player.step only runs while playing.
+    game.startRound();
+    S.player.x = 0; S.player.z = 0; S.player.yaw = 0;
+    check('dmgAngle ahead/right/behind/left',
+      Math.abs(dmgAngle(0, 0, 0, 0, -10)) < 0.01
+      && Math.abs(dmgAngle(0, 0, 0, 10, 0) - 90) < 0.01
+      && Math.abs(Math.abs(dmgAngle(0, 0, 0, 0, 10)) - 180) < 0.01
+      && Math.abs(dmgAngle(0, 0, 0, -10, 0) + 90) < 0.01
+      && Math.abs(dmgAngle(Math.PI / 2, 0, 0, -10, 0)) < 0.01);
+    check('stepInterval follows speed',
+      Math.abs(audio.stepInterval(6) - 0.38) < 0.02
+      && Math.abs(audio.stepInterval(9) - 0.26) < 0.02
+      && Math.abs(audio.stepInterval(3) - 0.77) < 0.02
+      && Math.abs(audio.stepInterval(2.1) - 1.1) < 0.02);
+    S.player.x = 0; S.player.z = 0; S.player.yaw = 0;
+    S.player.hp = 100; S.player.armor = 0; S.player.alive = true;
+    S.spawnProtT = 0; S.hardcore = false;
+    S.bots.forEach((b) => { b.x = 24; b.z = 24; b.state = 'hold'; });
+    bots.syncMeshes();
+    const dirEl = document.getElementById('dmg-dir');
+    const atk = S.bots[0]; atk.alive = true;
+    atk.x = 0; atk.z = 5;
+    game.hurtPlayer(10, atk);
+    check('Damage from behind points the indicator back',
+      S.player.hp === 90 && dirEl.classList.contains('on')
+      && dirEl.style.transform.includes('rotate(180deg)'));
+    atk.x = 5; atk.z = 0;
+    game.hurtPlayer(10, atk);
+    check('Damage from the right points the indicator right',
+      S.player.hp === 80 && dirEl.style.transform.includes('rotate(90deg)'));
+    S.player.hp = 100; S.spawnProtT = 999;
+    // Walk down the clear x=-20 lane (player at (0,0) sits inside the big
+    // central box at (0,-2), so velocity is zeroed by collision every frame).
+    S.player.x = -20; S.player.z = 20; S.player.yaw = 0;
+    const steps0 = audio.stepCount();
+    input.state.keys.add('KeyW');
+    settle(90);
+    input.state.keys.delete('KeyW');
+    S.spawnProtT = 0;
+    check('Walking plays footsteps', audio.stepCount() - steps0 >= 2);
     S.difficulty = 'normal';
   } catch (e) {
     checks.push({ name: 'exception: ' + (e && e.message) + ' @ ' + (e && e.stack ? String(e.stack).split('\n').slice(0, 4).join(' | ') : '?'), ok: false });

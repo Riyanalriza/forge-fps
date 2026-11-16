@@ -64,8 +64,14 @@ export function createAudio() {
     } catch { /* ignore */ }
   }
   let lastCallout = 0;
+  let steps = 0; // footstep counter (self-test reads it via stepCount)
+  function stepInterval(speed) { // stride 2.3m: walk 6 -> 0.38s, sprint 9 -> 0.26s, crouch 3 -> 0.77s, prone 2.1 -> 1.1s
+    return Math.max(0.2, Math.min(1.2, 2.3 / Math.max(0.5, speed || 6)));
+  }
   return {
     unlock() { ac(); },
+    stepCount() { return steps; },
+    stepInterval,
     setVolumes(gun, voice) { gunVol = Math.max(0, Math.min(1, gun ?? 1)); voiceVol = Math.max(0, Math.min(1, voice ?? 1)); },
     setCallouts(on) { calloutsOn = !!on; },
     setHaptic(on) { hapticOn = !!on; },
@@ -244,6 +250,7 @@ export function createAudio() {
     // wood is a dull 800 Hz knock, metal/concrete a brighter step.
     // Volume: 0.05 normal, 0.02 crouched, 0.01 prone (v18.1.6).
     step(surface = 'concrete', vol = 0.05) {
+      steps += 1;
       // 8 surfaces (v22.2.1): sand, wood, metal + grass, snow, water, mud,
       // stairs. Left/right alternation is handled by the caller timing.
       if (surface === 'sand') { noise(0.05, vol * 0.4, 200); return; }

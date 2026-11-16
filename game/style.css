@@ -17,6 +17,9 @@
   #hitmarker i:nth-child(2){ left:13px; bottom:0; width:2px; height:9px; }
   #hitmarker i:nth-child(3){ top:13px; left:0; height:2px; width:9px; }
   #hitmarker i:nth-child(4){ top:13px; right:0; height:2px; width:9px; }
+  #dmg-dir { position:fixed; left:50%; top:50%; width:260px; height:260px; transform:translate(-50%,-50%) rotate(0deg); opacity:0; transition:opacity .15s; pointer-events:none; z-index:47; }
+  #dmg-dir.on { opacity:1; }
+  #dmg-dir i { position:absolute; left:50%; top:2px; width:72px; height:16px; margin-left:-36px; background:#ff2d1e; border-radius:8px; box-shadow:0 0 18px rgba(255,40,20,.95), 0 0 4px rgba(255,255,255,.6); }
   #topbar { position:fixed; top:14px; left:50%; transform:translateX(-50%); display:flex; gap:18px; align-items:center; font-family:ui-monospace,Menlo,monospace; font-size:14px; background:rgba(10,12,10,.6); padding:6px 16px; border:1px solid #2c323a; border-radius:4px; }
   #timer { color:var(--amber); font-size:18px; font-weight:700; }
   .team-chip { display:inline-flex; align-items:center; gap:6px; padding:2px 10px; border-radius:4px; font-weight:700; }

@@ -5,6 +5,16 @@ import { STREAK_DEFS, MODE_DEFS, OPERATOR_DEFS, MYTHIC_DEFS, EMOTE_DEFS } from '
 import { MAP_DEFS } from './maps.js';
 import { xpInTier, missionList } from './battlepass.js';
 
+// Damage direction (deg): 0 = attacker straight ahead, +90 = right,
+// 180/-180 = behind, -90 = left. forward = (-sin yaw, -cos yaw),
+// right = (cos yaw, -sin yaw) — same basis as player.js movement.
+export function dmgAngle(yaw, px, pz, ax, az) {
+  const fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+  const rx = Math.cos(yaw), rz = -Math.sin(yaw);
+  const dx = ax - px, dz = az - pz;
+  return Math.atan2(dx * rx + dz * rz, dx * fx + dz * fz) * 180 / Math.PI;
+}
+
 export function createHud(S) {
   const $ = (id) => document.getElementById(id);
   const el = {
@@ -55,7 +65,11 @@ export function createHud(S) {
     dashBtn: $('dash-btn'), scopeBtn: $('scope-btn'), reloadBtn: $('reload-btn'),
   };
   const mm = el.minimap.getContext('2d');
-  let hitT = null, dmgT = null;
+  let hitT = null, dmgT = null, dmgDirT = null;
+  const dmgDirEl = document.createElement('div');
+  dmgDirEl.id = 'dmg-dir';
+  dmgDirEl.innerHTML = '<i></i>';
+  (el.hud || document.body).appendChild(dmgDirEl);
   // Emote wheel selection state (mouse-vector based, works with pointer lock)
   const wheelVec = { x: 0, y: 0 };
   let wheelSel = 0;
@@ -313,6 +327,13 @@ export function createHud(S) {
     }
   }
   function vignette() { el.vignette.classList.add('on'); setTimeout(() => el.vignette.classList.remove('on'), 220); }
+  function dmgDir(deg, holdMs = 1000) {
+    if (!dmgDirEl) return;
+    dmgDirEl.style.transform = `translate(-50%,-50%) rotate(${deg.toFixed(0)}deg)`;
+    dmgDirEl.classList.add('on');
+    clearTimeout(dmgDirT);
+    dmgDirT = setTimeout(() => dmgDirEl.classList.remove('on'), holdMs);
+  }
   function flashWhite(ms = 300) { el.flash.classList.add('on'); setTimeout(() => el.flash.classList.remove('on'), ms); }
   // Level-up popup: big title + DOM confetti (30 falling pieces, CSS animated).
   function showLevelUp(title) {
@@ -610,7 +631,7 @@ export function createHud(S) {
   function refreshStreaks() { /* redrawn in update() */ }
   function refreshOperator() { /* redrawn in update() */ }
   return {
-    update, updateHUDAll, killfeed, killfeedHtml, hitmarker, vignette, flashWhite, flashPurple,
+    update, updateHUDAll, killfeed, killfeedHtml, hitmarker, vignette, dmgDir, flashWhite, flashPurple,
     showMenu, hideMenu, showEnd, hideEnd, showBuy, plantBar,
     showEmote, showMythicEffect, showMythicKill, refreshBattlePass, refreshLoadout, refreshStreaks, refreshOperator,
     renderWheel, showWheel, wheelMove, wheelSelected,

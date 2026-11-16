@@ -1,9 +1,4 @@
-// FOUNDRY YARD — boot, fixed 60 Hz loop, ?shot= screenshot protocol.
-// ?shot=start|play|buy|end|test with &seed=N: deterministic frame, render twice, freeze, __shotReady.
-// ?shot=test runs a scripted self-test of the v2 systems and writes window.__selftest.
 import * as THREE from 'three';
-// Import order is the dossier order (a depth-first walk from index.html),
-// so the most distinctive systems are listed first.
 import { createState, MODE_DEFS, EMOTE_DEFS, FINISHER_DEFS, WHEEL_PRESETS, MYTHIC_DEFS, WEAPONS_DB } from './state.js';
 import { createMythicFx, createDragon3D, createVoidPortal3D } from './mythic.js';
 import { animatePlayers, mirrorEmote, killerInfo, CHAR_OPERATORS, CHAR_SKINS, createFirstPersonHands, createBotModel } from './characters.js';
@@ -48,7 +43,6 @@ S.seed = seed;
 S.ads = false;
 S.bp = getBattlePass();
 
-// ---- Persisted settings (localStorage) ----
 function loadJson(key, fallback) {
   try { const raw = window.localStorage.getItem(key); if (raw) return JSON.parse(raw); } catch { /* ignore */ }
   return fallback;
@@ -61,7 +55,6 @@ if (!FINISHER_DEFS[S.finisherSel]) S.finisherSel = 'execution';
 const savedWheel = loadJson('forge_wheel_v2', null);
 if (Array.isArray(savedWheel) && savedWheel.length === 8 && savedWheel.every(id => EMOTE_DEFS[id])) S.wheel = savedWheel;
 S.unlockedSkins = loadJson('forge_skins_v2', []);
-// Character (operator person + outfit), weather, gunsmith — persisted.
 S.charOp = loadJson('forge_charop_v2', 'specter');
 if (!CHAR_OPERATORS[S.charOp]) S.charOp = 'specter';
 S.charSkin = loadJson('forge_charskin_v2', 'default');
@@ -76,11 +69,8 @@ S.cycleOn = loadJson('forge_cycle_v2', false);
 S.medkits = 0;
 S.hint = '';
 S.binoZoom = false; // binocular zoom for non-sniper weapons (V, v18.0)
-// Mobile detection (v18.4): touch devices get bigger muzzle flash + HP recoil.
 S.isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-// Desktop (no touch): hide the touch-only buttons — the keyboard is the input.
 document.body.classList.toggle('no-touch', !S.isMobile);
-// Crash / bug reporter (v26.0.2): last 20 errors to localStorage, never sent anywhere.
 window.addEventListener('error', (e) => {
   try {
     const log = JSON.parse(localStorage.getItem('forge_crash_v2') || '[]');
@@ -88,7 +78,6 @@ window.addEventListener('error', (e) => {
     localStorage.setItem('forge_crash_v2', JSON.stringify(log.slice(-20)));
   } catch { /* ignore */ }
 });
-// Full control settings (v17.3): one localStorage key, loaded at start.
 const settings = loadSettings();
 S.settings = settings;
 S.profileAvatar = loadJson('forge_avatar_v2', null);
@@ -119,14 +108,12 @@ audio.setMobile(S.isMobile);
 const hud = createHud(S);
 const player = createPlayer(world, S);
 const effects = createEffects(scene, S, audio);
-// Flashlight (v18.9.20): spotlight following the camera, toggled with K.
 const flashlight = new THREE.SpotLight(0xfff2cc, 0, 30, 0.5, 0.4, 1.2);
 flashlight.visible = false;
 camera.add(flashlight);
 flashlight.position.set(0, 0, 0);
 flashlight.target.position.set(0, 0, -1);
 camera.add(flashlight.target);
-// Color choices (v24.1): apply persisted colors to the world + HUD.
 S.colorChoices = loadColorChoices();
 S.weaponCamo = S.colorChoices.weaponCamo || 'none';
 S.weaponColor = S.colorChoices.weaponColor || 'none';
@@ -144,20 +131,14 @@ function applyColorChoices() {
 }
 applyColorChoices();
 const weapon = createWeapon(scene, camera, S, audio, effects, {
-  // v22.5 wiring: explosions from rockets / barrels damage bots locally.
   onBlast: (x, z, r, dmg) => game.areaDamage(x, z, r, dmg, 'explosion'),
-  // v19.2 wiring: raycast hits on props route to the destructible system.
   onPropHit: (obj, dmg, point) => game.damagePropHit(obj, dmg, point),
 });
 const bots = createBots(scene, world, S, rng, {
-  effects, audio,
+  effects, audio, surfaceAt,
   onBotTactic: (text) => hud.chatLog(text), // v27.1 bot tactic callouts
-  // v19.1.7: bot suicide (fall / own grenade) goes to the killfeed.
   onZoneDeath: (b) => hud.killfeedHtml(`<span style="color:#ff9a3d">☠️ SUICIDE! ${b.name} mati sendiri</span>`),
-  // v23.0.5 Tracker: a bot that shoots at you is marked on the minimap.
   onBotShot: (b) => { S.trackMark = { x: b.x, z: b.z, t: 5 }; },
-  // Radio callout: first sighting per 10s names the nearest site.
-  // The spotting bot also drops the same call into the team chat feed.
   onSpot: (b) => {
     if (S.time - (S.radioCdT || 0) < 10) return;
     S.radioCdT = S.time;
@@ -169,7 +150,6 @@ const economy = createEconomy();
 const weather = createWeather(scene, S, world, audio);
 const zombies = createZombies(scene, world, S, rng);
 const vehicles = createVehicles(scene, world, S, audio, effects, {
-  // v22.4 wiring: heli rockets / tank cannon blast damage bots locally.
   onBlast: (x, z, r, dmg) => game.areaDamage(x, z, r, dmg, 'explosion'),
 });
 const game = createGame(S, world, bots, hud, audio, scene, {
@@ -182,15 +162,12 @@ const game = createGame(S, world, bots, hud, audio, scene, {
   },
   onPlayerDeath(killer) {
     economy.recordStat('deaths', 1);
-    // v24.0.4: death screen with killer info + respawn timer.
     if (killer && killer.kind !== 'zombie') {
       hud.showDeathScreen(`${killer.name} — ${killer.weapon || ''}`);
       hud.showKillcam(killerInfo(killer));
-      // Auto-spectate the killer after 3s (TDM/DOM respawn wait).
       setTimeout(() => { if (!S.player.alive && S.phase === 'playing') startSpectate(killer.id); }, 3000);
     }
   },
-  // v19.0.4: 50% chance a hit cancels your reload; hurt sound + low-HP heartbeat.
   onHurt(dmg) {
     if (weapon.isReloading() && Math.random() < 0.5) {
       weapon.cancelReload();
@@ -200,12 +177,10 @@ const game = createGame(S, world, bots, hud, audio, scene, {
     if (S.player.hp < 30) audio.heartbeat();
     audio.haptic('damage');
   },
-  // v24.0.11: achievement unlock toast + sound (coin already added in game.js).
   onAchievement(id, reward) {
     hud.showHint(`🏆 Achievement: ${id} (+${reward} 🪙)`);
     audio.levelUp();
   },
-  // v18.8.7: BR knock — downed, waiting for an ally bot to revive you.
   onPlayerKnock() {
     S.msg = '🤕 KNOCK! Bot satu tim sedang revive kamu…'; S.msgT = 3;
     audio.hurt();
@@ -215,7 +190,6 @@ const game = createGame(S, world, bots, hud, audio, scene, {
     if (won) economy.recordStat('wins', 1);
     else economy.recordStat('losses', 1);
     hud.hideDeathScreen();
-    // v28.0.6: rain when you lose (mood); v24.0.4: victory screen on match end.
     if (!won) weather.applyWeather('rain', rng);
     if (matchOver) {
       economy.recordMatch(won ? 'win' : 'loss', {
@@ -232,11 +206,9 @@ const game = createGame(S, world, bots, hud, audio, scene, {
   },
 });
 const mythicFx = createMythicFx(scene, S, audio, hud);
-// Apply the persisted weather for the starting map (full per-map params).
 weather.applyMapWeather(S.mapId, rng);
 vehicles.place(S.mapId);
 
-// ---- Menu wiring: mode / loadout / perks / operator / mythic / card ----
 function readMenu() {
   const q = (s) => document.querySelector(s);
   const modeBtn = document.querySelector('.mode-btn.sel');
@@ -261,7 +233,6 @@ function readMenu() {
   if (mythicBtn) S.mythic = mythicBtn.dataset.mythic;
   const cardEl = document.querySelector('.calling-card.sel');
   if (cardEl) S.card = cardEl.dataset.card;
-  // v25.0.5: bot difficulty + gravity (Bumi/Mars/Bulan) + Hardcore/Realistic/colour-blind.
   const diff = q('#difficulty-select');
   if (diff) { S.difficulty = diff.value; saveJson('forge_difficulty_v2', S.difficulty); }
   const grav = q('#gravity-select');
@@ -272,7 +243,6 @@ function readMenu() {
   if (rl) { S.realistic = rl.checked; }
   const cb = q('#flag-colorblind');
   if (cb) { S.colorblind = cb.checked; document.getElementById('hud')?.classList.toggle('colorblind', cb.checked); }
-  // v24.0.13: custom room (local config only — no other players).
   const rn = q('#room-name');
   if (rn) S.roomName = rn.value.slice(0, 24);
   const rp = q('#room-pass');
@@ -280,7 +250,6 @@ function readMenu() {
   weapon.applyMythic();
 }
 
-// Build a map + re-place vehicles + apply the map's weather.
 function buildMap(id) {
   world.buildMap(id);
   vehicles.place(id);
@@ -319,7 +288,6 @@ document.querySelectorAll('.calling-card').forEach(c => {
 document.getElementById('load-primary').addEventListener('change', readMenu);
 document.getElementById('load-operator').addEventListener('change', readMenu);
 
-// ---- Map picker (cards + instant preview) ----
 function renderMapPicker() {
   const wrap = document.getElementById('map-picker');
   if (!wrap) return;
@@ -332,7 +300,6 @@ function renderMapPicker() {
     saveJson('forge_map_v2', S.mapId);
     buildMap(S.mapId);
     renderMapPicker();
-    // Changing the map mid-round restarts the round on the new map.
     if (S.phase === 'playing' || S.phase === 'roundEnd' || S.phase === 'matchEnd') game.startRound();
   }));
 }
@@ -358,7 +325,6 @@ document.getElementById('finisher-preview')?.addEventListener('click', () => {
   S.finisherRequest = { kind: S.finisherSel, cx, cz, killerName: 'YOU', victimName: 'BOT-1' };
 });
 
-// ---- Emote wheel custom panel ----
 let wheelSlotSel = 0;
 function renderWheelPanel() {
   const prev = document.getElementById('wheel-preview');
@@ -421,7 +387,6 @@ document.getElementById('preset-save')?.addEventListener('click', () => {
 renderWheelPanel();
 hud.renderWheel(S.wheel);
 
-// ---- Daily preset card ----
 function renderDailyCard() {
   const d = getDaily();
   const el = document.getElementById('daily-card');
@@ -459,7 +424,6 @@ function renderDailyCard() {
 }
 renderDailyCard();
 setInterval(renderDailyCard, 30000); // refresh the midnight countdown
-// Autosave (v25.0.8): every 60s persist BP + coins + settings + colors.
 setInterval(() => {
   try {
     saveJson('forge_autosave_v2', { t: Date.now(), bp: S.bp, coins: economy.profile.coins, xp: economy.profile.xp });
@@ -468,7 +432,6 @@ setInterval(() => {
   } catch { /* offline-safe */ }
 }, 60000);
 
-// ---- Character selects (operator person + outfit) ----
 function renderCharSelects() {
   const opSel = document.getElementById('load-charop');
   if (opSel) {
@@ -491,7 +454,6 @@ function renderCharSelects() {
 }
 renderCharSelects();
 
-// ---- Weather + day-night cycle panel ----
 function renderWeatherPanel() {
   const sel = document.getElementById('weather-select');
   if (sel && sel.options.length === 0) {
@@ -513,7 +475,6 @@ function renderWeatherPanel() {
 renderWeatherPanel();
 setInterval(renderWeatherPanel, 1000); // cycle countdown ticks
 
-// ---- Gunsmith ----
 function renderGunsmith() {
   const wrap = document.getElementById('gunsmith-slots');
   if (!wrap) return;
@@ -541,7 +502,6 @@ function renderGunsmith() {
 }
 renderGunsmith();
 
-// ---- Shop + gacha ----
 function renderShop() {
   const wrap = document.getElementById('shop-grid');
   if (!wrap) return;
@@ -574,7 +534,6 @@ document.getElementById('gacha-10')?.addEventListener('click', () => {
   renderShop(); renderCharSelects(); renderProfile();
 });
 
-// ---- Quests ----
 function renderQuests() {
   const wrap = document.getElementById('quest-list');
   if (!wrap) return;
@@ -588,7 +547,6 @@ function renderQuests() {
 }
 renderQuests();
 
-// ---- Profile + replays ----
 function renderProfile() {
   const el = document.getElementById('profile-card');
   if (!el) return;
@@ -612,24 +570,18 @@ function renderReplays() {
 }
 renderReplays();
 
-// ---- Chat filter (v18.2.12 + v28.0.7): profanity, spam, caps, emoji, links.
 const BAD_WORDS = ['anjing', 'bangsat', 'kontol', 'memek', 'tolol', 'goblok', 'bego', 'fuck', 'shit', 'bitch'];
 function filterChat(raw) {
   let t = String(raw || '').slice(0, 120);
   for (const w of BAD_WORDS) t = t.replace(new RegExp(w, 'gi'), '****');
-  // Repeated-character spam: "aaaaaa" -> "aa".
   t = t.replace(/(.)\1{3,}/g, '$1$1');
-  // ALL CAPS -> lowercase (keep short shouts).
   if (t.length > 6 && t === t.toUpperCase() && /[A-Z]/.test(t)) t = t.toLowerCase();
-  // Emoji spam: keep max 3 emoji-ish symbols.
   const emojis = t.match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu) || [];
   if (emojis.length > 3) t = t.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, (m, off) => (t.slice(0, off).match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu) || []).length < 3 ? m : '');
-  // Links become [link].
   t = t.replace(/https?:\/\/\S+/g, '[link]').replace(/www\.\S+/g, '[link]');
   return t.trim() || '…';
 }
 
-// ---- Settings panel (v17.3): 5 tabs, all controls real, all saved to one key.
 let settingsTab = 'kontrol';
 function renderSettingsPanel() {
   const wrap = document.getElementById('settings-panel');
@@ -738,7 +690,6 @@ function renderSettingsPanel() {
     else hud.killfeed('📱 Izin gyro ditolak.');
   });
 }
-// Apply settings that change rendering / audio right now (v18.6.10 + v18.3).
 function applySettingsLive() {
   applyQuality(settings.graphics.quality);
   renderer.toneMappingExposure = settings.graphics.brightness * (settings.graphics.hdr ? 1.5 : 1.15);
@@ -751,7 +702,6 @@ function applySettingsLive() {
   document.getElementById('fire-btn-left').style.display = settings.fireSide === 'both' || settings.fireSide === 'left' ? '' : 'none';
   if (settings.gyro) input.enableGyro();
 }
-// Graphics quality that REALLY changes the render (v18.6.10).
 function applyQuality(q) {
   if (q === 'low') {
     renderer.setPixelRatio(1);
@@ -779,7 +729,6 @@ function applyQuality(q) {
     S.dustOff = false;
   }
 }
-// Language (v17.3.12): ID/EN for the main menu labels (matched by prefix).
 function applyLanguage() {
   const lang = settings.lang === 'en' ? 'en' : 'id';
   const t = STRINGS[lang];
@@ -797,7 +746,6 @@ renderSettingsPanel();
 applyLanguage();
 applySettingsLive();
 
-// ---- 3D weapon preview in the menu (v16.2.9): small renderer, rotating gun.
 let previewRenderer = null, previewScene = null, previewCam = null, previewGun = null, previewAngle = 0;
 function renderPreview(dt) {
   const cv = document.getElementById('preview-canvas');
@@ -833,7 +781,6 @@ function renderPreview(dt) {
   previewRenderer.render(previewScene, previewCam);
 }
 
-// ---- Weapon selector panel (v18.5.11): name + type + DMG + mag, linked to Gunsmith.
 function renderWeaponSelector() {
   const wrap = document.getElementById('weapon-selector');
   if (!wrap) return;
@@ -848,7 +795,6 @@ function renderWeaponSelector() {
 }
 renderWeaponSelector();
 
-// ---- Color section (v24.1): costume / weapon / building / vehicle / season pickers.
 function renderColorSection() {
   const wrap = document.getElementById('color-section');
   if (!wrap) return;
@@ -876,7 +822,6 @@ function renderColorSection() {
 }
 renderColorSection();
 
-// ---- Achievements list (v24.0.11): local unlocks with coin rewards.
 function renderAchievements() {
   const wrap = document.getElementById('achievement-list');
   if (!wrap) return;
@@ -892,7 +837,6 @@ function renderAchievements() {
 }
 renderAchievements();
 
-// ---- Lucky Draw + Crate (v23.0.8): local coins only, odds shown in the shop.
 document.getElementById('lucky-draw')?.addEventListener('click', () => {
   if (economy.profile.coins < 80) { hud.killfeed('🪙 Lucky Draw butuh 80 coin!'); return; }
   economy.profile.coins -= 80;
@@ -917,7 +861,6 @@ document.getElementById('crate-buy')?.addEventListener('click', () => {
   renderShop(); renderProfile();
 });
 
-// ---- Loadout share (v26.0.4): export/import loadout via base64 code.
 document.getElementById('loadout-export')?.addEventListener('click', () => {
   const code = btoa(JSON.stringify({ primary: S.loadout.primary, operator: S.operator, atts: S.atts, perks: S.perks, mythic: S.mythic }));
   const el = document.getElementById('loadout-code');
@@ -941,7 +884,6 @@ document.getElementById('loadout-import')?.addEventListener('click', () => {
   } catch { hud.killfeed('❌ Loadout code tidak valid.'); }
 });
 
-// ---- Settings export / import / reset + sound test + voice command (v17.3.13).
 document.getElementById('settings-export')?.addEventListener('click', () => {
   const code = exportSettings(settings);
   const el = document.getElementById('settings-code');
@@ -996,7 +938,6 @@ document.getElementById('voice-cmd')?.addEventListener('click', () => {
   try { rec.start(); hud.killfeed('🎤 Mendengarkan… katakan "reload", "heal", atau "grenade".'); } catch { /* ignore */ }
 });
 
-// ---- World events (v27.0.7) + reference tables (v22.3.15 / v22.1.8).
 document.querySelectorAll('.event-btn').forEach(b => b.addEventListener('click', () => {
   game.triggerEvent(b.dataset.event);
   hud.killfeed(`🎆 Event: ${b.dataset.event}`);
@@ -1024,7 +965,6 @@ document.getElementById('fx-table-btn')?.addEventListener('click', () => {
     ${Object.values(WEAPONS_DB).slice(0, 14).map(w => `<tr><td>${w.name}</td><td>${w.sound || w.cls}</td><td>${w.recoil}</td><td>${w.range}m</td><td>${w.haptic || '—'}ms</td></tr>`).join('')}</table>`;
 });
 
-// ---- HUD buttons: surrender, Dead Silence, dash/scope/reload, quick emotes.
 hud.onSurrender(() => {
   if (S.phase !== 'playing') return;
   game.endRound(false, 'MENYERAH — ronde berakhir sebagai kalah');
@@ -1037,9 +977,6 @@ hud.onDSToggle(() => {
 });
 hud.onDashBtn(() => {
   if (S.phase !== 'playing') return;
-  // 💨 button: running = slide, standing = jump (v18.4.8).
-  // Implemented by injecting the real keys into the movement set, so the
-  // existing physics (slide / vault / jump) runs unchanged.
   const moving = input.state.keys.has('KeyW') || input.state.keys.has('KeyA') || input.state.keys.has('KeyS') || input.state.keys.has('KeyD');
   if (moving) {
     input.state.keys.add('KeyC');
@@ -1058,9 +995,7 @@ hud.onQuickEmote((id) => doEmote(id));
 hud.renderQuickEmotes(['dance', 'wave', 'bow', 'flex', 'laugh']);
 hud.onDeathSkip(() => { hud.hideDeathScreen(); game.respawnPlayer(); });
 hud.onVictoryClose(() => { hud.hideVictoryScreen(); });
-// Scorestreak auto-pick (v22.0.2): click the streak counter to use the best ready streak.
 document.getElementById('streak-info')?.addEventListener('click', () => game.useBestStreak());
-// Lobby clock (v18.9.1): real device time + date.
 function tickClock() {
   const el = document.getElementById('lobby-clock');
   if (!el) return;
@@ -1083,7 +1018,6 @@ function doEmote(id) {
   }
 }
 
-// ---- Spectator (after death) ----
 function aliveBots() { return S.bots.filter(b => b.alive); }
 function startSpectate(botId) {
   const alive = aliveBots();
@@ -1118,11 +1052,7 @@ hud.onAdsBtn((down) => {
   if (settings.adsMode === 'toggle') { if (down) input.toggleAds(); }
   else input.setAds(down);
 });
-// Mobile: virtual joystick + fire buttons (left/right/both per settings).
-// Bound after `input` is created below (createInput, ~line 1340) — calling
-// them here would hit the TDZ of the `const input` declaration.
 
-// ---- Finisher completion ----
 function onFinisherDone(kind) {
   S.finisher = null;
   if (S.previewMode) {
@@ -1150,7 +1080,6 @@ const markerHoldMs = shot ? 4000 : 90;
 
 function syncCamera() {
   const p = S.player;
-  // Cinematic camera during the finisher: orbit + zoom in, FOV 45.
   if (S.finisher) {
     const f = S.finisher;
     const a = S.time * 0.4;
@@ -1164,9 +1093,7 @@ function syncCamera() {
     if (Math.abs(camera.fov - 45) > 0.1) { camera.fov = 45; camera.updateProjectionMatrix(); }
     return;
   }
-  // Spectator: the camera follows a living bot from behind.
   if (S.spectate && !S.player.alive) {
-    // Free cam: fly with WASD, no collision, mouse steers via player look.
     if (S.spectateFree) {
       const sp = 10 * lastRawDt;
       const sin = Math.sin(p.yaw), cos = Math.cos(p.yaw);
@@ -1207,9 +1134,7 @@ function syncCamera() {
     if (S.emote.id === 'flex') roll = Math.sin(S.time * 6) * 0.08;
     if (S.emote.id === 'cry') camera.position.y += (Math.random() - 0.5) * 0.03;
   }
-  // Recoil pitch (kicked up by weapon.fire, decays in player.step).
   camera.rotation.set(p.pitch + pitchAdd + p.recoilPitch, p.yaw, roll, 'YXZ');
-  // Screen shake from blood / explosions (effects.shakeAmp decays in effects.step).
   const sh = effects.shakeAmp();
   if (sh > 0) {
     camera.position.x += (Math.random() - 0.5) * sh;
@@ -1228,14 +1153,11 @@ function aimAt(x, y, z) {
   syncCamera();
 }
 function onBotHit(bot, head, w, dmgOverride, wallbang, point) {
-  // Accuracy tracking (v24.0.11): every confirmed hit counts.
   S.shotsHit = (S.shotsHit || 0) + 1;
-  // Blood spray along the bullet direction + a stain on the bot's body.
   const dx = bot.x - S.player.x, dz = bot.z - S.player.z;
   const dl = Math.hypot(dx, dz) || 1;
   const dir = { x: dx / dl, y: 0, z: dz / dl };
   const hitPoint = point || { x: bot.x, y: 1.4, z: bot.z };
-  // Zombie kill (zombie mode): +50 coins, no game.onKill.
   if (bot.kind === 'zombie') {
     let dmg = dmgOverride != null ? dmgOverride : w.dmg * (head ? w.headMult : 1);
     if (S.papWeapons && S.papWeapons.includes(w.id)) dmg *= 2; // Pack-a-Punch (v23.0.9)
@@ -1263,10 +1185,8 @@ function onBotHit(bot, head, w, dmgOverride, wallbang, point) {
     dmg = damageAtRange(dmg, dist, w.range || 40); // range falloff
     if (wallbang) dmg *= 0.5; // thin-wall penetration: half damage
   }
-  // Per-weapon stats (v25.0.8).
   const ws = S.weaponStats[w.id] || (S.weaponStats[w.id] = { shots: 0, hits: 0, kills: 0 });
   ws.hits += 1;
-  // Kill cause for the kill title (v19.0.17): wallbang / longshot / knife / rpg.
   if (wallbang) S.lastKillCause = 'wallbang';
   else if (dist > 50) S.lastKillCause = 'longshot50';
   else if (w.id === 'katana' || w.id === 'knife') S.lastKillCause = 'knife';
@@ -1284,22 +1204,18 @@ function onBotHit(bot, head, w, dmgOverride, wallbang, point) {
     effects.bloodPool(bot.x, bot.z, head);
     audio.killConfirm();
     audio.haptic('kill');
-    // Kill confirm visual (v18.1.4) + weapon drop (v18.0.5).
     hud.killConfirmVisual(head ? '💀 ✓ HEADSHOT!' : '✓ KILL!');
     game.dropWeapon(bot);
-    // First Blood (v18.0.11): first kill of the round.
     if (!S.firstBloodDone) {
       S.firstBloodDone = true;
       hud.killfeed('🩸 FIRST BLOOD! +100 XP', 'gold');
       addXP(S.bp, 100, 'firstblood');
     }
-    // Revenge (v18.0.11): you kill the bot that killed you last.
     if (S.lastKiller && bot.id === S.lastKiller.id) {
       hud.killfeed('⚔️ REVENGE! Kamu membalas dendam +100 XP', 'gold');
       addXP(S.bp, 100, 'revenge');
       S.lastKiller = null;
     }
-    // Mythic kill effects (local, single-player).
     if (S.mythic === 'dragon') {
       mythicFx.dragonKill({ x: S.player.x, y: S.player.y + S.player.eye, z: S.player.z }, { x: bot.x, y: 1.4, z: bot.z });
       hud.showMythicKill('dragon');
@@ -1324,22 +1240,20 @@ function shoot() {
     ud.zombieId !== undefined ? zombies.zombies.find(z => z.id === ud.zombieId) : S.bots[ud.botId]);
   if (w.mag < magBefore) {
     S.lastShotPos = { x: S.player.x, z: S.player.z };
-    // Loud noise (v22.2.2): bots within 15m investigate the shot.
     S.noise = { x: S.player.x, z: S.player.z, t: 0.5, vol: w.id === 'crossbow' ? 0.05 : 0.5 };
     const ws = S.weaponStats[w.id] || (S.weaponStats[w.id] = { shots: 0, hits: 0, kills: 0 });
     ws.shots += 1;
     if (settings.haptic && navigator.vibrate) { try { navigator.vibrate(8); } catch { /* ignore */ } }
   }
 }
-function onPlayerHit(dmg, bot) {
+function onPlayerHit(dmg, bot, from) {
   if (S.phase !== 'playing' || !S.player.alive) return;
-  game.hurtPlayer(dmg, bot);
+  game.hurtPlayer(dmg, bot, from);
   hud.vignette();
   effects.screenBlood(); // blood splatter + screen shake
   if (settings.haptic && navigator.vibrate) { try { navigator.vibrate(40); } catch { /* ignore */ } }
 }
 
-// ---- Emote wheel state ----
 let wheelViaButton = false;
 const input = createInput(renderer.domElement, {
   onLockChange(locked) {
@@ -1351,13 +1265,11 @@ const input = createInput(renderer.domElement, {
   onInteract: () => {
     if (S.phase !== 'playing') return;
     const p = S.player;
-    // Dismount the horse (v27.0.3): E again while riding.
     if (S.mounted) {
       S.mounted = false;
       S.msg = '🐴 Turun dari kuda'; S.msgT = 1.5;
       return;
     }
-    // BR revive: a dead bot nearby stands up as your ally (max 1).
     if (S.mode === 'br' && !S.bots.some(b => b.team === 'ally')) {
       const dead = S.bots.find(b => !b.alive && Math.hypot(b.x - p.x, b.z - p.z) < 3);
       if (dead) {
@@ -1366,7 +1278,6 @@ const input = createInput(renderer.domElement, {
         return;
       }
     }
-    // Pack-a-Punch / Perk-a-Cola (v23.0.9, zombie mode): buy with in-match cash.
     if (S.mode === 'zombie') {
       const m = zombies.nearestMachine(p.x, p.z);
       if (m) {
@@ -1375,7 +1286,6 @@ const input = createInput(renderer.domElement, {
         return;
       }
     }
-    // Lift (v19.2.15): ride between floors (groundY keeps you on floor 2).
     const lift = world.nearestLift(p.x, p.z);
     if (lift) {
       p.y = p.y > 2 ? 0 : 4.7;
@@ -1384,17 +1294,14 @@ const input = createInput(renderer.domElement, {
       S.msg = p.y > 2 ? '🛗 Lift naik ke lantai 2' : '🛗 Lift turun ke lantai 1'; S.msgT = 2;
       return;
     }
-    // Doors (v12): nearest door within 2.5m.
     let near = null, nearD = 2.5;
     for (const d of world.doors) {
       const dd = Math.hypot(d.x - p.x, d.z - p.z);
       if (dd < nearD) { nearD = dd; near = d; }
     }
     if (near) { world.toggleDoor(near); audio.door(); return; }
-    // Loot crate (v20.0.2) / dropped weapon (v18.0.5).
     if (game.openCrate()) return;
     if (game.pickupDropped()) { S.msg = '🔫 Senjata diambil!'; S.msgT = 1.5; return; }
-    // Containers (v22.3.12): E opens a container — loot armor/ammo/medkit.
     const cont = world.nearestContainer(p.x, p.z);
     if (cont && !cont.opened) {
       cont.opened = true;
@@ -1406,7 +1313,6 @@ const input = createInput(renderer.domElement, {
       S.msgT = 2; audio.crate();
       return;
     }
-    // House items / NPCs / animals / crops (v27.0.4-6): nearest interactable.
     const it = world.nearestInteractable(p.x, p.z);
     if (it) {
       if (it.type === 'horse') {
@@ -1459,11 +1365,9 @@ const input = createInput(renderer.domElement, {
   onGrenade: (k) => {
     if (S.phase !== 'playing') return;
     if (k === 'flash') {
-      // F near a vehicle = get in, otherwise flash grenade.
       if (vehicles.nearest(S.player.x, S.player.z, 3)) { vehicles.enter(); return; }
       game.throwGrenade('flash', camera);
     } else if (k === 'smoke') {
-      // G in a vehicle = get out, otherwise smoke grenade.
       if (S.driving) { vehicles.exit(); return; }
       game.throwGrenade('smoke', camera);
     } else {
@@ -1483,14 +1387,12 @@ const input = createInput(renderer.domElement, {
     S.msg = settings.callouts ? '🔊 Voice callouts ON' : '🔇 Voice callouts OFF'; S.msgT = 2;
     renderSettingsPanel();
   },
-  // v18.9.20: flashlight (K) — spotlight following the camera.
   onFlashlight: () => {
     S.flashlightOn = !S.flashlightOn;
     flashlight.visible = S.flashlightOn;
     flashlight.intensity = S.flashlightOn ? 60 : 0;
     S.msg = S.flashlightOn ? '🔦 Senter ON' : '🔦 Senter OFF'; S.msgT = 1.5;
   },
-  // v18.0: sniper zoom cycle 2x/4x/8x (V); other weapons = binocular zoom.
   onZoom: () => {
     const w = weapon.cur();
     if (['lr50', 'arctic', 'kilo', 'sks'].includes(w.id)) {
@@ -1507,13 +1409,11 @@ const input = createInput(renderer.domElement, {
       S.msg = S.binoZoom ? '🔭 Teropong 2x' : '🔭 Teropong OFF'; S.msgT = 1.2;
     }
   },
-  // v18.0: laser sight (L) — red line + dot on the wall (weapon.js).
   onLaser: () => {
     S.laserOn = !S.laserOn;
     audio.modeSwitch();
     S.msg = S.laserOn ? '🔴 Laser ON' : '🔴 Laser OFF'; S.msgT = 1.2;
   },
-  // v18.2.12 + v28.0.7: local chat (Y) — prompt, filtered (spam/caps/emoji/link).
   onChat: () => {
     const raw = window.prompt('💬 Chat lokal (hanya kamu yang baca):', '');
     if (raw == null) return;
@@ -1521,11 +1421,8 @@ const input = createInput(renderer.domElement, {
     hud.chatLog(`YOU: ${filtered}`);
     hud.showChatBubble(filtered);
   },
-  // v18.3.11: big minimap (M) — 400px, same content scaled.
   onBigMap: () => { S.bigMap = !S.bigMap; },
-  // v20.0.11: throwables (Digit9/0/Minus) — Molotov / C4 / Trip Mine.
   onThrowable: (kind) => { if (S.phase === 'playing') game.throwThrowable(kind, camera); },
-  // v19.0.14: armor (J) — +50 armor.
   onArmor: () => { if (S.phase === 'playing') game.useArmor(); },
   onScoreboard: (on) => {
     if (!on) { hud.showScoreboard(false); return; }
@@ -1556,14 +1453,12 @@ hud.onRestart(() => {
   if (shot) return;
   game.nextRound(); input.requestLock();
 });
-// Mobile controls, bound here (after `input` exists — see the note above).
 input.bindJoystick(document.getElementById('joystick'), document.getElementById('joystick-knob'));
 input.bindFireButton(document.getElementById('fire-btn'));
 input.bindFireButton(document.getElementById('fire-btn-left'));
 hud.onBuyItem((id) => game.buy(id));
 hud.onStreak((id) => game.useStreak(id));
 hud.onWheelBtn(() => {
-  // Touch / mouse toggle: open the wheel; tapping a slot picks it.
   const wheel = document.getElementById('emote-wheel');
   const open = wheel.hidden;
   if (open) { wheelViaButton = true; hud.showWheel(true); }
@@ -1575,8 +1470,6 @@ hud.onWheelSlot((id) => {
   if (S.phase === 'playing') doEmote(id);
 });
 
-// Aim assist: while ADS, gently pull the crosshair toward the nearest bot
-// inside a ~7° cone and 45m. Strength 0-1 from settings (0 = off).
 function applyAimAssist() {
   const aa = settings.aimAssist || 0;
   if (aa <= 0 || !S.ads || S.phase !== 'playing' || !S.player.alive) return;
@@ -1602,7 +1495,6 @@ function applyAimAssist() {
     p.pitch = Math.max(-1.5, Math.min(1.5, p.pitch + best.dpitch * k));
   }
 }
-// Ping marker: raycast from the crosshair, drop a yellow marker for 5s.
 const pingMesh = new THREE.Mesh(new THREE.OctahedronGeometry(0.35),
   new THREE.MeshBasicMaterial({ color: 0xffd24d }));
 pingMesh.visible = false; scene.add(pingMesh);
@@ -1634,24 +1526,17 @@ function hideLoading() {
   if (ld) ld.hidden = true;
 }
 
-// Ground surface at (x, z) (v22.2.1): map ground material + pool/water check.
-// Used for footstep sounds, shell tings, friction and the HUD surface label.
 function surfaceAt(x, z) {
   if (S.mapId === 'ember') return 'sand';
   if (S.mapId === 'harvest') return 'grass';
   if (S.mapId === 'ruin') return 'concrete';
   if (S.mapId === 'cargo') return 'metal';
-  // Pool / fountain water in Twin Court + Harvest Town.
   if (world.inWater && world.inWater(x, z)) return 'water';
   return 'concrete';
 }
-// v24.0.8: mud / snow step hits — a puff + a soft sound on first contact.
 function onMudHit(x, z) { effects.footDust(x, 0.1, z); audio.slip(); }
-function onSnowHit(x, z) { effects.footDust(x, 0.1, z); audio.step(); }
+function onSnowHit(x, z) { effects.footDust(x, 0.1, z); audio.step('snow'); }
 
-// ---- One environment updater per frame (v24.0.7): trees/grass/flags sway,
-// birds, rain splashes, snow, lightning flash — all delegated to the systems
-// that already own them (no second weather system).
 function updateEnvironmentSmall(dt) {
   world.animateDecor(dt, S.time, S.windAmp || 1);
   weather.animateWeather(dt, S.time, camera);
@@ -1663,20 +1548,14 @@ function step(dt) {
   if (S.msgT > 0) S.msgT -= dt;
   if (S.flashT > 0) S.flashT -= dt;
   if (S.emote) { S.emote.t -= dt; if (S.emote.t <= 0) S.emote = null; }
-  // Tracker mark + loud-noise decay (v23.0.5 / v22.2.2).
   if (S.trackMark) { S.trackMark.t -= dt; if (S.trackMark.t <= 0) S.trackMark = null; }
   if (S.noise) { S.noise.t -= dt; if (S.noise.t <= 0) S.noise = null; }
-  // Surface + indoors, per frame (v22.2.1 / v18.2): map ground material +
-  // inside-a-house check drives footstep sounds, shell tings and reverb.
   S.surface = surfaceAt(S.player.x, S.player.z);
   S.indoors = world.inHouse ? world.inHouse(S.player.x, S.player.z) : false;
-  // Movement status for the HUD stamina bar (v22.6.4).
   const pk = S.player;
   S.moveStatus = !pk.onGround ? 'LOMPAT' : pk.sliding ? 'SLIDE' : pk.prone ? 'TIDURAN' : pk.crouched ? 'JONGKOK' : S.tacSprint ? 'TACTICAL SPRINT' : (input.state.keys.has('ShiftLeft') && (input.state.keys.has('KeyW'))) ? 'LARI' : (input.state.keys.has('KeyW') || input.state.keys.has('KeyA') || input.state.keys.has('KeyS') || input.state.keys.has('KeyD')) ? 'JALAN' : 'DIAM';
-  // Bush hide (v22.3.1): inside a bush, bots lose you for 3s.
   if (world.inBush(S.player.x, S.player.z)) S.hideT = Math.max(S.hideT, 3);
   if (S.hideT > 0) S.hideT -= dt;
-  // Surface-change hits (v24.0.8): first step onto mud / snow kicks up a puff.
   if (S.surface !== step._prevSurf) {
     if (S.surface === 'mud') onMudHit(S.player.x, S.player.z);
     else if (S.surface === 'snow') onSnowHit(S.player.x, S.player.z);
@@ -1685,26 +1564,16 @@ function step(dt) {
   if (S.phase === 'playing') {
     if (S.driving) vehicles.step(dt, input.state.keys);
     else player.step(dt, input.state.keys, S.ads);
-    // Footsteps while moving on the ground.
-    const moving = input.state.keys.has('KeyW') || input.state.keys.has('KeyA') || input.state.keys.has('KeyS') || input.state.keys.has('KeyD');
-    if (moving && S.player.y <= 0.01) {
+    if (!S.driving && pk.moving && pk.y <= 0.01) {
       stepSndT = (stepSndT || 0) + dt;
-      if (stepSndT > 0.38) { stepSndT = 0; audio.step(); }
+      if (stepSndT > audio.stepInterval(pk.speed)) { stepSndT = 0; audio.step(S.surface, pk.prone ? 0.01 : pk.crouched ? 0.02 : pk.sliding ? 0.06 : S.tacSprint ? 0.07 : 0.05); }
     }
   }
   weapon.step(dt);
-  // Projectiles (gameplay pass 2026-11-15): stepProjectiles was defined
-  // and exported but NEVER called from the game loop — rockets, FHJ
-  // rockets, thumper grenades and crossbow arrows spawned at the muzzle
-  // and then froze in mid-air forever. They now fly on the fixed step,
-  // with the same hit meshes / resolver the hitscan path uses.
   weapon.stepProjectiles(dt,
     S.mode === 'zombie' ? bots.hitMeshes().concat(zombies.hitMeshes()) : bots.hitMeshes(),
     world.shootables, rng, onBotHit,
     (ud) => ud.zombieId !== undefined ? zombies.zombies.find(z => z.id === ud.zombieId) : S.bots[ud.botId]);
-  // Fall damage (v22.2.4): player.step records S.fallDmg on a hard
-  // landing, but nothing ever read it — falls were free. Apply it here
-  // (game.hurtPlayer respects spawn protection and armor).
   if (S.fallDmg > 0) { const fd = S.fallDmg; S.fallDmg = 0; game.hurtPlayer(fd); }
   bots.step(dt, onPlayerHit, (target, ally) => hud.killfeed(`🤝 ${ally.name} killed ${target.name}!`));
   if (S.mode === 'zombie') zombies.step(dt, onPlayerHit);
@@ -1719,7 +1588,6 @@ function frame(now) {
   lastRawDt = rawDt;
   if (!frozen) {
     const look = input.takeLook();
-    // Sensitivity: hipfire / ADS / sniper scope, with invert X/Y.
     const w0 = weapon.cur();
     const sens = S.ads ? ((w0.scopeZoom || 1) >= 4 ? settings.sens.sniper : settings.sens.ads) : settings.sens.hip;
     player.look(look.x * sens * (settings.invertX ? -1 : 1), look.y * sens * (settings.invertY ? -1 : 1));
@@ -1732,13 +1600,11 @@ function frame(now) {
     }
     if (!input.state.firing) frame._fired = false;
     if (input.state.keys.has('KeyR')) weapon.reload();
-    // Slow-mo 0.2x while the finisher cinematic plays (game world only).
     const dt = S.finisher ? rawDt * 0.2 : rawDt;
     accumulator += dt;
     let n = 0;
     while (accumulator >= FIXED_STEP && n < 5) { step(FIXED_STEP); accumulator -= FIXED_STEP; n += 1; }
     if (accumulator > FIXED_STEP * 5) accumulator = 0;
-    // Pick up a finisher request (round won) and run the cinematic in real time.
     if (S.finisherRequest && !S.finisher) {
       const r = S.finisherRequest;
       S.finisherRequest = null;
@@ -1754,13 +1620,11 @@ function frame(now) {
     weather.animateWeather(rawDt, S.time, camera); // rain follows the camera
     weather.stepCycle(rawDt);
     vehicles.animate(rawDt, S.time);
-    // Ping marker: bob + expire after 5s.
     if (S.ping) {
       S.ping.t -= rawDt;
       pingMesh.position.y = 1.2 + Math.sin(S.time * 3) * 0.15;
       if (S.ping.t <= 0) { S.ping = null; pingMesh.visible = false; }
     }
-    // Level-up watcher: BP tier or profile level rose -> popup + confetti + sound.
     if (S.bp) {
       if (frame._bpTier == null) frame._bpTier = S.bp.tier;
       if (S.bp.tier > frame._bpTier) { frame._bpTier = S.bp.tier; hud.showLevelUp(`BATTLE PASS TIER ${S.bp.tier}`); audio.levelUp(); }
@@ -1768,7 +1632,6 @@ function frame(now) {
     const lv = economy.level();
     if (frame._lvl == null) frame._lvl = lv;
     if (lv > frame._lvl) { frame._lvl = lv; hud.showLevelUp(`LEVEL ${lv} — ${economy.title()}`); audio.levelUp(); }
-    // FPS / ping readout (~2x/second, only when enabled in settings).
     frame._fpsN = (frame._fpsN || 0) + 1;
     frame._fpsT = (frame._fpsT || 0) + rawDt;
     if (frame._fpsT >= 0.5) {
@@ -1776,17 +1639,14 @@ function frame(now) {
       frame._fpsN = 0; frame._fpsT = 0;
       if (settings.graphics.showFps || settings.graphics.showPing) hud.setFps(settings.graphics.showFps ? fps : null, settings.graphics.showPing ? 0 : null);
       else hud.setFps(null, null);
-      // FPS graph (v18.6.9): last 30 samples, green >50 / yellow >30 / red.
       frame._fpsHist = frame._fpsHist || [];
       frame._fpsHist.push(fps);
       if (frame._fpsHist.length > 30) frame._fpsHist.shift();
       hud.setFpsGraph(frame._fpsHist);
-      // Engine stats (v26.0.1): draw calls + tris from renderer.info, RAM if exposed.
       const info = renderer.info;
       const ram = (performance.memory && performance.memory.usedJSHeapSize) ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null;
       S.engineStats = { fps, draws: info.render.calls, tris: info.render.triangles, ram };
       hud.setEngineStats(fps, info.render.calls, info.render.triangles, ram);
-      // FPS auto-drop (v18.1.11): <20 -> Low, >50 -> back to Medium.
       if (settings.graphics.autoQuality) {
         frame._qT = (frame._qT || 0) + 0.5;
         if (frame._qT >= 5) {
@@ -1796,7 +1656,6 @@ function frame(now) {
         }
       }
     }
-    // Crosshair lock (v18.2): aiming at a bot inside a small cone -> red crosshair.
     S.crossLock = false;
     if (S.phase === 'playing' && S.player.alive) {
       const p = S.player;
@@ -1812,7 +1671,6 @@ function frame(now) {
         if (Math.abs(dyaw) < 0.03) { S.crossLock = true; break; }
       }
     }
-    // Contextual hint (v25.0.8): one line for what you can do right now.
     frame._hintT = (frame._hintT || 0) + rawDt;
     if (frame._hintT >= 0.5) {
       frame._hintT = 0;
@@ -1831,12 +1689,10 @@ function frame(now) {
       S.hint = hint;
       hud.showHint(hint);
     }
-    // Breath smoke in snow (v28.0.3): a small puff at the camera every 2s while moving.
     if (S.weather === 'snow' && S.phase === 'playing' && S.moveStatus !== 'DIAM') {
       frame._breathT = (frame._breathT || 0) + rawDt;
       if (frame._breathT > 2) { frame._breathT = 0; effects.smokePuff(camera.position.x, camera.position.y - 0.3, camera.position.z); }
     }
-    // Lens flare (v18.6.5): looking at the sun -> glare overlay.
     const flare = document.getElementById('lens-flare');
     if (flare && world.sun) {
       const sunDir = new THREE.Vector3().copy(world.sun.position).normalize();
@@ -1844,7 +1700,6 @@ function frame(now) {
       camera.getWorldDirection(camDir);
       flare.classList.toggle('on', sunDir.dot(camDir) > 0.93 && (S.weather === 'clear' || S.weather === 'sunset' || S.weather === 'dawn'));
     }
-    // Profile chip (rank + ELO + coins) refresh, ~2x/second.
     frame._chipT = (frame._chipT || 0) + rawDt;
     if (frame._chipT > 0.5) {
       frame._chipT = 0;
@@ -1852,7 +1707,6 @@ function frame(now) {
       S.profileText = `${r.icon} ${r.name} · ${economy.profile.elo} ELO · 🪙 ${economy.profile.coins}`;
       if (S.profileAvatar) hud.setProfileChip(`<img src="${S.profileAvatar}" alt="" style="width:22px;height:22px;border-radius:50%;vertical-align:-6px"> ${S.profileText}`);
     }
-    // 3D preview in the menu (weapon / character), rendered only in the menu.
     if (S.phase === 'menu') renderPreview(rawDt);
     syncCamera();
     hud.update(world);
@@ -1863,8 +1717,6 @@ function frame(now) {
 
 function settle(steps) { for (let i = 0; i < steps; i++) step(FIXED_STEP); }
 
-// Staged transient HUD for the play shot: applied at the 2nd paint (see
-// runShot) so the 4s/6s auto-hide timeouts start just before the capture.
 let shotFx = null;
 function applyShotFx() {
   if (!shotFx) return;
@@ -1872,6 +1724,7 @@ function applyShotFx() {
   for (const k of shotFx.killfeed || []) hud.killfeed(k, shotFx.mythic);
   for (const c of shotFx.comms || []) hud.chatLog(c);
   if (shotFx.hitmarker) hud.hitmarker(false, false, 60, 4000);
+  if (shotFx.dmgDir != null) hud.dmgDir(shotFx.dmgDir, 4000);
 }
 
 function runShot(name) {
@@ -1894,29 +1747,19 @@ function runShot(name) {
     S.card = 'dragon';
     S.perks = ['lightweight', 'quickfix'];
     S.operator = 'tempest';
-    // Reference look: B12 Breacher (double-barrel shotgun feel) on Foundry
-    // Yard at dusk, with a smoke grenade and a live tracer + muzzle flash.
     S.loadout.primary = WEAPONS_DB.findIndex(w => w.id === 'by15');
     S.player.weaponIdx = S.loadout.primary;
     weapon.applyMythic();
     buildMap('foundry');
-    // Shot mode: skip the 3-2-1 countdown, else game.step stalls during
-    // settle() and the staged smoke grenade never flies. (Scoped to the
-    // play shot only — the self-test relies on the countdown timing.)
     S.noCountdown = true;
     game.startRound();
     weather.applyWeather('sunset'); S.weatherManual = true;
-    // Place 3 bots visible mid-map ahead of the player.
     const spots = [[0, 17, 100], [4, 12, 40], [-5, 14, 100]];
     spots.forEach(([x, z, hp], i) => {
       const b = S.bots[i]; b.x = x; b.z = z; b.hp = hp; b.state = 'combat';
     });
     bots.syncMeshes();
-    // Earned killstreak: 3-kill UAV ready + UAV reveal active.
     S.streak = 3; S.streaksReady = ['uav']; S.uavT = 20;
-    // Smoke grenade toward the right (bots held + blinded so they don't spot
-    // or shoot while it flies); the cloud lands at the frame's right edge,
-    // clear of the bots (the throw travels ~17m with its ground bounce).
     S.bots.forEach(b => { b.state = 'hold'; b.blindT = 2; });
     aimAt(9, 1.5, 10);
     game.throwGrenade('smoke', camera);
@@ -1925,22 +1768,17 @@ function runShot(name) {
     p.hp = 100;
     settle(10);
     aimAt(S.bots[0].x, 1.4, S.bots[0].z);
-    // One bot already damaged: land a hit for a visible hitmarker.
     const b0 = S.bots[0];
     bots.damage(b0, 60);
-    // Staged transient HUD (killfeed / hitmarker / radio) is applied at the
-    // 2nd paint, not here: the 4s/6s timeouts would otherwise expire during
-    // the slow first WebGL render, before the screenshot is taken.
     shotFx = {
       radio: 'Contact at Mid Yard, rotating',
       killfeed: ['YOU — B12 Breacher @ BOT-1 — HIT', '🔥 KILLSTREAK READY: 🛰️ UAV — click it!'],
       comms: ['BOT-2: flanking!'],
       mythic: 'dragon',
       hitmarker: true,
+      dmgDir: -135,
     };
     settle(2);
-    // Muzzle flash + tracer toward the aimed bot, added after the last
-    // settle so effects.step never fades them before the paint.
     const camPos = new THREE.Vector3(); camera.getWorldPosition(camPos);
     const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir);
     const right = new THREE.Vector3().crossVectors(camDir, camera.up).normalize();
@@ -1966,8 +1804,6 @@ function runShot(name) {
     weather.applyWeather('sunset'); S.weatherManual = true;
     settle(10);
     aimAt(0, 2.5, -10);
-    // Staged match numbers so the scoreboard reads (same staging convention
-    // as the play shot's killfeed — layout demo, not gameplay).
     S.kills = 9; S.botKills = 5; S.score = 900; S.headshots = 3;
     S.shotsFired = 120; S.shotsHit = 54;
     game.endRound(true, 'TEAM DEATHMATCH — 15 KILLS');
@@ -1981,8 +1817,6 @@ function runShot(name) {
 function paintTwiceThenReady() {
   let painted = 0;
   function paint() {
-    // Force the shot size: at module load the headless viewport is still
-    // 1280x600; the DOM screenshot is 1280x800, so size the canvas to match.
     renderer.setSize(1280, 800);
     camera.aspect = 1280 / 800;
     camera.updateProjectionMatrix();
@@ -1990,9 +1824,6 @@ function paintTwiceThenReady() {
     hud.update(world);
     renderer.render(scene, camera);
     painted += 1;
-    // Screenshot protocol (headless compositor shows black even when the
-    // render is fine): capture the frame as a data URL and stash it in a
-    // hidden div on the 2nd paint, so dump-dom can extract a real PNG.
     let url = '';
     try { url = renderer.domElement.toDataURL('image/png'); } catch (e) { url = 'toDataURL failed: ' + e.message; }
     let d = document.getElementById('shotdata');
@@ -2010,8 +1841,6 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// PWA (v16.2.14): register the service worker defensively — the game
-// works fully without it (offline cache is a bonus, never a blocker).
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch(() => {});

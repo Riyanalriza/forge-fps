@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { STREAK_DEFS, MODE_DEFS, OPERATOR_DEFS, DEFAULT_OWNED } from './state.js';
 import { nearestSiteName } from './world.js';
 import { addXP } from './battlepass.js';
+import { dmgAngle } from './hud.js';
 
 export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
   let buyOpen = false;
@@ -992,7 +993,7 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
   }
   // Damage the player (records last-hurt time for Quick Fix regen).
   // killerBot is the bot that dealt the blow (for the killcam).
-  function hurtPlayer(dmg, killerBot) {
+  function hurtPlayer(dmg, killerBot, from) {
     const p = S.player;
     if (!p.alive) return;
     // Spawn protection (v25.0.8): 3s after (re)spawn, no damage lands.
@@ -1016,6 +1017,8 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
     let rem = dmg;
     if (p.armor > 0) { const absorbed = Math.min(p.armor, rem); p.armor -= absorbed; rem -= absorbed; }
     p.hp -= rem; p.lastHurtT = S.time;
+    const src = killerBot || from;
+    if (src) hud.dmgDir(dmgAngle(p.yaw, p.x, p.z, src.x, src.z));
     // Knocked (BR, v18.8.7): more damage while down shortens the timer.
     if (p.knocked) { S.knockT = Math.max(0, S.knockT - rem * 0.05); return; }
     if (p.hp <= 0) {

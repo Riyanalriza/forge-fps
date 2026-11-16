@@ -1,10 +1,3 @@
-// ONE weapon database (v18.5): every weapon's stats live here and nowhere
-// else — damage, headshot multiplier, fire rate, range, recoil, spread, mag,
-// reload, auto/semi, pellets, projectile type, blast radius, haptic ms and
-// sound id. S.weapons is a live copy (mag/reserve/reload state per weapon).
-// Fields: id, name, cls, price, magSize, dmg, headMult, rate, reload,
-// spread, zoom, auto, recoil, range, pellets, projectile, blastR, haptic,
-// sound, melee, heat (recoil climbs while holding fire).
 export const WEAPONS_DB = [
   { id: 'vk9', name: 'VK-9 Jackal', cls: 'AR', price: 0, magSize: 30, dmg: 34, headMult: 4, rate: 0.11, reload: 2.1, spread: 0.011, zoom: 1.15, auto: true, recoil: 1.0, range: 45, pellets: 1, projectile: null, blastR: 0, haptic: 25, sound: 'vk9' },
   { id: 'm4', name: 'M4 Carbine', cls: 'AR', price: 1400, magSize: 30, dmg: 28, headMult: 4, rate: 0.09, reload: 1.9, spread: 0.009, zoom: 1.2, auto: true, recoil: 0.85, range: 42, pellets: 1, projectile: null, blastR: 0, haptic: 40, sound: 'm4' },
@@ -13,17 +6,13 @@ export const WEAPONS_DB = [
   { id: 'qq9', name: 'VX-9 Stinger', cls: 'SMG', price: 1600, magSize: 40, dmg: 24, headMult: 4, rate: 0.07, reload: 1.7, spread: 0.016, zoom: 1.1, auto: true, recoil: 0.7, range: 28, pellets: 1, projectile: null, blastR: 0, haptic: 25, sound: 'qq9' },
   { id: 'rpd', name: 'RPD', cls: 'LMG', price: 2200, magSize: 75, dmg: 32, headMult: 4, rate: 0.13, reload: 3.4, spread: 0.014, zoom: 1.15, auto: true, recoil: 1.3, range: 55, pellets: 1, projectile: null, blastR: 0, haptic: 60, sound: 'rpd' },
   { id: 'p12', name: 'P-12 Sidewinder', cls: 'Pistol', price: 500, magSize: 7, dmg: 45, headMult: 2, rate: 0.32, reload: 1.6, spread: 0.008, zoom: 1.1, auto: false, recoil: 1.1, range: 25, pellets: 1, projectile: null, blastR: 0, haptic: 20, sound: 'p12' },
-  // --- v18.5: shotguns (8 pellets per shot, close range = one-shot kill) ---
   { id: 'by15', name: 'B12 Breacher', cls: 'Shotgun', price: 1900, magSize: 5, dmg: 12, headMult: 2, rate: 0.9, reload: 2.5, spread: 0.05, zoom: 1.1, auto: false, recoil: 2.5, range: 18, pellets: 8, projectile: null, blastR: 0, haptic: 80, sound: 'shotgun' },
   { id: 'krm', name: 'SG-12 Marauder', cls: 'Shotgun', price: 2100, magSize: 6, dmg: 11, headMult: 2, rate: 0.85, reload: 2.5, spread: 0.045, zoom: 1.1, auto: false, recoil: 2.4, range: 20, pellets: 8, projectile: null, blastR: 0, haptic: 80, sound: 'shotgun' },
-  // --- v18.5: DMR / marksman (semi-auto, 2x scope, headshot 100-110) ---
   { id: 'kilo', name: 'KB-50 Longshot', cls: 'DMR', price: 2400, magSize: 10, dmg: 50, headMult: 2, rate: 0.5, reload: 2.2, spread: 0.004, zoom: 2.0, auto: false, recoil: 1.4, range: 70, pellets: 1, projectile: null, blastR: 0, haptic: 40, sound: 'dmr' },
   { id: 'sks', name: 'SKS', cls: 'DMR', price: 2300, magSize: 10, dmg: 55, headMult: 2, rate: 0.45, reload: 2.2, spread: 0.005, zoom: 2.0, auto: false, recoil: 1.5, range: 65, pellets: 1, projectile: null, blastR: 0, haptic: 40, sound: 'dmr' },
-  // --- v18.5: launchers (projectile + area blast) ---
   { id: 'rpg', name: 'RPG-7', cls: 'Launcher', price: 3000, magSize: 1, dmg: 150, headMult: 1, rate: 1.0, reload: 3.0, spread: 0.002, zoom: 1.1, auto: false, recoil: 2.5, range: 60, pellets: 1, projectile: 'rocket', blastR: 5, haptic: 120, sound: 'launcher' },
   { id: 'fhj', name: 'AP-18 Prowler', cls: 'Launcher', price: 3200, magSize: 2, dmg: 130, headMult: 1, rate: 1.2, reload: 3.0, spread: 0.002, zoom: 1.1, auto: false, recoil: 2.4, range: 60, pellets: 1, projectile: 'fhj', blastR: 4, haptic: 120, sound: 'launcher' },
   { id: 'thumper', name: 'TH-40 Lobber', cls: 'Launcher', price: 2600, magSize: 1, dmg: 120, headMult: 1, rate: 1.0, reload: 2.8, spread: 0.002, zoom: 1.1, auto: false, recoil: 2.2, range: 45, pellets: 1, projectile: 'thumper', blastR: 3, haptic: 100, sound: 'launcher' },
-  // --- v18.5: pistols / melee / crossbow / SMG / LMG / sniper ---
   { id: 'dual', name: 'Dual Pistol', cls: 'Pistol', price: 1500, magSize: 24, dmg: 22, headMult: 2, rate: 0.18, reload: 2.0, spread: 0.012, zoom: 1.1, auto: false, recoil: 0.9, range: 22, pellets: 2, projectile: null, blastR: 0, haptic: 20, sound: 'p12' },
   { id: 'katana', name: 'Katana', cls: 'Melee', price: 1200, magSize: 1, dmg: 75, headMult: 1, rate: 0.6, reload: 0, spread: 0, zoom: 1.0, auto: false, recoil: 0, range: 2.5, pellets: 1, projectile: null, blastR: 0, haptic: 30, sound: 'melee', melee: true },
   { id: 'crossbow', name: 'Crossbow', cls: 'Crossbow', price: 2500, magSize: 1, dmg: 70, headMult: 3, rate: 1.2, reload: 2.0, spread: 0.001, zoom: 1.5, auto: false, recoil: 0.5, range: 80, pellets: 1, projectile: 'arrow', blastR: 0, haptic: 20, sound: 'crossbow' },
@@ -32,10 +21,7 @@ export const WEAPONS_DB = [
   { id: 'm4lmg', name: 'M4LMG', cls: 'LMG', price: 2400, magSize: 75, dmg: 30, headMult: 4, rate: 0.12, reload: 3.8, spread: 0.013, zoom: 1.15, auto: true, recoil: 1.2, range: 55, pellets: 1, projectile: null, blastR: 0, haptic: 60, sound: 'rpd', heat: true },
   { id: 'arctic', name: 'GL-50 Frostbite', cls: 'Sniper', price: 3000, magSize: 5, dmg: 100, headMult: 1.8, rate: 1.5, reload: 3.2, spread: 0.001, zoom: 3.2, auto: false, recoil: 2.4, range: 130, pellets: 1, projectile: null, blastR: 0, haptic: 100, sound: 'lr50' },
 ];
-// Back-compat alias: older modules import WEAPONS.
 export const WEAPONS = WEAPONS_DB;
-// v24.0.1/2: penetration + bullet drop + recoil pattern, merged INTO
-// WEAPONS_DB (no second weapon table). Derived from class/id at load.
 const PEN_BY_CLS = { AR: 0.6, SMG: 0.4, Sniper: 0.9, DMR: 0.8, LMG: 0.7, Shotgun: 0.3, Launcher: 1, Pistol: 0.4, Melee: 0, Crossbow: 0.85 };
 const DROP_BY_CLS = { Sniper: 0.02, DMR: 0.01, AR: 0.005, LMG: 0.005, Crossbow: 0.015 };
 const RECOIL_PAT = {
@@ -51,21 +37,16 @@ for (const w of WEAPONS_DB) {
   w.drop = DROP_BY_CLS[w.cls] ?? 0;
   w.recoilPat = RECOIL_PAT[w.id] || { up: 1, side: 0.2 };
 }
-// Explicit bullet-drop / travel-time helpers (v24.0.2, v18.9): sniper drops
-// 2cm per metre past 30m and takes ~200ms to reach 60m.
 export function calcBulletDrop(dist, w) { return (w?.drop || 0) * Math.max(0, dist - 30); }
 export function calcTravelTime(dist, w) {
   const speed = w?.cls === 'Sniper' ? 300 : w?.cls === 'DMR' ? 260 : 400;
   return dist / speed;
 }
-// Hitbox damage by height (v25.0.2): head x2.0, body x1.0, legs x0.8 —
-// merged with the v15 headshot rule (headshot already multiplies in weapon.js).
 export function calcHitboxDamage(dmg, part) {
   if (part === 'head') return dmg * 2;
   if (part === 'legs') return dmg * 0.8;
   return dmg;
 }
-// Default ownership: VK-9 (primary) + P-12 (sidearm) owned, the rest buyable.
 export const DEFAULT_OWNED = WEAPONS_DB.map(w => w.id === 'vk9' || w.id === 'p12');
 
 export const PERK_DEFS = [
@@ -75,7 +56,6 @@ export const PERK_DEFS = [
   { id: 'quickfix', name: 'Quick Fix', icon: '💚', desc: 'Health regen 2x faster' },
   { id: 'dead_silence', name: 'Dead Silence', icon: '🤫', desc: 'Bots hear your shots at half range' },
   { id: 'flak_jacket', name: 'Flak Jacket', icon: '🛡️', desc: '-40% blast damage taken' },
-  // v23.0.5: 14 new perks — real effects where cheap, else noted in game.js.
   { id: 'cold_blooded', name: 'Cold-Blooded', icon: '❄️', desc: 'Bots detect you 20% closer' },
   { id: 'tracker', name: 'Tracker', icon: '👣', desc: 'Enemy shots mark them on the minimap' },
   { id: 'tune_up', name: 'Tune Up', icon: '🔧', desc: 'Operator skill recharges 25% faster' },
@@ -97,7 +77,6 @@ export const OPERATOR_DEFS = {
   annihilator: { name: 'Annihilator', icon: '🔫', cooldown: 50, desc: 'Next 6 shots deal 200 damage' },
   gravity: { name: 'Gravity Spikes', icon: '💥', cooldown: 70, desc: 'Slam: 80 damage to bots within 8m' },
   warmachine: { name: 'War Machine', icon: '💣', cooldown: 70, desc: 'Grenade launcher — lobs 6 HE grenades at your crosshair' },
-  // v23.0.3: 6 new operator skills.
   hive: { name: 'H.I.V.E', icon: '🐝', cooldown: 65, desc: 'Deploy 3 trap mines that explode on approach' },
   bull: { name: 'Bull Charge', icon: '🐂', cooldown: 55, desc: 'Charge forward — 100 damage to bots in your path' },
   purifier: { name: 'Purifier', icon: '🔥', cooldown: 75, desc: 'Flamethrower cone: 60 damage + fire zone' },
@@ -106,8 +85,6 @@ export const OPERATOR_DEFS = {
   k9: { name: 'K9 Unit', icon: '🐕', cooldown: 70, desc: 'Attack dog: bites the nearest bot for 20 damage' },
 };
 
-// Killstreak thresholds (kills without dying). Hardline subtracts 1.
-// v23.0.4: Predator 4, Stealth Chopper 8, VTOL 10, Swarm 12 join the ladder.
 export const STREAK_DEFS = [
   { at: 3, id: 'uav', name: 'UAV', icon: '🛰️', desc: 'Reveal bots on the minimap for 20s', cost: 300 },
   { at: 4, id: 'predator', name: 'Predator Missile', icon: '🚀', desc: 'Guided missile at your crosshair — 8m blast, 150 damage', cost: 450 },
@@ -131,14 +108,11 @@ export const MODE_DEFS = {
   gungame: { name: 'Gun Game', desc: 'Each kill upgrades your weapon: Pistol → MP5 → AX-117 → B12 → LR-50 → RPG-7 → Knife. First to finish the ladder wins.', timer: 300, target: 7 },
   prophunt: { name: 'Prop Hunt', desc: 'You are a prop (box or chair). Hide for 20 seconds while the bot hunters search.', timer: 20, target: 1 },
   control: { name: 'Control', desc: 'Capture points A and B. Win when both are yours.', timer: 300, target: 2 },
-  // v23.0.1: three new modes.
   killconfirmed: { name: 'Kill Confirmed', desc: 'Bots drop dog tags when they die. Collect tags — first to 20 wins.', timer: 300, target: 20 },
   ffa: { name: 'Free-For-All', desc: 'Everyone against everyone. First to 20 kills wins.', timer: 300, target: 20 },
   sniperonly: { name: 'Sniper Only', desc: 'Only KB-50 and GL-50 Frostbite. One shot, one lesson.', timer: 300, target: 15 },
 };
 
-// Bot difficulty (v25.0.5): reaction time + aim error + damage scale.
-// No second bot array — the same S.bots entries read these values.
 export const DIFFICULTY_DEFS = {
   easy: { name: 'Easy', reaction: 1.2, aimErr: 0.14, dmg: 0.7, hp: 0.9 },
   normal: { name: 'Normal', reaction: 0.8, aimErr: 0.09, dmg: 1, hp: 1 },
@@ -146,8 +120,6 @@ export const DIFFICULTY_DEFS = {
   veteran: { name: 'Veteran', reaction: 0.3, aimErr: 0.02, dmg: 1.5, hp: 1.25 },
 };
 
-// Feature flags (v26.0.5): one central object, toggled from the menu.
-// Hardcore = no HUD, 1-hit kill. Realistic = no minimap, no crosshair.
 export const FLAGS = { hardcore: false, realistic: false, colorblind: false, batterySaver: false, dynRes: true, fpsLimit: 0 };
 export function setFlag(name, v) { if (name in FLAGS) FLAGS[name] = !!v; return FLAGS[name]; }
 export function toggleFlag(name) { if (name in FLAGS) FLAGS[name] = !FLAGS[name]; return FLAGS[name]; }
@@ -203,7 +175,6 @@ export const WHEEL_PRESETS = {
   love: { name: 'Love', icon: '💖', emotes: ['heart', 'wave', 'bow', 'laugh', 'dance', 'clap', 'salute', 'cry'] },
 };
 
-// Finishers: cinematic played when a round is won (local, single-player).
 export const FINISHER_DEFS = {
   execution: { name: 'Execution', icon: '🎯', desc: 'Slow-mo zoom kill', dur: 2.5, mythic: false },
   dragon: { name: 'Dragon Wrath', icon: '🐉', desc: '3 giant dragons breathe fire', dur: 4, mythic: true },
@@ -229,7 +200,6 @@ export function createState(rng) {
       weaponIdx: 0, spreadBloom: 0,
       respawnT: 0, lastHurtT: -99, regenT: 0,
     },
-    // Loadout: primary weapon index + sidearm index into WEAPONS.
     loadout: { primary: 0, secondary: 6 },
     weapons: WEAPONS.map((w) => ({
       ...w, mag: w.magSize, reserve: w.magSize * 3,
@@ -239,17 +209,13 @@ export function createState(rng) {
     economy: { money: 800 },
     perks: [], // up to 3 perk ids
     operator: 'tempest', opCd: 0, opShots: 0, opActive: false,
-    // Character (operator person + outfit) — separate from the operator skill.
     charOp: 'specter', charSkin: 'default',
     costume: 'default', // costume shop set (v18.7) — colors/helmet/effect/camo
-    // Gunsmith attachments for the primary weapon.
     atts: { barrel: 'standard', scope: 'iron', grip: 'none', stock: 'standard', mag: 'normal', muzzle: 'none', laser: 'none', perk: 'none' },
     weaponCamo: 'none', // Gold/Diamond/Damascus/Neon/Red/Blue (v20.0.10)
-    // Weather + day-night cycle (local state).
     weather: 'clear', weatherSelect: 'clear', weatherAuto: false, mapWeatherOn: true,
     cycleOn: false, cycleT: 0, cyclePhase: 'day', weatherManual: false,
     joyMag: 0, // virtual joystick magnitude 0-1 (0 = keyboard, full speed)
-    // Killcam + spectator.
     lastKiller: null, spectate: null, // { botId } or null
     spectateFree: false, // spectator free-cam mode (WASD fly, no collision)
     freeCam: { x: 0, y: 3, z: 0 }, // free-cam position
@@ -316,22 +282,14 @@ export function createState(rng) {
     flashT: 0, // player flash blindness
     msg: '', msgT: 0,
     bp: null, // battle pass record (loaded by battlepass.js)
-    // v23.0: Kill Confirmed tags + FFA kills + sniper-only flag + tacticals.
     kcTags: [], // {x,z,t,mesh} dropped dog tags
     kcScore: 0, ffaKills: 0,
-    // v25.0: slow-mo time scale (v27.0 helper) + freeze timer.
     timeScale: 1, timeScaleT: 0, freezeT: 0,
-    // v27.0: night vision / thermal overlays, horse mount, wardrobe hide.
     nightVision: false, thermal: false, mounted: false, hideT: 0,
-    // v28.0.4: gravity multiplier (1 Earth, 0.38 Mars, 0.16 Moon).
     gravityMul: 1,
-    // v23.0.5: Tracker perk — last enemy-shot mark for the minimap.
     trackMark: null,
-    // v24.1: color choices (loaded from forge_colors_v2 by main.js).
     colorChoices: null, weaponColor: 'steel', costumeColor: 'default',
-    // v25.0: bot difficulty + spawn protection + per-weapon stats + achievements.
     difficulty: 'normal', spawnProtT: 0, weaponStats: {}, achievements: {},
-    // v26.0: mode flags (Hardcore / Realistic) + engine stats + colorblind.
     hardcore: false, realistic: false, colorblind: false,
     engineStats: { fps: 0, draws: 0, tris: 0, ram: 0 },
     hint: '', // contextual hint (v25.0.8)
