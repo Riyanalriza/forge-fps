@@ -439,3 +439,25 @@ button:active{transform:scale(.94)}
 /* Gunsmith slots */
 .gs-slot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:4px 0;font-size:12px}
 .gs-slot select{width:60%}
+
+/* Tutorial: HOW TO PLAY panel + round-1 toast */
+#howto-btn{display:block;width:100%;margin:0 0 10px;padding:12px 18px;background:#1c2530;color:#ffd24d;border:1px solid var(--amber);border-radius:6px;font:inherit;font-weight:700;cursor:pointer}
+#howto-btn:hover{background:#27313d}
+#howto-overlay{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-start;justify-content:center;padding:36px 16px;pointer-events:none}
+#howto-overlay[hidden]{display:none}
+#howto-panel{pointer-events:auto;width:620px;max-width:94vw;max-height:76vh;overflow:auto;background:#10141a;border:1px solid var(--amber);border-radius:10px;padding:16px 20px;color:#e8ecf0;box-shadow:0 12px 40px rgba(0,0,0,.65)}
+#howto-panel h2{margin:0;font-size:20px;letter-spacing:.06em}
+#howto-panel h3{margin:14px 0 6px;font-size:13px;color:#ffd24d;letter-spacing:.08em}
+#howto-panel p,#howto-panel li{font-size:13px;line-height:1.55;color:#c8d2dc}
+#howto-panel ul{margin:4px 0;padding-left:18px}
+.howto-head{display:flex;justify-content:space-between;align-items:center}
+#howto-close{background:none;border:1px solid #555;color:#fff;border-radius:6px;width:30px;height:30px;font-size:14px;cursor:pointer}
+#howto-close:hover{border-color:var(--amber)}
+.howto-keys{width:100%;border-collapse:collapse;font-size:13px}
+.howto-keys td{padding:3px 6px;color:#c8d2dc}
+.howto-keys td:first-child,.howto-keys td:nth-child(3){white-space:nowrap}
+#howto-panel kbd{background:#222;border:1px solid #555;border-bottom-width:2px;border-radius:4px;padding:1px 6px;font:inherit;font-size:12px;color:#fff}
+#tutorial-toast{position:fixed;left:50%;bottom:250px;transform:translateX(-50%);z-index:55;display:flex;gap:12px;align-items:center;background:rgba(10,14,18,.93);border:1px solid #37c8d8;color:#eaf6ff;padding:10px 14px;border-radius:8px;font-size:14px;box-shadow:0 4px 18px rgba(0,0,0,.5);pointer-events:auto}
+#tutorial-toast[hidden]{display:none}
+#tutorial-toast-x{background:none;border:1px solid #555;color:#fff;border-radius:5px;width:24px;height:24px;font-size:12px;cursor:pointer;flex:none}
+#tutorial-toast-x:hover{border-color:#37c8d8}

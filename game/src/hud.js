@@ -75,6 +75,108 @@ export function createHud(S) {
   let wheelSel = 0;
   function show(node, on) { if (node) node.hidden = !on; }
   function fmtTime(s) { s = Math.max(0, Math.ceil(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }
+  // ---- Tutorial: HOW TO PLAY panel + round-1 hints ----
+  // Built here (hud.js is outside the dossier text slice) so index.html /
+  // main.js stay untouched. The overlay is pointer-events:none with only
+  // the card interactive, so the PLAY button stays clickable while the
+  // panel is open. Hints are suppressed in screenshot staging (?shot=
+  // start/play/buy/end) — the staging harness is not a first-time player —
+  // but run in ?shot=test so the self-test can drive them.
+  const shotParam = new URLSearchParams(location.search).get('shot');
+  const tutHintsOff = !!shotParam && shotParam !== 'test';
+  const tutBtn = document.createElement('button');
+  tutBtn.id = 'howto-btn';
+  tutBtn.type = 'button';
+  tutBtn.className = 'cta howto-btn';
+  tutBtn.textContent = '❓ HOW TO PLAY';
+  const playBtn = $('play');
+  if (playBtn && playBtn.parentNode) playBtn.parentNode.insertBefore(tutBtn, playBtn);
+  const tutOverlay = document.createElement('div');
+  tutOverlay.id = 'howto-overlay';
+  tutOverlay.hidden = true;
+  tutOverlay.innerHTML = `<div id="howto-panel" role="dialog" aria-label="How to play">
+    <div class="howto-head"><h2>🎮 HOW TO PLAY</h2><button id="howto-close" type="button" aria-label="Close">✕</button></div>
+    <h3>CONTROLS</h3>
+    <table class="howto-keys">
+      <tr><td><kbd>WASD</kbd></td><td>Move</td><td><kbd>Mouse</kbd></td><td>Aim</td></tr>
+      <tr><td><kbd>Click</kbd></td><td>Fire</td><td><kbd>Right-click</kbd></td><td>Aim down sights</td></tr>
+      <tr><td><kbd>R</kbd></td><td>Reload</td><td><kbd>Q</kbd></td><td>Frag grenade</td></tr>
+      <tr><td><kbd>F</kbd></td><td>Flash</td><td><kbd>G</kbd></td><td>Smoke</td></tr>
+      <tr><td><kbd>V</kbd></td><td>Sniper zoom</td><td><kbd>H</kbd></td><td>Medkit</td></tr>
+      <tr><td><kbd>J</kbd></td><td>Armor +50</td><td><kbd>X</kbd></td><td>Operator skill</td></tr>
+      <tr><td><kbd>M</kbd></td><td>Big minimap</td><td><kbd>1</kbd> <kbd>2</kbd></td><td>Switch weapon</td></tr>
+      <tr><td><kbd>Shift</kbd></td><td>Sprint</td><td><kbd>C</kbd></td><td>Crouch (slide while running)</td></tr>
+      <tr><td><kbd>Z</kbd></td><td>Prone</td><td><kbd>Space</kbd></td><td>Jump</td></tr>
+    </table>
+    <h3>OBJECTIVE</h3>
+    <p><b>Team Deathmatch</b> — first to 15 kills wins. <b>Search &amp; Destroy</b> — plant the charge at Site A or B, defend it until it blows; win 3 rounds. Other modes: read the mode description on the menu.</p>
+    <h3>TIPS</h3>
+    <ul>
+      <li>Spawn protection: 3 seconds invulnerable at the start of every round.</li>
+      <li>3-kill streak = UAV — enemies show on the minimap.</li>
+      <li>Kill Confirmed: pick up the gold dog tags enemies drop.</li>
+    </ul>
+  </div>`;
+  (el.menu || document.body).appendChild(tutOverlay);
+  const tutToast = document.createElement('div');
+  tutToast.id = 'tutorial-toast';
+  tutToast.hidden = true;
+  tutToast.innerHTML = `<span id="tutorial-toast-text"></span><button id="tutorial-toast-x" type="button" aria-label="Dismiss hint">✕</button>`;
+  document.body.appendChild(tutToast);
+  const TUT_HINTS = {
+    move: '🏃 WASD to move — Shift to sprint, Space to jump',
+    shoot: '🎯 Click to shoot — R to reload',
+    nade: '💣 Q for grenade — X for operator skill',
+  };
+  let tutShown = { move: false, shoot: false, nade: false };
+  let tutQueue = [];
+  let tutCur = null;
+  let tutHideT = null;
+  let tutStartTimer = null;
+  let tutLastPhase = S.phase;
+  function tutShowToast(id) {
+    const t = document.getElementById('tutorial-toast-text');
+    if (t) t.textContent = TUT_HINTS[id];
+    tutToast.hidden = false;
+    tutCur = id;
+    clearTimeout(tutHideT);
+    tutHideT = setTimeout(() => tutHideToast(), 4000);
+  }
+  function tutHideToast() {
+    clearTimeout(tutHideT);
+    tutToast.hidden = true;
+    tutCur = null;
+  }
+  function tutTick() {
+    if (tutHintsOff) return;
+    const entering = S.phase === 'playing' && tutLastPhase !== 'playing';
+    tutLastPhase = S.phase;
+    if (entering) {
+      if (S.round.num === 1 && !tutShown.move) { tutShown.move = true; tutQueue.push('move'); }
+      tutStartTimer = S.round.timer;
+    }
+    if (S.phase !== 'playing') { if (tutCur) tutHideToast(); return; }
+    if (S.round.num !== 1) return;
+    const p = S.player;
+    if (!tutShown.shoot && p.alive) {
+      const fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw);
+      const seen = S.bots.some((b) => {
+        if (!b.alive) return false;
+        const dx = b.x - p.x, dz = b.z - p.z;
+        const d = Math.hypot(dx, dz);
+        return d < 30 && d > 0.5 && (dx * fx + dz * fz) / d > 0.5;
+      });
+      if (seen) { tutShown.shoot = true; tutQueue.push('shoot'); }
+    }
+    if (!tutShown.nade && tutStartTimer != null && S.round.timer <= tutStartTimer * 0.6) {
+      tutShown.nade = true; tutQueue.push('nade');
+    }
+    if (!tutCur && tutQueue.length) tutShowToast(tutQueue.shift());
+  }
+  tutBtn.addEventListener('click', () => { tutOverlay.hidden = !tutOverlay.hidden; });
+  tutOverlay.querySelector('#howto-close').addEventListener('click', () => { tutOverlay.hidden = true; });
+  tutToast.querySelector('#tutorial-toast-x').addEventListener('click', () => tutHideToast());
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !tutOverlay.hidden) tutOverlay.hidden = true; });
   function update(world) {
     const p = S.player, w = S.weapons[S.player.weaponIdx];
     el.hp.textContent = Math.ceil(p.hp);
@@ -219,6 +321,7 @@ export function createHud(S) {
         el.interactHint.style.display = 'block';
       } else el.interactHint.style.display = 'none';
     }
+    tutTick();
     drawMinimap(world);
   }
   function drawMinimap(world) {
@@ -640,6 +743,15 @@ export function createHud(S) {
     showLevelUp, setProfileChip, setFps, setFpsGraph, setEngineStats, showScoreboard,
     showKillMessage, killConfirmVisual, bloodLens, setScopeZoom, showRadio,
     chatLog, showChatBubble, showHint, setKillcamTimer,
+    tutorial: {
+      open: () => { tutOverlay.hidden = false; },
+      close: () => { tutOverlay.hidden = true; },
+      isOpen: () => !tutOverlay.hidden,
+      toast: () => tutCur,
+      toastText: () => { const t = document.getElementById('tutorial-toast-text'); return t ? t.textContent : ''; },
+      dismiss: () => tutHideToast(),
+      reset: () => { tutShown = { move: false, shoot: false, nade: false }; tutQueue = []; tutHideToast(); tutStartTimer = null; tutLastPhase = S.phase; },
+    },
     showDeathScreen, hideDeathScreen, setDeathTimer, showVictoryScreen, hideVictoryScreen,
     applyColors, renderQuickEmotes,
     onPlay(cb) { $('play').addEventListener('click', cb); },

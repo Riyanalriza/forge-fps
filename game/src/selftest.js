@@ -672,6 +672,68 @@ export function runSelfTest(ctx) {
     check('Left hand sits forward of the right hand (forend vs grip)', !!amr && (amr.left.zC < amr.right.zC - 0.2));
     check('Right fingertips curl inward (-X, toward the grip)', !!amr && amr.right.creamDX < -0.03);
     check('Left fingertips curl upward (+Y, around the forend)', !!amr && amr.left.creamDY > 0.03);
+    // ---- §46: Tutorial (HOW TO PLAY panel + round-1 hints) ----
+    S.mode = 'tdm'; S.round.num = 1;
+    S.player.alive = true; S.player.hp = 100;
+    hud.tutorial.reset();
+    const howBtn = document.getElementById('howto-btn');
+    const howOver = document.getElementById('howto-overlay');
+    const howPanel = document.getElementById('howto-panel');
+    const howClose = document.getElementById('howto-close');
+    const tutToast = document.getElementById('tutorial-toast');
+    const playEl = document.getElementById('play');
+    check('HOW TO PLAY button + panel exist next to Play', !!howBtn && !!howOver && !!howPanel && !!howClose);
+    check('Panel starts closed', !!howOver && howOver.hidden === true);
+    howBtn.click();
+    check('Panel opens from the menu button', howOver.hidden === false);
+    check('Panel lists controls + objectives + tips',
+      howPanel.textContent.includes('WASD') && howPanel.textContent.includes('Team Deathmatch')
+      && howPanel.textContent.includes('Search & Destroy') && howPanel.textContent.includes('Spawn protection'));
+    // The open panel must not cover Play: its overlay is click-through and
+    // the card sits above the bottom of the menu.
+    playEl.scrollIntoView();
+    const pr = playEl.getBoundingClientRect();
+    const cr = howPanel.getBoundingClientRect();
+    const overlaps = !(cr.bottom <= pr.top || cr.top >= pr.bottom || cr.right <= pr.left || cr.left >= pr.right);
+    check('Open panel does not overlap the Play button', !overlaps);
+    howClose.click();
+    check('Panel closes with the X button', howOver.hidden === true);
+    // Round-1 hints: drive the phase transition through hud.update.
+    hud.tutorial.reset();
+    S.phase = 'menu'; S.round.num = 1; S.round.timer = 300;
+    hud.update(world);
+    S.phase = 'playing';
+    hud.update(world);
+    check('Round-1 move hint shows at round start', hud.tutorial.toast() === 'move' && tutToast.hidden === false);
+    check('Move hint text is correct', hud.tutorial.toastText().includes('WASD'));
+    document.getElementById('tutorial-toast-x').click();
+    check('Hint dismisses with the X button', hud.tutorial.toast() === null && tutToast.hidden === true);
+    // First enemy in front -> shoot hint.
+    let b0 = S.bots.find(b => b.alive);
+    if (!b0) { bots.respawn(S.bots[0]); b0 = S.bots[0]; }
+    b0.x = S.player.x - Math.sin(S.player.yaw) * 10; b0.z = S.player.z - Math.cos(S.player.yaw) * 10;
+    hud.update(world);
+    check('Shoot hint shows when the first enemy is in view', hud.tutorial.toast() === 'shoot');
+    hud.tutorial.dismiss();
+    // Mid round 1 -> grenade hint (timer at 50% of the 300s start).
+    S.round.timer = 150;
+    hud.update(world);
+    check('Grenade hint shows mid round 1', hud.tutorial.toast() === 'nade');
+    hud.tutorial.dismiss();
+    // Round 2: no hints at all, even with an enemy in view and a low timer.
+    hud.tutorial.reset();
+    S.round.num = 2; S.round.timer = 60;
+    hud.update(world);
+    check('No hints in round 2', hud.tutorial.toast() === null && tutToast.hidden === true);
+    // Panel open/close leaves the menu usable; Play click is handled without
+    // error (main.js ignores it in ?shot=test via its shot guard — the real
+    // click-through to a started round is verified in the live CDP probe).
+    S.phase = 'menu'; hud.showMenu('FOUNDRY YARD');
+    howBtn.click(); howClose.click();
+    check('Play button enabled after using the panel', !playEl.disabled);
+    playEl.click();
+    check('Clicking Play after the panel throws no error', S.phase === 'menu');
+    hud.tutorial.reset();
     world.buildMap('foundry');
     game.startRound();
   } catch (e) {
