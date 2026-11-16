@@ -840,6 +840,126 @@ export function runSelfTest(ctx) {
     check('§48 crossbow reload rolls sideways (rotation.z > 0)', cbRoll48 > 0);
     check('§48 pistol reload dips least (|rotation.x| < 0.35)', Math.abs(piDip48) < 0.35 && piDip48 < 0);
     check('§48 reload animation resets when reload ends', hands48.gun.rotation.x === 0 && hands48.gun.rotation.z === 0);
+    // ---- §49: Bot capabilities — prone, doors, vehicles (2026-11-16) ----
+    S.mode = 'tdm'; S.difficulty = 'normal';
+    S.player.hp = 9999; S.spawnProtT = 0;
+    // Doors first, on 'twin': foundry is an industrial yard with no houses
+    // and no doors at all, so the door test needs a map with houses.
+    world.buildMap('twin'); game.startRound();
+    // Doors: a bot blocked by a closed door49 opens it and walks through.
+    S.hideT = 999; // player invisible, so no bot breaks off into combat
+    const closedDoors = world.doors.filter(d => !d.open).length;
+    const door49 = world.doors.find(d => {
+      if (d.open || !d.collider || d.collider.y0 !== 0) return false;
+      const c = d.collider;
+      const passX = (c.x1 - c.x0) < (c.z1 - c.z0); // thin axis = passage direction
+      const ax = passX ? 1 : 0, az = passX ? 0 : 1;
+      return !world.isColliding(d.x - ax * 2, d.z - az * 2, 0.35, 0)
+        && !world.isColliding(d.x + ax * 2, d.z + az * 2, 0.35, 0);
+    });
+    check(`§49 a closed ground-floor door with a clear approach exists (${closedDoors}/${world.doors.length} closed)`, !!door49);
+    if (door49) {
+      const c = door49.collider;
+      const passX = (c.x1 - c.x0) < (c.z1 - c.z0);
+      const ax = passX ? 1 : 0, az = passX ? 0 : 1;
+      const db = S.bots[3];
+      db.hp = 100; db.state = 'react'; db.hasSeen = true;
+      db.lastSeenX = door49.x + ax * 2.5; db.lastSeenZ = door49.z + az * 2.5;
+      db.x = door49.x - ax * 2; db.z = door49.z - az * 2; db.stuckT = 0;
+      db.skillCd = 999; db.grenadeCd = 999; db.grenadesUsed = 1; db.flankCd = 999;
+      parkOthers(db); bots.syncMeshes();
+      settle(60 * 6);
+      check('§49 bot opens a closed door blocking its path', door49.open === true);
+      const crossed = (db.x - door49.x) * ax + (db.z - door49.z) * az;
+      check('§49 bot passes through the doorway (not stuck)', crossed > 0.5);
+    }
+    // Prone + vehicles on 'foundry' (the default map).
+    world.buildMap('foundry'); vehicles.place('foundry');
+    game.startRound();
+    S.player.hp = 9999; S.spawnProtT = 0; S.hideT = 0; // undo the door test's hideT
+    // Prone: a bot in a long-range duel drops flat but keeps shooting.
+    const pr49 = S.bots[2];
+    pr49.hp = 100; pr49.combatT = 3; pr49.state = 'combat'; pr49.hasSeen = true; pr49.prone = false;
+    pr49.skillCd = 999; pr49.grenadeCd = 999; pr49.grenadesUsed = 1; pr49.flankCd = 999;
+    pr49.x = -20; pr49.z = 10;
+    S.player.x = 10; S.player.z = 10; // 30 m, open lane along z=10
+    parkOthers(pr49); bots.syncMeshes();
+    const shots0 = pr49.shotsFired;
+    settle(60 * 1); // 1s: first burst (3 shots) lands before the 6-shot reload reset
+    check('§49 prone bot keeps shooting', pr49.shotsFired > shots0);
+    settle(60 * 2);
+    check('§49 bot goes prone in a long-range duel', pr49.prone === true);
+    // Drive the pose directly: settle() calls step(), not frame(), so
+    // animatePlayers() never runs during the test (same pattern as the
+    // death-pose test above).
+    for (let i = 0; i < 10; i++) pr49.mesh.model.animate(1 / 60, pr49, S.time + i / 60);
+    const wrapPr = pr49.mesh.model && pr49.mesh.model._wrap;
+    const wrapX = wrapPr ? wrapPr.rotation.x : null;
+    check(`§49 prone bot body lies flat (wrapX=${wrapX === null ? 'no-wrap' : wrapX.toFixed(2)})`,
+      wrapPr ? wrapPr.rotation.x < -0.5 : pr49.mesh.model.parts.torso.position.y < 0.6);
+    // Prone exit: the player closes in.
+    S.player.x = pr49.x + 5; S.player.z = pr49.z;
+    settle(60 * 1);
+    check('§49 bot stands up when the duel closes in', pr49.prone === false);
+    // Vehicles: a bot boards a nearby car, drives to its waypoint, exits.
+    const car = vehicles.list.find(v => v.type === 'car' && !v.dead && !v.driver);
+    check('§49 a free car exists', !!car);
+    if (car) {
+      const vb = S.bots[4];
+      vb.hp = 100; vb.state = 'patrol'; vb.vehicle = null; vb.vehicleCd = 0; vb.vehicleEnteredOnce = false;
+      vb.skillCd = 999; vb.grenadeCd = 999; vb.grenadesUsed = 1; vb.flankCd = 999;
+      const spot = [[2, 0], [-2, 0], [0, 2], [0, -2], [2, 2], [-2, -2]]
+        .find(([dx, dz]) => !world.isColliding(car.x + dx, car.z + dz, 0.35, 0)) || [2, 0];
+      vb.x = car.x + spot[0]; vb.z = car.z + spot[1];
+      let farIdx = 0, farScore = 1e9;
+      world.waypoints.forEach((w, i) => {
+        const dd = Math.hypot(w.x - vb.x, w.z - vb.z);
+        if (dd > 18 && Math.abs(dd - 25) < farScore) { farScore = Math.abs(dd - 25); farIdx = i; }
+      });
+      vb.wpIdx = farIdx;
+      S.player.x = 30; S.player.z = -20;
+      parkOthers(vb); bots.syncMeshes();
+      const carX0 = car.x, carZ0 = car.z;
+      settle(60 * 2);
+      check('§49 bot boards a nearby vehicle (Normal+)', vb.vehicle === car && car.driver === vb);
+      check('§49 bot-driven car moves', Math.hypot(car.x - carX0, car.z - carZ0) > 2);
+      check('§49 driving bot is hidden inside the car', vb.mesh.group.visible === false);
+      settle(60 * 6);
+      check('§49 bot exits at the waypoint and walks again', vb.vehicle === null && vb.mesh.group.visible === true);
+    }
+    // Easy bots never drive.
+    S.difficulty = 'easy';
+    game.startRound();
+    const car2 = vehicles.list.find(v => v.type === 'car' && !v.dead && !v.driver);
+    const eb = S.bots[4];
+    eb.state = 'patrol'; eb.vehicle = null; eb.vehicleCd = 0; eb.vehicleEnteredOnce = false;
+    if (car2) {
+      const spot2 = [[2, 0], [-2, 0], [0, 2], [0, -2]]
+        .find(([dx, dz]) => !world.isColliding(car2.x + dx, car2.z + dz, 0.35, 0)) || [2, 0];
+      eb.x = car2.x + spot2[0]; eb.z = car2.z + spot2[1];
+      let farIdx2 = 0, farScore2 = 1e9;
+      world.waypoints.forEach((w, i) => {
+        const dd = Math.hypot(w.x - eb.x, w.z - eb.z);
+        if (dd > 18 && Math.abs(dd - 25) < farScore2) { farScore2 = Math.abs(dd - 25); farIdx2 = i; }
+      });
+      eb.wpIdx = farIdx2;
+    }
+    parkOthers(eb); bots.syncMeshes();
+    settle(60 * 4);
+    check('§49 Easy bots never drive', eb.vehicle === null && !eb.vehicleEnteredOnce);
+    // The player can still drive after the moveVehicle refactor.
+    S.hideT = 0; S.difficulty = 'normal';
+    const car3 = vehicles.list.find(v => v.type === 'car' && !v.dead && !v.driver);
+    if (car3) {
+      S.player.x = car3.x + 1; S.player.z = car3.z;
+      check('§49 player can still enter a car', vehicles.enter() === true && S.driving === true);
+      check('§49 player can still exit a car', vehicles.exit() === true && S.driving === false);
+    } else {
+      check('§49 player can still enter a car', false);
+      check('§49 player can still exit a car', false);
+    }
+    world.buildMap('foundry');
+    game.startRound();
     world.buildMap('foundry');
     game.startRound();
   } catch (e) {

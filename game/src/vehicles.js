@@ -5,6 +5,12 @@
 // heli flight + rockets, tank turret + cannon (v22.4).
 import * as THREE from 'three';
 
+// Bot-driving registry (v28): bots.js reaches the live vehicles instance
+// through here, so main.js (inside the dossier text cap) stays untouched.
+let _live = null;
+export function registerVehicles(api) { _live = api; }
+export function getVehicles() { return _live; }
+
 export const VEHICLE_DEFS = {
   car: { name: 'Mobil', icon: '🚗', price: 1500, speed: 12, turn: 1.8, radius: 1.1, eye: 1.9, hp: 100, color: 0x8a2a2a, size: [2.0, 0.55, 4.2] },
   heli: { name: 'Helikopter', icon: '🚁', price: 2500, speed: 13, turn: 2.2, radius: 1.4, eye: 2.4, hp: 500, color: 0x2a4a2a, size: [1.8, 1.2, 3.6] },
@@ -167,7 +173,7 @@ export function createVehicles(scene, world, S, audio = null, effects = null, cb
     const mesh = build(type);
     mesh.traverse(o => { if (o.isMesh) { o.userData.vehicleType = type; } });
     group.add(mesh);
-    list.push({ type, x: 0, z: 0, yaw: 0, speed: 0, alt: 0, mesh, fuel: 100, hp: VEHICLE_DEFS[type].hp, lightsOn: false, cannonT: 0, rocketT: 0, wheelieT: 0, drifting: false, turretYaw: 0, dead: false });
+    list.push({ type, x: 0, z: 0, yaw: 0, speed: 0, alt: 0, mesh, fuel: 100, hp: VEHICLE_DEFS[type].hp, lightsOn: false, cannonT: 0, rocketT: 0, wheelieT: 0, drifting: false, turretYaw: 0, dead: false, driver: null });
   }
   // SPBU (gas station) visual: canopy + 2 pumps, placed per map (v22.4.1).
   const gasGroup = new THREE.Group();
@@ -297,6 +303,69 @@ export function createVehicles(scene, world, S, audio = null, effects = null, cb
     }
     return out;
   }
+  // Shared vehicle motion (v28): the player step() and bot driving both
+  // steer through here, so a bot-driven car obeys the same physics,
+  // collisions, fuel burn and crash damage as a player-driven one.
+  // steer: -1 right, 0 straight, +1 left (same sense as KeyA/KeyD).
+  function moveVehicle(v, throttle, steer, dt) {
+    const def = VEHICLE_DEFS[v.type];
+    const hasFuel = v.fuel > 0 || v.type === 'bike';
+    if (!hasFuel) throttle = 0;
+    const dir = throttle >= 0 ? 1 : -1;
+    const turnRate = def.turn * (v.drifting ? 1.6 : 1);
+    v.yaw += turnRate * dt * dir * steer;
+    v.speed += (throttle * def.speed - v.speed) * Math.min(1, dt * 2);
+    if (hasFuel && Math.abs(v.speed) > 0.5) v.fuel = Math.max(0, v.fuel - 1.2 * dt);
+    const nx = v.x - Math.sin(v.yaw) * v.speed * dt;
+    const nz = v.z - Math.cos(v.yaw) * v.speed * dt;
+    const ox = v.x, oz = v.z;
+    if (!world.isColliding(nx, v.z, def.radius, 0)) v.x = nx;
+    else { if (Math.abs(v.speed) > 6) { v.hp -= 8; if (audio && audio.crash) audio.crash(); } v.speed *= v.type === 'tank' ? 0.9 : 0.5; }
+    if (!world.isColliding(v.x, nz, def.radius, 0)) v.z = nz;
+    else { if (Math.abs(v.speed) > 6) { v.hp -= 8; if (audio && audio.crash) audio.crash(); } v.speed *= v.type === 'tank' ? 0.9 : 0.5; }
+    if (v.hp <= 0) { explodeVehicle(v); return { moved: 0, exploded: true }; }
+    v.mesh.position.set(v.x, v.alt, v.z);
+    v.mesh.rotation.y = v.yaw;
+    v.mesh.rotation.x = v.wheelieT > 0 ? -0.35 : 0;
+    // Tire tracks behind a driven vehicle (v18.9.11), every 0.35s.
+    v._trackT = (v._trackT || 0) - dt;
+    if (Math.abs(v.speed) > 3 && v._trackT <= 0 && effects && effects.tireTrack && v.type !== 'heli' && v.type !== 'drone') {
+      v._trackT = 0.35;
+      const bx = v.x + Math.sin(v.yaw) * 1.2, bz = v.z + Math.cos(v.yaw) * 1.2;
+      effects.tireTrack(bx, bz, v.yaw);
+    }
+    return { moved: Math.hypot(v.x - ox, v.z - oz), exploded: false };
+  }
+  // Ground types a bot may drive (v28): no heli/drone (flight), no tank
+  // (cannon), no boat/jetski (water — waypoints are on land).
+  const BOT_DRIVABLE = ['car', 'moto', 'truck', 'bus', 'police', 'ambulance', 'firetruck', 'bike'];
+  function nearestFree(x, z, r) {
+    let best = null, bestD = r;
+    for (const v of list) {
+      if (v.dead || v.driver) continue;
+      if (!BOT_DRIVABLE.includes(v.type)) continue;
+      if (S.vehicle && S.vehicle.ref === v) continue;
+      if (v.fuel <= 0 && v.type !== 'bike') continue;
+      const d = Math.hypot(v.x - x, v.z - z);
+      if (d < bestD) { bestD = d; best = v; }
+    }
+    return best;
+  }
+  // Bot driving (v28): steer toward (tx, tz) like a player holding W and
+  // turning toward the target. Returns { arrived, moved }.
+  function driveBot(v, tx, tz, dt) {
+    if (!v || v.dead) return { arrived: true, moved: 0 };
+    const dx = tx - v.x, dz = tz - v.z;
+    if (Math.hypot(dx, dz) < 3.5) return { arrived: true, moved: 0 };
+    const want = Math.atan2(-dx, -dz);
+    let diff = want - v.yaw;
+    while (diff > Math.PI) diff -= 2 * Math.PI;
+    while (diff < -Math.PI) diff += 2 * Math.PI;
+    const steer = Math.abs(diff) < 0.05 ? 0 : (diff > 0 ? 1 : -1);
+    const throttle = Math.abs(diff) > 1.2 ? 0.25 : 1;
+    const res = moveVehicle(v, throttle, steer, dt);
+    return { arrived: Math.hypot(tx - v.x, tz - v.z) < 3.5, moved: res.moved };
+  }
   function step(dt, keys) {
     const cur = S.vehicle;
     // Ambulance heal aura: +5 HP/s to the player within 4m (v22.4.6).
@@ -307,13 +376,11 @@ export function createVehicles(scene, world, S, audio = null, effects = null, cb
       }
     }
     if (!cur) return;
-    const v = cur.ref, def = VEHICLE_DEFS[v.type];
+    const v = cur.ref;
     if (v.dead) { exit(); return; }
-    const hasFuel = v.fuel > 0 || v.type === 'bike';
     let throttle = 0;
     if (keys.has('KeyW')) throttle = 1;
     if (keys.has('KeyS')) throttle = -0.5;
-    if (!hasFuel) throttle = 0;
     // Tank turret: Q/E rotate while driving (v22.4.5).
     if (v.type === 'tank') {
       if (keys.has('KeyQ')) v.turretYaw += 1.6 * dt;
@@ -366,31 +433,8 @@ export function createVehicles(scene, world, S, audio = null, effects = null, cb
       if (effects && effects.smokePuff) effects.smokePuff(v.x, 0.5, v.z);
     }
     v.wheelieT = Math.max(0, v.wheelieT - dt);
-    const dir = throttle >= 0 ? 1 : -1;
-    const turnRate = def.turn * (v.drifting ? 1.6 : 1);
-    if (keys.has('KeyA')) v.yaw += turnRate * dt * dir;
-    if (keys.has('KeyD')) v.yaw -= turnRate * dt * dir;
-    v.speed += (throttle * def.speed - v.speed) * Math.min(1, dt * 2);
-    if (hasFuel && Math.abs(v.speed) > 0.5) v.fuel = Math.max(0, v.fuel - 1.2 * dt);
-    const nx = v.x - Math.sin(v.yaw) * v.speed * dt;
-    const nz = v.z - Math.cos(v.yaw) * v.speed * dt;
-    const hitWall = world.isColliding(nx, v.z, def.radius, 0) || world.isColliding(v.x, nz, def.radius, 0);
-    if (!world.isColliding(nx, v.z, def.radius, 0)) v.x = nx;
-    else { if (Math.abs(v.speed) > 6) { v.hp -= 8; if (audio && audio.crash) audio.crash(); } v.speed *= v.type === 'tank' ? 0.9 : 0.5; }
-    if (!world.isColliding(v.x, nz, def.radius, 0)) v.z = nz;
-    else { if (Math.abs(v.speed) > 6) { v.hp -= 8; if (audio && audio.crash) audio.crash(); } v.speed *= v.type === 'tank' ? 0.9 : 0.5; }
-    if (v.hp <= 0) { explodeVehicle(v); return; }
-    void hitWall;
-    v.mesh.position.set(v.x, v.alt, v.z);
-    v.mesh.rotation.y = v.yaw;
-    v.mesh.rotation.x = v.wheelieT > 0 ? -0.35 : 0;
-    // Tire tracks behind a driven vehicle (v18.9.11), every 0.35s.
-    v._trackT = (v._trackT || 0) - dt;
-    if (Math.abs(v.speed) > 3 && v._trackT <= 0 && effects && effects.tireTrack && v.type !== 'heli' && v.type !== 'drone') {
-      v._trackT = 0.35;
-      const bx = v.x + Math.sin(v.yaw) * 1.2, bz = v.z + Math.cos(v.yaw) * 1.2;
-      effects.tireTrack(bx, bz, v.yaw);
-    }
+    const steer = (keys.has('KeyA') ? 1 : 0) + (keys.has('KeyD') ? -1 : 0);
+    if (moveVehicle(v, throttle, steer, dt).exploded) return;
     // The player rides along.
     S.player.x = v.x; S.player.z = v.z;
     S.player.yaw = v.yaw;
@@ -425,5 +469,7 @@ export function createVehicles(scene, world, S, audio = null, effects = null, cb
       if (m) m.color.set(hex);
     }
   }
-  return { list, place, nearest, nearestGas, refuel, enter, exit, step, animate, toggleLights, horn, radio, damageVehicle, hitMeshes, recolor, gasPos: () => gas };
+  const api = { list, place, nearest, nearestGas, refuel, enter, exit, step, animate, toggleLights, horn, radio, damageVehicle, hitMeshes, recolor, gasPos: () => gas, driveBot, nearestFree };
+  registerVehicles(api);
+  return api;
 }

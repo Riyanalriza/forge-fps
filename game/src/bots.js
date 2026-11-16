@@ -8,6 +8,7 @@ import { losClear } from './world.js';
 import { createBotModel, BOT_SKINS, BOT_WEAPONS, CHAR_OPERATOR_IDS, CHAR_SKIN_IDS, COSTUME_DEFS, COSTUME_IDS, camoMatches } from './characters.js';
 import { DIFFICULTY_DEFS } from './state.js'; // v25.0.5 difficulty table
 import { ensureSoldier, swapBotToSoldier, soldierReady } from './models.js';
+import { getVehicles } from './vehicles.js'; // v28: bot driving reaches the live vehicles instance via its registry
 
 const _v = new THREE.Vector3();
 
@@ -17,10 +18,10 @@ const _v = new THREE.Vector3();
 // per round so they flush you out instead of spamming you.
 const BOT_SKILLS = ['tak5', 'bull', 'gravity', 'sparrow', 'tak5'];
 const TACTICS = {
-  easy: { flank: false, flankCd: 999, grenadeCd: 999, grenadesPerRound: 0, skill: false, skillCd: 999 },
-  normal: { flank: true, flankCd: 14, grenadeCd: 26, grenadesPerRound: 1, skill: true, skillCd: 50 },
-  hard: { flank: true, flankCd: 9, grenadeCd: 19, grenadesPerRound: 1, skill: true, skillCd: 38 },
-  veteran: { flank: true, flankCd: 6, grenadeCd: 13, grenadesPerRound: 1, skill: true, skillCd: 28 },
+  easy: { flank: false, flankCd: 999, grenadeCd: 999, grenadesPerRound: 0, skill: false, skillCd: 999, vehicle: false, vehicleCd: 999 },
+  normal: { flank: true, flankCd: 14, grenadeCd: 26, grenadesPerRound: 1, skill: true, skillCd: 50, vehicle: true, vehicleCd: 30 },
+  hard: { flank: true, flankCd: 9, grenadeCd: 19, grenadesPerRound: 1, skill: true, skillCd: 38, vehicle: true, vehicleCd: 22 },
+  veteran: { flank: true, flankCd: 6, grenadeCd: 13, grenadesPerRound: 1, skill: true, skillCd: 28, vehicle: true, vehicleCd: 15 },
 };
 
 export function createBots(scene, world, S, rng, deps = {}) {
@@ -92,6 +93,8 @@ export function createBots(scene, world, S, rng, deps = {}) {
         combatT: 0, playerStillT: 0, lastPx: sp.x, lastPz: sp.z,
         retreating: false, retreatT: 0, retreatTx: 0, retreatTz: 0, retreatCd: 0,
         chargeT: 0, chargeHit: false, slamT: 0,
+        prone: false, proneT: 0, // v28: prone stance in long-range duels
+        vehicle: null, vehicleCd: 0, vehicleT: 0, vehicleStuckT: 0, vehicleEnteredOnce: false, // v28: bot driving
         knocked: false, knockT: 0, reviveT: 0, flies: null, // v22.0.8: BR bot knock/revive
       };
       // Holders guard the sites; patrollers roam mid.
@@ -115,6 +118,7 @@ export function createBots(scene, world, S, rng, deps = {}) {
     bot.skillCd = 12; bot.grenadeCd = 8; bot.grenadesUsed = 0;
     bot.flankCd = 8; bot.flankT = 0; bot.combatT = 0; bot.playerStillT = 0;
     bot.chargeT = 0; bot.chargeHit = false; bot.slamT = 0;
+    bot.prone = false; bot.proneT = 0; bot.vehicle = null; bot.vehicleCd = 0; bot.vehicleEnteredOnce = false;
     if (bot.flies) { for (const f of bot.flies) group.remove(f); bot.flies = null; }
     bot.mesh.group.visible = true;
     bot.mesh.group.rotation.z = 0; // stand back up after the death fall
@@ -140,13 +144,15 @@ export function createBots(scene, world, S, rng, deps = {}) {
       b.mesh.group.rotation.y = b.yaw;
       // Dead bots stay visible as fallen corpses for 10s (v25.0.3), then vanish;
       // their name sprite + indicator hide in animatePlayers.
-      b.mesh.group.visible = b.alive || (b.corpseT || 0) > 0;
+      // v28: a driving bot hides inside its vehicle (the car is the visual).
+      b.mesh.group.visible = (b.alive || (b.corpseT || 0) > 0) && !b.vehicle;
     }
   }
   function hitMeshes() {
     const out = [];
     // Knocked bots stay hittable so the player can finish them (v22.0.8).
-    for (const b of S.bots) if (b.alive || b.knocked) out.push(b.mesh.body, b.mesh.head);
+    // v28: a driving bot cannot be shot directly — shoot the car instead.
+    for (const b of S.bots) if ((b.alive || b.knocked) && !b.vehicle) out.push(b.mesh.body, b.mesh.head);
     return out;
   }
   function hasPerk(id) { return S.perks.includes(id); }
@@ -206,6 +212,67 @@ export function createBots(scene, world, S, rng, deps = {}) {
   function tactics() { return TACTICS[S.difficulty] || TACTICS.normal; }
   function botName(b) { return `BOT-${b.id + 1}`; }
   function tacticSay(b, text) { if (deps.onBotTactic) deps.onBotTactic(`${botName(b)}: ${text}`); }
+  // Bot vehicles (v28): enemy bots drive ground vehicles between objectives
+  // (patrol waypoint / last-seen spot, Normal+ only, gated like flank and
+  // grenades). They never shoot while driving, and they bail out the moment
+  // they spot you, arrive, time out, or lose the car. Allies never drive.
+  function driveTarget(b) {
+    if (b.state === 'patrol') {
+      const wp = world.waypoints[b.wpIdx % world.waypoints.length];
+      return wp ? { x: wp.x, z: wp.z } : null;
+    }
+    if (b.state === 'react') {
+      return { x: b.hasSeen ? b.lastSeenX : (S.lastShotPos ? S.lastShotPos.x : b.x),
+               z: b.hasSeen ? b.lastSeenZ : (S.lastShotPos ? S.lastShotPos.z : b.z) };
+    }
+    return null;
+  }
+  function tryEnterVehicle(b) {
+    const tc = tactics();
+    if (!tc.vehicle || (b.vehicleCd || 0) > 0 || b.vehicle) return false;
+    const veh = getVehicles();
+    if (!veh) return false;
+    const v = veh.nearestFree(b.x, b.z, 4);
+    if (!v) return false;
+    v.driver = b; b.vehicle = v;
+    b.vehicleT = 25; b.vehicleStuckT = 0;
+    b.vehicleCd = tc.vehicleCd;
+    b.vehicleEnteredOnce = true;
+    tacticSay(b, '🚗 naik kendaraan!');
+    return true;
+  }
+  function exitVehicle(b) {
+    const v = b.vehicle;
+    if (!v) return;
+    v.driver = null; b.vehicle = null;
+    b.x = v.x; b.z = v.z;
+    b.mesh.group.visible = true;
+  }
+  // Returns true while the bot is still driving this tick.
+  function updateBotDriving(b, dt, seen) {
+    const v = b.vehicle;
+    if (!v) return false;
+    if (S.vehicle && S.vehicle.ref === v) { exitVehicle(b); return false; } // player took the car
+    if (v.dead) { exitVehicle(b); damage(b, 50); b.vehicleCd = 10; return false; } // car blew up under it
+    if (v.fuel <= 0 && v.type !== 'bike') { exitVehicle(b); return false; }
+    if (seen) { exitVehicle(b); tacticSay(b, '🚗 turun — musuh terlihat!'); return false; }
+    b.vehicleT -= dt;
+    const tgt = driveTarget(b);
+    if (!tgt || b.vehicleT <= 0) { exitVehicle(b); return false; }
+    const veh = getVehicles();
+    const res = veh ? veh.driveBot(v, tgt.x, tgt.z, dt) : { arrived: true, moved: 0 };
+    b.x = v.x; b.z = v.z; b.yaw = v.yaw;
+    if (res.arrived) {
+      if (b.state === 'patrol') b.wpIdx = (b.wpIdx + 1) % world.waypoints.length;
+      exitVehicle(b);
+      return false;
+    }
+    if ((res.moved || 0) < 0.02) {
+      b.vehicleStuckT = (b.vehicleStuckT || 0) + dt;
+      if (b.vehicleStuckT > 4) { exitVehicle(b); return false; }
+    } else b.vehicleStuckT = 0;
+    return true;
+  }
   // Ballistic lob that lands at (tx, tz): ~1s arc, small spread so it is
   // not laser-accurate. Pushes straight into the shared flying-grenade
   // list, so the normal step/detonate path (sounds + smoke + blast) applies.
@@ -363,6 +430,8 @@ export function createBots(scene, world, S, rng, deps = {}) {
       b.skillCd = Math.max(0, (b.skillCd || 0) - dt);
       b.retreatCd = Math.max(0, (b.retreatCd || 0) - dt);
       b.chargeT = Math.max(0, (b.chargeT || 0) - dt);
+      b.vehicleCd = Math.max(0, (b.vehicleCd || 0) - dt);
+      if (b.prone) b.proneT = Math.max(0, (b.proneT || 0) - dt);
       // Camper tracking: how long the player has stood still (a bot that
       // lost you behind cover flushes you out with a grenade).
       if (Math.hypot(p.x - (b.lastPx ?? p.x), p.z - (b.lastPz ?? p.z)) < 0.5) b.playerStillT = (b.playerStillT || 0) + dt;
@@ -437,6 +506,17 @@ export function createBots(scene, world, S, rng, deps = {}) {
       }
       if (seen) b.lastCombatT = S.time;
 
+      // Bot vehicles (v28): a driving bot steers toward its objective and
+      // bails out on sighting, arrival, timeout, or a dead/empty vehicle.
+      // While driving it does not walk, shoot, or use tactics this tick.
+      if (b.vehicle) {
+        if (updateBotDriving(b, dt, seen)) continue;
+        // Exited this tick: fall through to the normal dispatch below.
+      }
+      // Prone exit (v28): stand up when the duel closes in, the target is
+      // lost, the stance times out, or the bot must move (retreat/charge).
+      if (b.prone && (b.state !== 'combat' || d < 12 || (b.proneT || 0) <= 0 || b.retreating || (b.chargeT || 0) > 0)) b.prone = false;
+
       // Tactical retreat (v27.1): the bot is already moving to cover — it
       // does not also walk its patrol/react route this tick.
       if (b.retreating) {
@@ -496,8 +576,44 @@ export function createBots(scene, world, S, rng, deps = {}) {
         if (moveToward(b, b.flankTx, b.flankTz, dt, 3.6 * spdMul) || b.flankT <= 0) b.state = 'react';
         else if ((b.stuckT || 0) > 2) { b.state = 'react'; b.stuckT = 0; }
       }
+      // Bot doors (v28): if the bot's path to its current target passes
+      // through a closed door within reach, open it with the same toggle
+      // the player uses, then walk through. (A stuckT trigger does not
+      // work here: moveToward() is axis-separated, so a bot pushing on a
+      // door slides along the wall — one axis still moves — and stuckT
+      // keeps resetting to 0.) The bot leaves the door open behind it
+      // (closing it would re-block the next bot).
+      if (!b.vehicle && (b.state === 'react' || b.state === 'patrol')) {
+        const tgt = b.state === 'react'
+          ? { x: b.lastSeenX, z: b.lastSeenZ }
+          : world.waypoints[b.wpIdx];
+        if (tgt) {
+          for (const dd of world.doors) {
+            if (dd.open || !dd.collider || !dd.collider.active) continue;
+            if (Math.hypot(dd.x - b.x, dd.z - b.z) > 2.5) continue;
+            if (segmentHitsCircle(b.x, b.z, tgt.x, tgt.z, dd.x, dd.z, 0.6)) {
+              world.toggleDoor(dd);
+              if (sfx && sfx.door) sfx.door();
+              tacticSay(b, '🚪 buka pintu!');
+              break;
+            }
+          }
+        }
+      }
+      // Bot vehicles (v28): board a nearby ground vehicle when the
+      // objective is far (patrol waypoint / last-seen spot, Normal+ only).
+      if (!b.vehicle && (b.state === 'patrol' || b.state === 'react')) {
+        const tgt = driveTarget(b);
+        if (tgt && Math.hypot(tgt.x - b.x, tgt.z - b.z) > 18) tryEnterVehicle(b);
+      }
       if (b.state === 'combat' && seen) {
         b.combatT = (b.combatT || 0) + dt;
+        // Prone (v28): in a long-range duel the bot drops flat — slower,
+        // smaller target, still shooting. Accuracy/damage are untouched.
+        if (!b.prone && d > 20 && (b.combatT || 0) > 2 && !b.retreating && (b.chargeT || 0) <= 0) {
+          b.prone = true; b.proneT = 6;
+          tacticSay(b, '🎯 tiarap — menahan posisi!');
+        }
         // Tactical retreat (v27.1, replaces the old flee): low HP — or the
         // last bot standing — falls back to cover, throwing smoke and
         // firing suppressive bursts on the way. Holders fall back to their
@@ -549,7 +665,8 @@ export function createBots(scene, world, S, rng, deps = {}) {
           if (b.strafeT <= 0) { b.strafeDir *= -1; b.strafeT = 0.7 + rng() * 0.9; }
           b.lean = b.strafeDir * 0.12; // body leans into the strafe (v18.8.3)
           const sx = Math.cos(b.yaw) * b.strafeDir, sz = -Math.sin(b.yaw) * b.strafeDir;
-          const snx = b.x + sx * 1.6 * spdMul * dt, snz = b.z + sz * 1.6 * spdMul * dt;
+          const strafeSpd = 1.6 * spdMul * (b.prone ? 0.35 : 1); // prone strafes crawl
+          const snx = b.x + sx * strafeSpd * dt, snz = b.z + sz * strafeSpd * dt;
           if (!world.isColliding(snx, b.z, 0.35, 0)) b.x = snx;
           if (!world.isColliding(b.x, snz, 0.35, 0)) b.z = snz;
         }
@@ -583,8 +700,10 @@ export function createBots(scene, world, S, rng, deps = {}) {
             b.shotsFired += 1;
             b.adsT = 0.5; // ADS pose: arms up, body tilted (v18.8.4)
             // Enemy tracer (red) + distance gunshot on every bot shot.
-            if (fx) fx.tracer({ x: b.x, y: 1.3, z: b.z }, { x: p.x, y: p.y + p.eye, z: p.z }, 0xff2222);
-            if (sfx && sfx.enemyShot) sfx.enemyShot(b.weapon, d, b.x, 1.3, b.z);
+            // A prone bot fires from ground level (v28).
+            const shotY = b.prone ? 0.5 : 1.3;
+            if (fx) fx.tracer({ x: b.x, y: shotY, z: b.z }, { x: p.x, y: p.y + p.eye, z: p.z }, 0xff2222);
+            if (sfx && sfx.enemyShot) sfx.enemyShot(b.weapon, d, b.x, shotY, b.z);
             // Tracker perk (v23.0.5): an enemy shot marks it on the minimap.
             if (hasPerk('tracker') && deps.onBotShot) deps.onBotShot(b);
             const diff = DIFFICULTY_DEFS[S.difficulty] || DIFFICULTY_DEFS.normal;
@@ -600,7 +719,7 @@ export function createBots(scene, world, S, rng, deps = {}) {
             }
             if (b.shotsFired >= 6) {
               b.shotsFired = 0; b.reloadT = 1.5;
-              if (d < 40 && sfx && sfx.enemyReload) sfx.enemyReload(b.x, 1.2, b.z);
+              if (d < 40 && sfx && sfx.enemyReload) sfx.enemyReload(b.x, b.prone ? 0.5 : 1.2, b.z);
             }
             if (b.burst <= 0) b.shootT = 0.45 + rng() * 0.4;
           }
@@ -621,6 +740,7 @@ export function createBots(scene, world, S, rng, deps = {}) {
     bot.hp -= dmg;
     bot.flinchT = 0.15; // hit flinch: body + head snap back (v18.8.1)
     if (bot.hp <= 0) {
+      if (bot.vehicle) exitVehicle(bot); // v28: a downed bot bails out of its car
       // BR knock (v22.0.8): an enemy with a living teammate goes down
       // instead of dying outright; it can be revived or finished off.
       if (S.mode === 'br' && !bot.knocked) {

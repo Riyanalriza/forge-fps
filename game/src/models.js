@@ -329,6 +329,9 @@ function createSoldierModel(base, gltf) {
       if (!bot.alive) {
         this.deathT += dt;
         this._play('Death', false);
+        // A prone/crouched bot falls flat (v28): reset the stance tilt so
+        // the Death clip lands on the floor instead of a tilted body.
+        this._wrap.position.y = 0; this._wrap.rotation.x = 0;
         if (base.parts.nameSprite) base.parts.nameSprite.visible = false;
         if (indicator) indicator.visible = false;
         mixer.update(dt);
@@ -336,6 +339,16 @@ function createSoldierModel(base, gltf) {
         return;
       }
       if (this.deathT > 0) { this.deathT = 0; this._clip = null; }
+      // Prone / crouch posture (v28): the soldier has no prone clip, so the
+      // stance is the whole body pitched forward on its feet — lying flat
+      // for prone, a deep lean for crouch. The hit meshes ride along, so
+      // the smaller target is real, not just visual. This also finally
+      // shows the old low-HP crouch on the soldier (it used to be invisible
+      // — only the procedural model bent its legs).
+      if (bot.prone) { this._wrap.position.y = 0; this._wrap.rotation.x = -1.35; }
+      else if (bot.crouch) { this._wrap.position.y = -0.1; this._wrap.rotation.x = -0.45; }
+      else { this._wrap.position.y = 0; this._wrap.rotation.x = 0; }
+      if (base.parts.nameSprite) base.parts.nameSprite.position.y = bot.prone ? 0.9 : 2.15;
       if (base.parts.nameSprite) base.parts.nameSprite.visible = true;
       if (indicator) indicator.visible = true;
       if (bot.hp !== this.lastHp) this.setHp(bot.hp);

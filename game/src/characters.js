@@ -617,6 +617,16 @@ export function createBotModel(weaponSkin, weaponId, name, charOpId = 'specter',
       } else if (gun) {
         gun.rotation.x = 0;
       }
+      // Prone (v28): lying flat, gun forward — same horizontal-body trick
+      // as swimming. Runs after crouch/reload so prone wins over both.
+      if (bot.prone) {
+        torso.rotation.x = 1.25;
+        torso.position.y = 0.35;
+        headG.position.y = 0.9;
+        legL.rotation.x = 0.25; legR.rotation.x = 0.25;
+        armL.rotation.x = -1.2; armR.rotation.x = -1.2;
+        g.position.y = -0.55;
+      }
       // Emote overrides the base pose.
       if (this.emote) {
         const e = this.emote;
