@@ -490,6 +490,7 @@ export function createEffects(scene, S, audio) {
         decals: decals.filter(d => d.life > 0).length,
         pools: pools.filter(p => p.life > 0).length,
         tracers: tracers.filter(t => t.life > 0).length,
+        shells: shells.filter(s => s.life > 0).length,
       };
     },
     lastFlash() {

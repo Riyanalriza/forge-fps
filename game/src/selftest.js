@@ -18,6 +18,11 @@ export function runSelfTest(ctx) {
   const checks = [];
   const check = (name, ok) => checks.push({ name, ok: !!ok });
   try {
+    // Boot invariant (frost pass): the world the constructor built must
+    // already be the default map — S.mapId and world.mapId agree with no
+    // explicit buildMap call yet. (Caught live 2026-11-16: the constructor
+    // built foundry while S.mapId said frost.)
+    check('boot world matches the default map', world.mapId === S.mapId && S.mapId === 'frost');
     S.mode = 'tdm'; S.perks = []; S.operator = 'tempest';
     game.startRound();
     const killBot = () => {
@@ -98,7 +103,7 @@ export function runSelfTest(ctx) {
     check('Daily countdown format', /^\d{2}:\d{2}:\d{2}$/.test(daily.countdown));
     check('Daily emote XP is 0 for non-preset emote', dailyEmoteXp('__none__') === 0);
     check('8 finishers defined', Object.keys(FINISHER_DEFS).length === 8);
-    check('7 maps defined', MAP_IDS.length === 7);
+    check('8 maps defined', MAP_IDS.length === 8);
     for (const id of MAP_IDS) {
       world.buildMap(id);
       check(`Map ${id} has colliders`, world.colliders.length > 20);
@@ -259,7 +264,7 @@ export function runSelfTest(ctx) {
     check('Blood spray + pool spawn particles', effects.debugCounts().particles > 0 && effects.debugCounts().decals > 0);
     effects.explosion({ x: 0, y: 0.5, z: 0 }, false);
     check('Explosion spawns particles', effects.debugCounts().particles > 0);
-    check('MAP_WEATHER_FULL has 7 maps', Object.keys(MAP_WEATHER_FULL).length === 7);
+    check('MAP_WEATHER_FULL has 8 maps', Object.keys(MAP_WEATHER_FULL).length === 8);
     check('MAP_WEATHER_FULL ember is sand + fog 30m', MAP_WEATHER_FULL.ember.weather === 'sand' && MAP_WEATHER_FULL.ember.fog[1] === 30);
     world.buildMap('twin');
     check('Decor counts non-zero', world.decorCounts().total > 20);
@@ -488,7 +493,7 @@ export function runSelfTest(ctx) {
         check(`Map ${id} site B name is not Crane Yard`, world.sites.B.name !== 'Crane Yard');
       }
     }
-    check('Site positions differ across maps', seenSites.size === 21);
+    check('Site positions differ across maps', seenSites.size === 24);
     const walkBridge = (mapId, sx, sz, yaw, steps) => {
       world.buildMap(mapId);
       game.startRound();
@@ -958,6 +963,104 @@ export function runSelfTest(ctx) {
       check('§49 player can still enter a car', false);
       check('§49 player can still exit a car', false);
     }
+    // ---- §50: frost pass — Frostworks default, industrial, shells,
+    // buy stats + quick-buy/rebuy, defuse bar + hazard glow, round-over
+    // wide shot, bot team gear (2026-11-16) ----
+    check('§50 boot default map is frost', S.mapId === 'frost');
+    check('§50 menu header counts 8 maps', [...document.querySelectorAll('.menu-sec h3')].some(h => h.textContent.includes('8 maps')));
+    world.buildMap('frost'); vehicles.place('frost'); game.startRound();
+    S.player.hp = 9999; S.spawnProtT = 0; S.hideT = 0;
+    check('§50 frost world active', world.mapId === 'frost');
+    check('§50 frost ground is snow texture', world.groundKind === 'snow');
+    check('§50 frost ground surface is snow', world.groundSurface(0, 0, 0) === 'snow');
+    check('§50 frost sites are Boiler House / Crane Dock / Frost Gate',
+      world.sites.A.name === 'Boiler House' && world.sites.B.name === 'Crane Dock' && world.sites.C.name === 'Frost Gate');
+    check('§50 frost has industrial containers', world.containers.length >= 8);
+    check('§50 frost has Kenney industrial GLB props', world.glbPlacements.length >= 5);
+    check('§50 frost has enterable-house doors', world.doors.length > 0);
+    // Bot team gear on the soldier GLB (procedural, never touches the GLB).
+    const g0 = S.bots[0].mesh.model;
+    check('§50 bot 0 is the soldier model', !!g0._isSoldier);
+    check('§50 soldier carries team gear (helmet/backpack/pouches)',
+      !!g0._gear && !!g0._gear.group && g0._gear.group.children.length >= 8);
+    check('§50 enemy gear is orange', !!g0._gear && g0._gear.teamHex === 0xff7a1a);
+    if (g0.setAlly && g0._gear) {
+      g0.setAlly(true);
+      check('§50 ally gear turns teal', g0._gear.teamHex === 0x2fd8c8);
+      g0.setAlly(false);
+      check('§50 gear back to orange', g0._gear.teamHex === 0xff7a1a);
+    }
+    // Shell casing: a real shot ejects a visible brass case. Force the
+    // VK-9 (hitscan, non-melee): earlier sections can leave a melee or
+    // projectile weapon selected, and those correctly eject no brass.
+    if (weapon.cur().melee || weapon.cur().projectile) S.player.weaponIdx = 0;
+    const w50 = weapon.cur();
+    w50.mag = w50.magSize; w50.reloading = false;
+    const shells0 = effects.debugCounts().shells;
+    weapon.fire(bots.hitMeshes(), world.shootables, Math.random, () => {}, () => null);
+    check('§50 firing ejects a shell casing', effects.debugCounts().shells > shells0);
+    // Buy menu: stats per card, team plan, quick-buy/rebuy hints + actions.
+    S.economy.money = 2400;
+    game.toggleBuy();
+    const buyHtml50 = game.buyHtml();
+    check('§50 buy card shows headshot damage', buyHtml50.includes('HS '));
+    check('§50 buy card shows fire rate', buyHtml50.includes('/s'));
+    check('§50 buy card shows magazine', buyHtml50.includes(' mag'));
+    check('§50 buy menu header names the map', (document.querySelector('.buy-head h2') || {}).textContent === 'BUY — FROSTWORKS YARD');
+    check('§50 buy menu shows the team plan', buyHtml50.includes('TEAM PLAN: PUSH BOILER HOUSE'));
+    check('§50 buy menu shows quick-buy / rebuy hints', buyHtml50.includes('Q quick buy') && buyHtml50.includes('9 rebuy'));
+    const ownedBefore = S.owned.slice();
+    const money0 = S.economy.money;
+    game.quickBuy();
+    const boughtIdx = S.owned.findIndex((o, i) => o && !ownedBefore[i]);
+    check('§50 quick buy buys exactly one new weapon',
+      boughtIdx >= 0 && S.economy.money === money0 - S.weapons[boughtIdx].price && S.lastBought === 'w' + boughtIdx);
+    const he50 = S.grenades.he;
+    const money1 = S.economy.money;
+    game.buy('he');
+    check('§50 buying a frag records lastBought', S.lastBought === 'he' && S.economy.money === money1 - 300 && S.grenades.he === he50 + 1);
+    game.rebuy();
+    check('§50 rebuy repeats the last purchase', S.grenades.he === he50 + 2 && S.economy.money === money1 - 600);
+    // Key path: Q while the menu is open runs quick buy, never a grenade;
+    // 9 runs rebuy, never a molotov.
+    S.countdownT = 0; S.economy.money = 2400;
+    const heQ0 = S.grenades.he, msgQ0 = S.msg;
+    input.state.keys.add('KeyQ');
+    game.step(FIXED_STEP, input.state.keys);
+    input.state.keys.delete('KeyQ');
+    check('§50 Q key runs quick buy, not a grenade', (S.msg || '').startsWith('⚡ QUICK BUY') && S.msg !== msgQ0 && S.grenades.he === heQ0);
+    const he90 = S.grenades.he, mol90 = S.grenades.molotov, money90 = S.economy.money;
+    game.buy('he'); // lastBought = 'he' again
+    input.state.keys.add('Digit9');
+    game.step(FIXED_STEP, input.state.keys);
+    input.state.keys.delete('Digit9');
+    check('§50 9 key runs rebuy, not a molotov', S.grenades.he === he90 + 2 && S.grenades.molotov === mol90 && S.economy.money === money90 - 600);
+    game.toggleBuy();
+    // Defuse: plant at site A (hold E), the nearest bot rushes in to
+    // defuse — the progress bar shows and the site hazard glow turns on.
+    S.mode = 'snd'; game.startRound();
+    S.player.hp = 9999; S.spawnProtT = 0; S.hideT = 999;
+    const siteA = world.sites.A;
+    S.player.x = siteA.x; S.player.z = siteA.z;
+    // Park the nearest alive, non-driving bot 2m from the charge: after
+    // §49 the bots can be anywhere on the map, and a 3s settle is not
+    // enough for a 40m walk. (S&D does not respawn dead bots.)
+    const driving50 = new Set(vehicles.list.filter(v => v.driver).map(v => v.driver));
+    let dbot = S.bots.filter(b => b.alive && !driving50.has(b))
+      .sort((a, c) => Math.hypot(a.x - siteA.x, a.z - siteA.z) - Math.hypot(c.x - siteA.x, c.z - siteA.z))[0];
+    if (!dbot) { bots.respawn(S.bots[0]); dbot = S.bots[0]; }
+    dbot.x = siteA.x + 2; dbot.z = siteA.z; dbot.state = 'hold'; bots.syncMeshes();
+    input.state.keys.add('KeyE');
+    settle(60 * 9); // 3.2s countdown + 4s plant channel
+    input.state.keys.delete('KeyE');
+    check('§50 charge plants at site A', S.bomb.state === 'planted' && S.bomb.site === 'A');
+    settle(60 * 3); // nearest bot walks in and starts defusing
+    check('§50 a bot is defusing', S.bomb.defuseT > 0);
+    check('§50 defuse progress bar shows', !document.getElementById('plant-bar').hidden && document.getElementById('plant-label').textContent === 'ENEMY DEFUSING…');
+    check('§50 planted site hazard glow is on', (() => { const h = world.siteHazard('A'); return h && h.color === 0xff2a55 && h.opacity >= 0.09; })()); // disc pulses 0.09–0.35, colour is the signature
+    // Round-over wide shot: end the round and check the viewpoint parks high.
+    game.endRound(true, '§50 TEST');
+    check('§50 round-over parks the camera high', S.player.y >= 20 && S.player.pitch < -0.5);
     world.buildMap('foundry');
     game.startRound();
     world.buildMap('foundry');

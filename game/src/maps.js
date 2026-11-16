@@ -26,6 +26,95 @@ function scatterBarrels(api, spots) {
 }
 
 export const MAP_DEFS = {
+  frost: {
+    id: 'frost', name: 'Frostworks Yard', emoji: '❄️',
+    desc: 'Snow-covered industrial plant — pipes, containers, cranes.',
+    sites: {
+      A: { name: 'Boiler House', x: -27, z: -19, color: 0xf0a830 },
+      B: { name: 'Crane Dock', x: 27, z: -19, color: 0x37c8d8 },
+      C: { name: 'Frost Gate', x: 0, z: 6, color: 0x7ddc7d },
+    },
+    ground: 0xe8eef2, groundTex: 'snow', fog: 0x9ab0c0,
+    waypoints: [
+      { x: -30, z: -8 }, { x: -30, z: 8 }, { x: -12, z: 14 }, { x: 0, z: 6 },
+      { x: 12, z: 14 }, { x: 30, z: 8 }, { x: 30, z: -8 }, { x: 14, z: -8 },
+      { x: -14, z: -8 }, { x: 0, z: -14 }, { x: -27, z: -19 }, { x: 27, z: -19 },
+      { x: -20, z: 20 }, { x: 20, z: 20 }, { x: 0, z: 20 },
+    ],
+    spawns: DEFAULT_SPAWNS,
+    build(api) {
+      // Central plant building: steel hall + snow roof + chimneys + furnace
+      // glow + overhead pipes (same massing as the foundry hall, cold palette).
+      api.addBox(0, -2, 16, 7, 10, 0x4a5258);
+      api.addBox(0, -2, 17, 0.6, 11, 0xe8eef2, { y: 7.2 });
+      api.addCylinder(-5, -4, 0.9, 9, 0x2e3236, { y: 4.5 });
+      api.addCylinder(5, -4, 0.9, 9, 0x2e3236, { y: 4.5 });
+      api.addBox(0, 3.05, 4, 2.2, 0.1, 0xff7a1a, { y: 0.3, solid: false, extra: { emissive: 0xff7a1a, emissiveIntensity: 1 } });
+      for (let i = 0; i < 3; i++) api.addBox(8.4, -2, 0.44, 0.44, 7, 0x6a7a8a, { y: 1 + i * 1.1, solid: false });
+      // Crane at Site B (Crane Dock)
+      api.addBox(22, -19, 0.8, 8, 0.8, 0xf0a830);
+      api.addBox(32, -19, 0.8, 8, 0.8, 0xf0a830);
+      api.addBox(27, -19, 12, 0.8, 0.8, 0xf0a830, { y: 8, solid: false });
+      api.addBox(27, -19, 1, 1.4, 1, 0x2e3236, { y: 6.5, solid: false });
+      // Two enterable crew houses (doors + stairs + interiors, like Ember).
+      api.addHouse({ x: -30, z: -14, rot: 90, floors: 2, color: 0x7a8a9a, roof: 0x2e3a44 });
+      api.addHouse({ x: 30, z: -14, rot: 270, floors: 2, color: 0x7a8a9a, roof: 0x2e3a44 });
+      // Containers (corrugated industrial) — clear of the houses and of the
+      // vehicle spots (car -30,20 / heli 30,-20 / moto 0,-24 / tank -14,-22).
+      api.addContainer(-20, 2, 6, 2.5, 0x8a2a2a);
+      api.addContainer(-20, 6, 6, 2.5, 0x2a5a8a);
+      api.addContainer(20, 2, 6, 2.5, 0x2a5a8a);
+      api.addContainer(20, -10, 2.5, 6, 0x5a7a3a);
+      api.addContainer(32, 4, 6, 2.5, 0x8a2a2a);
+      api.addContainer(-8, -16, 2.5, 6, 0x8a2a2a);
+      api.addContainer(10, 12, 6, 2.5, 0x2e6f6a);
+      api.addContainer(-34, 16, 2.5, 6, 0x2a5a8a);
+      api.addContainer(34, -4, 2.5, 6, 0x2a5a8a);
+      api.addContainer(14, -20, 6, 2.5, 0x8a2a2a, { stack: true, stackColor: 0x5a7a3a });
+      // Brick gate walls flanking the mid lane, giant painted site letters
+      // on their south faces, hazard barriers framing the gate.
+      api.addBrickWall(-12.5, 6, 7, 1, 3.5);
+      api.addWallLetter(-12.5, 6.56, 0, 'A', 'BOILER HOUSE', '#f0a830');
+      api.addBrickWall(12.5, 6, 7, 1, 3.5);
+      api.addWallLetter(12.5, 6.56, 0, 'B', 'CRANE DOCK', '#37c8d8');
+      api.addHazardBarrier(-8.5, 6, Math.PI / 2);
+      api.addHazardBarrier(8.5, 6, Math.PI / 2);
+      // Crates, grid-aligned (no overlaps): pairs 1.8m apart, plus a
+      // two-high stack at each site corner. FW-7 = Frostworks stencil.
+      scatterCrates(api, [[-12, 8], [-10.2, 8], [12, 8], [13.8, 8], [0, 14], [-4, -12], [24, 12], [-24, -2], [6, -14], [-16, 20], [16, 20], [0, -22]]);
+      api.addCrate(-27, -10, 1.6, 'FW-7');
+      api.addCrate(-27, -10, 1.6, 'FW-7', 1.16);
+      api.addCrate(27, -10, 1.6, 'FW-7');
+      api.addCrate(27, -10, 1.6, 'FW-7', 1.16);
+      scatterBarrels(api, [[-16, 4], [-15, 5], [16, -6], [26, 2], [-30, 2], [8, 18], [-6, 18], [30, -6]]);
+      api.addSandbag(-23, -14); api.addSandbag(-21, -14);
+      api.addSandbag(23, -14); api.addSandbag(21, -14);
+      api.addSandbag(-2, 10); api.addSandbag(2, 10);
+      api.addTree(-36, 14); api.addTree(36, 14);
+      api.addCar(-24, 18, 0, 0x5a6a7a); api.addCar(24, 18, 0, 0x7a2a2a);
+      // Frostworks details: TV, flag, statue, billboard, bushes, planters.
+      api.addTV(-34, 22, 0);
+      api.addFlag(0, -24, 0x2a5a8a);
+      api.addStatue(36, 0);
+      api.addBillboard(-36, -20, Math.PI / 2, 0x2a5a8a);
+      api.addBush(-28, 22); api.addBush(28, -22); api.addBush(-34, 8);
+      api.addPlanter(-4.5, 18); api.addPlanter(4.5, 18);
+      api.addPowerPole(-36, -14); api.addWoodPile(30, 14);
+      api.addTrashCan(-26, -18); api.addTrashCan(26, 18);
+      // Ambient: dog, mechanic, fridge/stove/safe/wardrobe.
+      api.addAnimal('dog', -28, 22); api.addNPC('mechanic', 24, 16);
+      api.addFridge(10, 16); api.addStove(12, 16); api.addSafe(-10, 20); api.addWardrobe(34, 12);
+      // GLB props: Kenney industrial set + skyscraper backdrop.
+      api.addGLB('models/kenney/buildings/industrial/factory.glb', -30, 22, { scale: 6 });
+      api.addGLB('models/kenney/buildings/industrial/chimney.glb', -20, 23, { scale: 5 });
+      api.addGLB('models/kenney/buildings/industrial/tank.glb', 30, 22, { scale: 5 });
+      api.addGLB('models/kenney/buildings/industrial/watertower.glb', 34, -22, { scale: 5 });
+      api.addGLB('models/kenney/props/factory/conveyor.glb', 14, -16, { scale: 4 });
+      api.addGLB('models/kenney/buildings/skyscraper.glb', 14, 22, { scale: 8 });
+      lights(api);
+    },
+  },
+
   foundry: {
     id: 'foundry', name: 'Foundry Yard', emoji: '🏭',
     desc: 'Industrial yard — furnace, containers, crane. The original map.',

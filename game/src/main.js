@@ -99,9 +99,9 @@ const camera = new THREE.PerspectiveCamera(74, window.innerWidth / window.innerH
 scene.add(camera);
 
 const world = buildWorld(scene);
-S.mapId = loadJson('forge_map_v2', 'foundry');
-if (!MAP_DEFS[S.mapId]) S.mapId = 'foundry';
-if (S.mapId !== 'foundry') world.buildMap(S.mapId);
+S.mapId = loadJson('forge_map_v2', 'frost');
+if (!MAP_DEFS[S.mapId]) S.mapId = 'frost';
+if (S.mapId !== 'frost') world.buildMap(S.mapId);
 const audio = createAudio();
 audio.setVolumes(settings.volume.gun, settings.volume.voice);
 audio.setCallouts(settings.callouts);
@@ -738,7 +738,7 @@ function applyLanguage() {
   document.querySelectorAll('.menu-sec h3').forEach(h => {
     for (const [key, idText] of Object.entries(STRINGS.id)) {
       if (key === 'play' || key === 'keys') continue;
-      if (h.textContent.startsWith(idText)) { h.textContent = t[key]; return; }
+      if (h.textContent.startsWith(idText) || (key === 'map' && h.textContent.includes('MAP —'))) { h.textContent = t[key]; return; }
     }
   });
   document.documentElement.lang = lang;
@@ -1058,7 +1058,7 @@ function onFinisherDone(kind) {
   S.finisher = null;
   if (S.previewMode) {
     S.previewMode = false;
-    hud.showMenu('FOUNDRY YARD');
+    hud.showMenu('FROSTWORKS');
     return;
   }
   if (FINISHER_DEFS[kind] && FINISHER_DEFS[kind].mythic) {
@@ -1530,10 +1530,8 @@ function hideLoading() {
 }
 
 function surfaceAt(x, z) {
-  if (S.mapId === 'ember') return 'sand';
-  if (S.mapId === 'harvest') return 'grass';
-  if (S.mapId === 'ruin') return 'concrete';
-  if (S.mapId === 'cargo') return 'metal';
+  const m = { ember: 'sand', harvest: 'grass', cargo: 'metal', frost: 'snow' }[S.mapId];
+  if (m) return m;
   if (world.inWater && world.inWater(x, z)) return 'water';
   return 'concrete';
 }
@@ -1740,8 +1738,8 @@ function runShot(name) {
     bots.spawnAll();
     settle(20);
     aimAt(0, 2.5, -10);
-    weather.applyWeather('sunset'); S.weatherManual = true;
-    hud.showMenu('FOUNDRY YARD');
+    weather.applyWeather('snow'); S.weatherManual = true;
+    hud.showMenu('FROSTWORKS');
     hud.refreshBattlePass();
     hud.update(world);
   } else if (name === 'play') {
@@ -1753,10 +1751,10 @@ function runShot(name) {
     S.loadout.primary = WEAPONS_DB.findIndex(w => w.id === 'by15');
     S.player.weaponIdx = S.loadout.primary;
     weapon.applyMythic();
-    buildMap('foundry');
+    buildMap('frost');
     S.noCountdown = true;
     game.startRound();
-    weather.applyWeather('sunset'); S.weatherManual = true;
+    weather.applyWeather('snow'); S.weatherManual = true;
     const spots = [[0, 17, 100], [4, 12, 40], [-5, 14, 100]];
     spots.forEach(([x, z, hp], i) => {
       const b = S.bots[i]; b.x = x; b.z = z; b.hp = hp; b.state = 'combat';
@@ -1794,7 +1792,7 @@ function runShot(name) {
     hud.update(world);
   } else if (name === 'buy') {
     game.startRound();
-    weather.applyWeather('sunset'); S.weatherManual = true;
+    weather.applyWeather('snow'); S.weatherManual = true;
     S.economy.money = 2400;
     settle(10);
     aimAt(0, 2, -10);
@@ -1805,7 +1803,7 @@ function runShot(name) {
     S.mode = 'tdm';
     S.noFinisher = true;
     game.startRound();
-    weather.applyWeather('sunset'); S.weatherManual = true;
+    weather.applyWeather('snow'); S.weatherManual = true;
     settle(10);
     aimAt(0, 2.5, -10);
     S.kills = 9; S.botKills = 5; S.score = 900; S.headshots = 3;
@@ -1858,4 +1856,4 @@ if (shot) {
   // procedural fallbacks. Normal play never waits — it swaps in live.
   await Promise.allSettled([ensureViewmodelAssets(), ensureSoldier(), ensurePropAssets(ALL_PROP_URLS)]);
   runShot(shot);
-} else { hud.showMenu('FOUNDRY YARD'); hud.refreshBattlePass(); requestAnimationFrame(frame); }
+} else { hud.showMenu('FROSTWORKS'); hud.refreshBattlePass(); requestAnimationFrame(frame); }

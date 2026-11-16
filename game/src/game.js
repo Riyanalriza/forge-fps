@@ -6,6 +6,7 @@
 // (coins, quests, ELO, replay) via the cbs object from main.js.
 import * as THREE from 'three';
 import { STREAK_DEFS, MODE_DEFS, OPERATOR_DEFS, DEFAULT_OWNED } from './state.js';
+import { MAP_DEFS } from './maps.js';
 import { nearestSiteName } from './world.js';
 import { addXP } from './battlepass.js';
 import { dmgAngle } from './hud.js';
@@ -13,6 +14,8 @@ import { dmgAngle } from './hud.js';
 export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
   let buyOpen = false;
   let beepT = 0;
+  let hazardSite = null; // site whose hazard glow is currently on
+  let qDown = false, n9Down = false; // buy-menu quick-key edge detection
   // BR floor loot (weapons / armor / medkits), spawned per round.
   const lootGroup = new THREE.Group(); scene.add(lootGroup);
   const lootItems = [];
@@ -714,6 +717,7 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
     S.round.timer = def.timer;
     S.round.result = '';
     S.bomb = { state: 'none', site: null, x: 0, z: 0, plantT: 0, fuse: 40, defuseT: 0, defuser: -1 };
+    if (hazardSite && world.setSiteHazard) { world.setSiteHazard(hazardSite, false); hazardSite = null; }
     S.grenades.smokes = [];
     for (const m of smokeMeshes) m.visible = false;
     bombMesh.visible = false;
@@ -798,6 +802,12 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
     if (S.phase !== 'playing') return;
     cancelGrenadeAim();
     S.phase = 'roundEnd';
+    // Round-over wide shot (frost pass): park the viewpoint high over
+    // the south spawn, looking down the yard — the end scoreboard overlays
+    // this view. player.step does not run in roundEnd, so the pose holds
+    // until nextRound() respawns the player.
+    const pp = S.player;
+    pp.x = 0; pp.z = 24; pp.y = 26; pp.yaw = 0; pp.pitch = -0.8;
     S.round.result = won ? 'won' : 'lost';
     if (won) {
       S.round.wins += 1; S.economy.money += 1000; audio.win();
@@ -845,14 +855,23 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
   }
   function buyHtml() {
     // Money lives in the panel header (reference layout); refresh it here —
-    // buyHtml runs on open and after every purchase.
+    // buyHtml runs on open and after every purchase. The header title follows
+    // the current map (index.html hardcodes the old Foundry title).
     const bm = document.getElementById('buy-money');
     if (bm) bm.textContent = '$' + S.economy.money;
+    const h2 = document.querySelector('.buy-head h2');
+    if (h2) h2.textContent = 'BUY — ' + (MAP_DEFS[S.mapId] || MAP_DEFS.foundry).name.toUpperCase();
     const rows = S.weapons.map((w, i) => {
       const owned = S.owned[i];
       const price = owned ? '<span class="buy-owned">OWNED</span>' : `<span class="buy-price">$${w.price}</span>`;
       const cur = S.player.weaponIdx === i ? ' ◄ EQUIPPED' : '';
-      return `<button data-buy="w${i}" class="buy-row"><span class="buy-name"><b>${w.name}</b>${cur}</span><span class="buy-sub">${w.cls} · ${w.dmg} dmg · ${w.magSize} mag</span>${price}</button>`;
+      // Stats straight from WEAPONS_DB: damage (×pellets for shotguns),
+      // headshot damage, fire rate, magazine.
+      const dmg = w.pellets > 1 ? `${w.dmg}×${w.pellets}` : `${w.dmg}`;
+      const hs = Math.round(w.dmg * w.headMult);
+      const rof = w.rate > 0 ? (1 / w.rate).toFixed(1) : '—';
+      const ammo = w.melee ? '—' : `${w.magSize} mag`;
+      return `<button data-buy="w${i}" class="buy-row"><span class="buy-name"><b>${w.name}</b>${cur}</span><span class="buy-sub">${w.cls} · ${dmg} dmg · HS ${hs} · ${rof}/s · ${ammo}</span>${price}</button>`;
     }).join('');
     const equip = [
       ['armor', 'Full Armor', 'absorbs 60% of damage', 1000],
@@ -862,31 +881,52 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
       ['ammo', 'Ammo Refill', 'full reserve for current weapon', 500],
     ].map(([id, name, sub, price]) =>
       `<button data-buy="${id}" class="buy-row"><span class="buy-name"><b>${name}</b></span><span class="buy-sub">${sub}</span><span class="buy-price">$${price}</span></button>`).join('');
-    return `<div class="buy-sec">WEAPONS</div><div class="buy-grid">${rows}</div>`
+    // One-line team plan from the live site names, then the quick-buy /
+    // rebuy actions (same ids as the Q / 9 keys while the menu is open).
+    const plan = `TEAM PLAN: PUSH ${world.sites.A.name.toUpperCase()} — HOLD ${world.sites.B.name.toUpperCase()}`;
+    return `<div class="buy-plan">${plan}</div><div class="buy-sec">WEAPONS</div><div class="buy-grid">${rows}</div>`
       + `<div class="buy-sec">EQUIPMENT</div><div class="buy-grid">${equip}</div>`
-      + `<div class="buy-note">Press N to close</div>`;
+      + `<div class="buy-quick"><button data-buy="quick" class="buy-row"><span class="buy-name"><b>⚡ QUICK BUY [Q]</b></span><span class="buy-sub">cheapest unowned weapon you can afford</span></button><button data-buy="rebuy" class="buy-row"><span class="buy-name"><b>🔁 REBUY [9]</b></span><span class="buy-sub">repeat your last purchase</span></button></div>`
+      + `<div class="buy-note">Q quick buy · 9 rebuy · N close</div>`;
   }
   function toggleBuy() {
     if (S.phase !== 'playing' && S.phase !== 'roundEnd') return;
     buyOpen = !buyOpen;
-    if (buyOpen) { hud.setBuyHtml(buyHtml()); hud.showBuy(true); if (document.pointerLockElement) document.exitPointerLock(); }
+    if (buyOpen) { cancelGrenadeAim(); hud.setBuyHtml(buyHtml()); hud.showBuy(true); if (document.pointerLockElement) document.exitPointerLock(); }
     else hud.showBuy(false);
   }
   function buy(id) {
+    if (id === 'quick') { quickBuy(); return; }
+    if (id === 'rebuy') { rebuy(); return; }
     if (id === 'armor') {
-      if (S.economy.money >= 1000 && S.player.armor < 100) { S.economy.money -= 1000; S.player.armor = 100; S.keepArmor = true; }
+      if (S.economy.money >= 1000 && S.player.armor < 100) { S.economy.money -= 1000; S.player.armor = 100; S.keepArmor = true; S.lastBought = 'armor'; }
     } else if (id === 'ammo') {
       const w = S.weapons[S.player.weaponIdx];
-      if (S.economy.money >= 500) { S.economy.money -= 500; w.reserve = w.magSize * 3; }
+      if (S.economy.money >= 500) { S.economy.money -= 500; w.reserve = w.magSize * 3; S.lastBought = 'ammo'; }
     } else if (id === 'smoke' || id === 'flash' || id === 'he') {
-      if (S.economy.money >= 300) { S.economy.money -= 300; S.grenades[id] += 1; }
+      if (S.economy.money >= 300) { S.economy.money -= 300; S.grenades[id] += 1; S.lastBought = id; }
     } else {
       const i = Number(id.slice(1)), w = S.weapons[i];
       if (!S.owned[i] && S.economy.money >= w.price) {
-        S.economy.money -= w.price; S.owned[i] = true; S.player.weaponIdx = i;
+        S.economy.money -= w.price; S.owned[i] = true; S.player.weaponIdx = i; S.lastBought = id;
       } else if (S.owned[i]) S.player.weaponIdx = i;
     }
     hud.setBuyHtml(buyHtml());
+  }
+  // Quick buy (Q): the cheapest unowned weapon you can afford; if none,
+  // Full Armor; if neither, a message. Rebuy (9): the last purchase again.
+  function quickBuy() {
+    let best = -1, bestPrice = Infinity;
+    S.weapons.forEach((w, i) => {
+      if (!S.owned[i] && w.price > 0 && w.price < bestPrice && S.economy.money >= w.price) { best = i; bestPrice = w.price; }
+    });
+    if (best >= 0) { buy('w' + best); S.msg = `⚡ QUICK BUY: ${S.weapons[best].name}`; S.msgT = 2; return; }
+    if (S.economy.money >= 1000 && S.player.armor < 100) { buy('armor'); S.msg = '⚡ QUICK BUY: Full Armor'; S.msgT = 2; return; }
+    S.msg = '⚡ QUICK BUY: nothing affordable'; S.msgT = 2;
+  }
+  function rebuy() {
+    if (!S.lastBought) { S.msg = '🔁 REBUY: nothing bought yet'; S.msgT = 2; return; }
+    buy(S.lastBought);
   }
   // Grenades: pin sound + a visible grenade that flies ~1s on an arc, then
   // detonates at the landing point. HE: 150 damage at the center, falling to
@@ -964,6 +1004,7 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
     arcDot.position.set(sim.land.x, sim.land.y + 0.09, sim.land.z);
   }
   function startGrenadeAim() {
+    if (buyOpen) return false; // Q is quick-buy while the buy menu is open
     if (aiming || S.phase !== 'playing' || !S.player.alive || S.driving || (S.grenades.he || 0) <= 0) return false;
     aiming = true;
     arcLine.visible = true; arcMark.visible = true; arcDot.visible = true;
@@ -1481,6 +1522,7 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
   // Throwables (v20.0.11): Molotov (fire zone 5s), C4 (place, press again
   // to detonate), Trip Mine (blows when an enemy walks within 1.5m).
   function throwThrowable(kind, camera) {
+    if (buyOpen) return; // 9 is rebuy while the buy menu is open
     const p = S.player;
     const g = S.grenades;
     if (kind === 'molotov') {
@@ -1822,6 +1864,15 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
   }
   function step(dt, keys) {
     if (S.phase !== 'playing') return;
+    // Buy-menu quick keys (frost pass): Q = quick buy, 9 = rebuy — only
+    // while the buy menu is open, edge-triggered. The keys arrive here
+    // through CANONICAL (settings.js); the grenade/molotov dispatches are
+    // gated above, so the same press never also throws.
+    if (buyOpen && keys) {
+      if (keys.has('KeyQ') && !qDown) quickBuy();
+      if (keys.has('Digit9') && !n9Down) rebuy();
+    }
+    if (keys) { qDown = keys.has('KeyQ'); n9Down = keys.has('Digit9'); }
     // Countdown 3-2-1: nothing moves or ticks until it reaches 0.
     if (S.countdownT > 0) { S.countdownT -= dt; return; }
     // 3D audio listener follows the camera every frame (position + yaw),
@@ -1958,6 +2009,8 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
       beepT -= dt;
       if (beepT <= 0) { beepT = S.bomb.fuse < 10 ? 0.4 : 1; if (audio.bombBeep) audio.bombBeep(S.bomb.fuse < 10); else audio.beep(); }
       bombLight.material.color.setHex(Math.floor(S.time * 4) % 2 ? 0xff3b30 : 0xffffff);
+      // Hazard glow: the planted site's ring + disc pulse hot pink-red.
+      if (world.setSiteHazard) { hazardSite = S.bomb.site; world.setSiteHazard(S.bomb.site, true, S.time); }
       if (S.bomb.defuseT > 0) hud.plantBar(true, S.bomb.defuseT / 7, 'ENEMY DEFUSING…');
       if (S.bomb.fuse <= 0) {
         bombMesh.visible = false; audio.explosion();
@@ -2044,5 +2097,5 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
     resetPlayer();
     S.msg = 'YOU ARE BACK IN THE FIGHT'; S.msgT = 2;
   }
-  return { startRound, endRound, nextRound, toggleBuy, buy, throwGrenade, throwThrowable, startGrenadeAim, releaseGrenadeAim, cancelGrenadeAim, aimState: () => ({ aiming, landing: aimLand, arcVisible: arcLine.visible, dots: arcDots.map(d => [d.position.x, d.position.y, d.position.z, d.scale.x]), lineEnd: [arcGeo.attributes.position.getX(ARC_PTS - 1), arcGeo.attributes.position.getY(ARC_PTS - 1), arcGeo.attributes.position.getZ(ARC_PTS - 1)] }), onKill, useStreak, useBestStreak, useOperator, hurtPlayer, step, buyHtml, useMedkit, useArmor, respawnPlayer, damageProp, damagePropHit, openCrate, dropWeapon, pickupDropped, triggerEvent, areaDamage, droppedCount: () => S.droppedWeapons.length, lootCount: () => lootItems.filter(i => !i.taken).length };
+  return { startRound, endRound, nextRound, toggleBuy, buy, quickBuy, rebuy, throwGrenade, throwThrowable, startGrenadeAim, releaseGrenadeAim, cancelGrenadeAim, aimState: () => ({ aiming, landing: aimLand, arcVisible: arcLine.visible, dots: arcDots.map(d => [d.position.x, d.position.y, d.position.z, d.scale.x]), lineEnd: [arcGeo.attributes.position.getX(ARC_PTS - 1), arcGeo.attributes.position.getY(ARC_PTS - 1), arcGeo.attributes.position.getZ(ARC_PTS - 1)] }), onKill, useStreak, useBestStreak, useOperator, hurtPlayer, step, buyHtml, useMedkit, useArmor, respawnPlayer, damageProp, damagePropHit, openCrate, dropWeapon, pickupDropped, triggerEvent, areaDamage, droppedCount: () => S.droppedWeapons.length, lootCount: () => lootItems.filter(i => !i.taken).length };
 }

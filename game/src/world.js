@@ -157,6 +157,25 @@ function grassTex() { // Harvest Town: green speckle + grass blades, no joints
     }
   }, 16, 12);
 }
+function snowTex() { // Frostworks Yard: packed snow — white base, pale
+  // blue drift shading, sparkle speckle, no slab joints. Index-hash only,
+  // no rng() — the gameplay random sequence stays byte-identical.
+  return canvasTex(256, (g, s) => {
+    g.fillStyle = '#eef2f6'; g.fillRect(0, 0, s, s);
+    for (let i = 0; i < 10; i++) { // soft drifts
+      const x = (i * 97 + 31) % 256, y = (i * 57 + 113) % 256, r = 30 + (i * 37) % 60;
+      const gr = g.createRadialGradient(x, y, 0, x, y, r);
+      gr.addColorStop(0, i % 2 === 0 ? 'rgba(180,200,220,0.20)' : 'rgba(255,255,255,0.25)');
+      gr.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+    }
+    for (let i = 0; i < 500; i++) { // snow sparkle (index-hash only)
+      const h = (((i * 2654435761) >>> 0) % 1000) / 1000;
+      g.fillStyle = h < 0.5 ? 'rgba(160,180,205,0.25)' : 'rgba(255,255,255,0.35)';
+      g.fillRect((i * 53) % s, (i * 91) % s, 2, 2);
+    }
+  }, 16, 12);
+}
 function hazardTex() {
   return canvasTex(128, (g, s) => {
     g.fillStyle = '#f0a830'; g.fillRect(0, 0, s, s);
@@ -237,7 +256,7 @@ export function buildWorld(scene) {
   scene.add(sky);
 
   // Ground — procedural textures per map kind (concrete / sand / grass).
-  const groundTexes = { concrete: concreteTex(rng), sand: sandTex(), grass: grassTex() };
+  const groundTexes = { concrete: concreteTex(rng), sand: sandTex(), grass: grassTex(), snow: snowTex() };
   const groundMat = mat(0xffffff, 0.95, groundTexes.concrete);
   let groundKind = 'concrete';
   function setGroundKind(kind) {
@@ -282,7 +301,23 @@ export function buildWorld(scene) {
       new THREE.MeshBasicMaterial({ color: s.color, transparent: true, opacity: 0.10 }));
     disc.rotation.x = -Math.PI / 2; disc.position.set(s.x, 0.02, s.z); scene.add(disc);
     const post = box(0.5, 3, 0.5, s.color); post.position.y = 1.5; add(post, s.x + s.r + 0.6, s.z, 0.5, 0.5, 3);
-    siteFx[key] = { ring, disc, post, col: colliders[colliders.length - 1] };
+    siteFx[key] = { ring, disc, post, col: colliders[colliders.length - 1], orig: s.color };
+  }
+
+  // Hazard glow (frost pass): while a charge is planted at a site, its
+  // ring + ground disc pulse hot pink-red; off restores the site colour.
+  function setSiteHazard(key, on, time = 0) {
+    const fx = siteFx[key];
+    if (!fx) return;
+    if (on) {
+      fx.disc.material.color.setHex(0xff2a55);
+      fx.disc.material.opacity = 0.22 + 0.13 * Math.sin(time * 4);
+      fx.ring.material.color.setHex(0xff2a55);
+    } else {
+      fx.disc.material.color.setHex(fx.orig);
+      fx.disc.material.opacity = 0.10;
+      fx.ring.material.color.setHex(fx.orig);
+    }
   }
 
   // BR shrinking-zone ring (hidden unless BR mode)
@@ -315,7 +350,7 @@ export function buildWorld(scene) {
   // (props created above, before the perimeter walls, for brickTexture)
   const waypoints = [...WAYPOINTS];
   const spawns = { player: { ...SPAWNS.player }, bots: SPAWNS.bots.map(s => ({ ...s })) };
-  let mapId = 'foundry';
+  let mapId = 'frost';
   function setGroundTint(color) { groundMat.color.setHex(color); }
   function setFogTint(color) { if (scene.fog) scene.fog.color.setHex(color); }
   function buildMap(id) {
@@ -452,7 +487,7 @@ export function buildWorld(scene) {
       }
     }
   }
-  buildMap('foundry');
+  buildMap('frost');
 
   // Redraw the sky dome gradient for a weather palette.
   function setSky(p) {
@@ -472,6 +507,12 @@ export function buildWorld(scene) {
     doors, levels, stairs, buildMap, isColliding, groundY, obstacleAt, toggleDoor, stepDoors,
     setGroundTint, setGroundKind, get groundKind() { return groundKind; },
     setFogTint, setSky, setSkyColor, setGroundColor,
+    setSiteHazard,
+    siteHazard(key) {
+      const fx = siteFx[key];
+      if (!fx) return null;
+      return { color: fx.disc.material.color.getHex(), opacity: fx.disc.material.opacity };
+    },
     skyMat: sky.material, sun, hemi,
     // v24.1 color system (delegates to props registries).
     recolor(kind, hex) { props.recolor(kind, hex); },
@@ -532,6 +573,7 @@ export function buildWorld(scene) {
     // wood on floor 2+, metal on the container yard, concrete elsewhere.
     groundSurface(x, z, y = 0) {
       if (mapId === 'ember') return 'sand';
+      if (mapId === 'frost') return 'snow';
       if (y > 2.5) return 'wood';
       if (mapId === 'cargo' || mapId === 'iron') return 'metal';
       return 'concrete';

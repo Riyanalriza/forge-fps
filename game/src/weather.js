@@ -19,7 +19,7 @@ export const WEATHER_IDS = Object.keys(WEATHER_DEFS);
 // Default weather per map (original map ids, not the COD names).
 // v17.2: ruin = heavy rain + lightning, cargo = drizzle, harvest = foggy
 // morning (the older fog/clear defaults for those maps are superseded).
-export const MAP_WEATHER = { ember: 'sand', ruin: 'storm', iron: 'sunset', foundry: 'sunset', twin: 'clear', cargo: 'rain', harvest: 'fog' };
+export const MAP_WEATHER = { ember: 'sand', ruin: 'storm', iron: 'sunset', foundry: 'sunset', twin: 'clear', cargo: 'rain', harvest: 'fog', frost: 'snow' };
 // Full per-map weather parameters (v17.2): each map has its own sky + fog
 // density + sun intensity + particle behaviour + wind + ambient sound.
 // The base `weather` must match MAP_WEATHER above; the extras only apply
@@ -36,6 +36,7 @@ export const MAP_WEATHER_FULL = {
   harvest: { weather: 'fog', fog: [4, 25], sunInt: 0.8, wind: 0.5, ambient: 'birds', bolt: null, puddles: false, fogBalls: true, sky: { top: '#7a8a6a', mid: '#b8c898', horizon: '#ffe0a0', glow: 'rgba(255,220,150,0.7)', stars: false }, sunC: 0xffd890, sunP: [45, 12, 10], hemi: [0xffe0a8, 0x5a6a4a, 1.1], bg: 0xa8b89a, cloud: 0xf0e8d0 },
   ruin: { weather: 'storm', fog: [15, 55], sunInt: 2.0, wind: 2, ambient: 'rain-heavy', bolt: [2, 4], puddles: true, fogBalls: false, sunC: 0x9fb8ff, sunP: [-20, 40, 10], hemi: [0x3a4a6a, 0x12121a, 1.3], bg: 0x1a2028, cloud: 0x2a323e },
   foundry: { weather: 'sunset', fog: [18, 70], sunInt: 2.6, wind: 1, ambient: 'city', bolt: null, puddles: false, fogBalls: false },
+  frost: { weather: 'snow', fog: [20, 75], sunInt: 1.4, wind: 1.5, ambient: 'wind', bolt: null, puddles: false, fogBalls: false, sky: { top: '#5a6a7a', mid: '#8a9ab0', horizon: '#c8d8e8', glow: 'rgba(255,255,255,0.5)', stars: false }, sunC: 0xe8f0ff, sunP: [-20, 50, 10], hemi: [0xc8d8e8, 0x6a7a8a, 1.2], bg: 0xb8c8d8, cloud: 0xffffff },
 };
 // Ambient sound per weather type (used when no per-map ambient is set).
 const WEATHER_AMBIENT = { clear: 'birds', sunset: 'city', night: 'city', rain: 'rain-light', storm: 'rain-heavy', sand: 'sand', snow: 'wind', fog: 'wind', dawn: 'birds' };

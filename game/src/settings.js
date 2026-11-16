@@ -60,6 +60,7 @@ export const CANONICAL = {
   jump: 'Space', sprint: 'ShiftLeft', crouch: 'KeyC', prone: 'KeyZ',
   interact: 'KeyE', // plant/defuse in game.js reads KeyE from the key set
   leanLeft: 'ArrowLeft', leanRight: 'ArrowRight', // lean (hold) — read in main.js
+  grenadeHE: 'KeyQ', molotov: 'Digit9', // buy-menu quick keys read in game.step
 };
 export const EMOTE_BINDINGS = { emote1: 'dance', emote2: 'wave', emote3: 'laugh', emote4: 'salute', emote5: 'tpose' };
 // Pro-player presets (v18.3): one click applies sens + dead zone + ADS mode
@@ -169,7 +170,7 @@ export function keyLabel(code) {
 export const STRINGS = {
   id: {
     play: 'CLICK TO PLAY',
-    mode: '🎮 GAME MODE', map: '🗺️ MAP — 7 maps, click to preview',
+    mode: '🎮 GAME MODE', map: '🗺️ MAP — 8 maps, click to preview',
     weather: '🌤️ CUACA + SIKLUS SIANG-MALAM', loadout: '🎒 LOADOUT',
     character: '🧑‍🚀 KARAKTER — operator + outfit', gunsmith: '🔧 GUNSMITH — 5 attachment',
     perks: '✨ PERKS — pick up to 3', mythic: '👑 MYTHIC SKIN',
@@ -180,7 +181,7 @@ export const STRINGS = {
   },
   en: {
     play: 'CLICK TO PLAY',
-    mode: '🎮 GAME MODE', map: '🗺️ MAP — 7 maps, click to preview',
+    mode: '🎮 GAME MODE', map: '🗺️ MAP — 8 maps, click to preview',
     weather: '🌤️ WEATHER + DAY-NIGHT CYCLE', loadout: '🎒 LOADOUT',
     character: '🧑‍🚀 CHARACTER — operator + outfit', gunsmith: '🔧 GUNSMITH — 5 attachments',
     perks: '✨ PERKS — pick up to 3', mythic: '👑 MYTHIC SKIN',

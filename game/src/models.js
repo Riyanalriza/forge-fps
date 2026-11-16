@@ -271,6 +271,56 @@ function findMeshByMaterial(parent, matName) {
   });
   return best;
 }
+// Bot team gear (frost pass): procedural helmet + backpack + chest
+// pouches + shoulder pads clipped onto the soldier GLB — the .glb file
+// itself is never modified. Enemy team = orange, revived allies = teal
+// (recoloured by the soldier model's setAlly). Positions come from the
+// bind-pose bounding boxes of the head/body meshes, in wrap space (the
+// clone sits at the wrap origin, front = +Z there, back = -Z).
+const TEAM_ORANGE = 0xff7a1a, TEAM_TEAL = 0x2fd8c8;
+function buildSoldierGear(wrap, headMesh, bodyMesh) {
+  const gear = new THREE.Group();
+  const teamMat = new THREE.MeshStandardMaterial({ color: TEAM_ORANGE, roughness: 0.6, metalness: 0.2 });
+  const packMat = new THREE.MeshStandardMaterial({ color: 0x5a5a3a, roughness: 0.9 });
+  const darkMat = new THREE.MeshStandardMaterial({ color: 0x2a2a22, roughness: 0.9 });
+  const box = (w, h, d, m, x, y, z) => { const q = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); q.position.set(x, y, z); q.castShadow = true; gear.add(q); return q; };
+  let headX = 0, headY = 1.62, headZ = 0, chestY = 1.15, shoulderY = 1.48;
+  if (headMesh && headMesh.geometry) {
+    headMesh.geometry.computeBoundingBox();
+    const c = headMesh.geometry.boundingBox.getCenter(new THREE.Vector3());
+    headX = c.x; headY = c.y; headZ = c.z;
+  }
+  if (bodyMesh && bodyMesh.geometry) {
+    bodyMesh.geometry.computeBoundingBox();
+    const b = bodyMesh.geometry.boundingBox;
+    chestY = (b.max.y + b.min.y) / 2; shoulderY = b.max.y;
+  }
+  // Helmet: dome + brim, team colour.
+  const helm = new THREE.Mesh(new THREE.SphereGeometry(0.17, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2), teamMat);
+  helm.position.set(headX, headY + 0.02, headZ); helm.scale.y = 0.8; helm.castShadow = true; gear.add(helm);
+  const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.025, 14), teamMat);
+  brim.position.set(headX, headY + 0.01, headZ); brim.castShadow = true; gear.add(brim);
+  // Backpack: khaki pack + team-colour top roll, on the back (-Z).
+  box(0.42, 0.52, 0.2, packMat, 0, chestY, -0.27);
+  const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.44, 10), teamMat);
+  roll.rotation.z = Math.PI / 2; roll.position.set(0, chestY + 0.29, -0.27); roll.castShadow = true; gear.add(roll);
+  // Shoulder pads, team colour.
+  box(0.17, 0.07, 0.22, teamMat, -0.25, shoulderY, 0);
+  box(0.17, 0.07, 0.22, teamMat, 0.25, shoulderY, 0);
+  // Chest pouches (front, +Z) with team-colour flaps + one belt pouch.
+  box(0.13, 0.17, 0.09, darkMat, -0.12, chestY, 0.2);
+  box(0.13, 0.17, 0.09, darkMat, 0.12, chestY, 0.2);
+  box(0.13, 0.05, 0.095, teamMat, -0.12, chestY + 0.1, 0.2);
+  box(0.13, 0.05, 0.095, teamMat, 0.12, chestY + 0.1, 0.2);
+  box(0.15, 0.12, 0.1, darkMat, 0.18, chestY - 0.2, 0.19);
+  noCamoDeep(gear);
+  wrap.add(gear);
+  return {
+    group: gear, helmet: helm, headY,
+    setTeam(ally) { teamMat.color.setHex(ally ? TEAM_TEAL : TEAM_ORANGE); },
+    get teamHex() { return teamMat.color.getHex(); },
+  };
+}
 function createSoldierModel(base, gltf) {
   const clone = cloneSkinned(gltf.scene);
   const wrap = new THREE.Group();
@@ -284,6 +334,7 @@ function createSoldierModel(base, gltf) {
   const wristR = clone.getObjectByName('WristR');
   const gun = buildSoldierGun();
   if (wristR) wristR.add(gun);
+  const gear = buildSoldierGear(wrap, headMesh, bodyMesh);
   // Per-frame gun aim: the wrist bone twists a lot between clips (Idle_Gun
   // vs Run_Shoot differ by ~90 deg), so a fixed SOLDIER_GUN_ROT cannot keep
   // the barrel forward. Instead, every frame, aim the gun along the
@@ -309,7 +360,8 @@ function createSoldierModel(base, gltf) {
     deathT: 0, emote: null, lastHp: 100, _clip: null, _action: null, _mixer: mixer, _wrap: wrap, _clone: clone,
     setCamo() {}, setWet() {},
     setHp(hp, maxHp = 100) { this.lastHp = hp; base.setHp(hp, maxHp); },
-    setAlly(ally) { base.setAlly(ally); },
+    setAlly(ally) { base.setAlly(ally); if (gear) gear.setTeam(ally); },
+    _gear: gear,
     setEmote(id) { this.emote = { id, t: 0 }; },
     _play(name, loop = true) {
       if (this._clip === name && this._action) return;
