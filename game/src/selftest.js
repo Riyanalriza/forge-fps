@@ -11,6 +11,7 @@ import { defaultSettings, rebindKey } from './settings.js';
 import { loadColorChoices, saveColorChoices } from './palette.js';
 import { FLAGS, setFlag } from './state.js';
 import { dmgAngle } from './hud.js';
+import { viewmodelReady, soldierReady, WEAPON_GLB } from './models.js';
 
 export function runSelfTest(ctx) {
   const { S, game, bots, hud, mythicFx, world, weapon, player, doEmote, settle, FIXED_STEP, createDragon3D, createVoidPortal3D, weather, zombies, vehicles, economy, effects, audio, input } = ctx;
@@ -163,7 +164,10 @@ export function runSelfTest(ctx) {
       const b = S.bots[0];
       bots.damage(b, 999);
       for (let i = 0; i < 30; i++) b.mesh.model.animate(1 / 60, b, i / 60);
-      return Math.abs(b.mesh.group.rotation.z - Math.PI / 2) < 0.3;
+      const fell = Math.abs(b.mesh.group.rotation.z - Math.PI / 2) < 0.3;
+      // Soldier bots play the Death animation clip instead of rotating the group.
+      const deathClip = b.mesh.model._clip === 'Death';
+      return fell || deathClip;
     })());
     check('First-person hands exist', !!weapon.hands && !!weapon.hands.parts.handL && !!weapon.hands.parts.handR);
     // 17. Operators + char skins: 6 each, killcam shows the killer.
@@ -338,6 +342,9 @@ export function runSelfTest(ctx) {
     // 35. v19.0 reload: tactical reload keeps leftover rounds in reserve.
     S.mode = 'tdm';
     game.startRound();
+    // §34's crate roll is unseeded Math.random and may have switched the
+    // weapon to a magSize-1 gun (RPG); pin the LR-50 (magSize 5) first.
+    S.player.weaponIdx = 3;
     const w0 = weapon.cur();
     w0.mag = 1; w0.reserve = 90; // below magSize for any weapon (LR-50: 5)
     weapon.reload();
@@ -598,6 +605,54 @@ export function runSelfTest(ctx) {
     check('Player walks up the Iron bridge onto the deck', wb1.maxY > 2.5 && wb1.p.x > -10);
     const wb2 = walkBridge('ruin', 24, 20, 0, 240);
     check('Player walks up the Ruin bridge onto the deck', wb2.maxY > 2.5 && wb2.p.z < 5);
+    world.buildMap('foundry');
+    game.startRound();
+    // 40. GLB wiring (2026-11-16): real .glb viewmodel weapons + re-posed
+    // laggy arms for all 21 weapons, realistic soldier bots, GLB map props.
+    // The ?shot=test preload awaits ensureViewmodelAssets + ensureSoldier +
+    // ensurePropAssets, so these are the loaded models, not the fallbacks.
+    check('GLB viewmodel assets ready (arms + 7 weapons)', viewmodelReady());
+    check('7 GLB weapons mapped (AK47 excluded, licence)', Object.keys(WEAPON_GLB).length === 7 && !WEAPON_GLB.ak47);
+    check('Soldier GLB ready', soldierReady());
+    check('All bots swapped to the realistic soldier',
+      S.bots.every(b => b.mesh && b.mesh.model && b.mesh.model._isSoldier));
+    check('GLB arms attached, procedural hands hidden', (() => {
+      const hg = weapon.hands.parts.handsGroup;
+      return hg.children.length >= 2 && weapon.hands.parts.procHands.visible === false;
+    })());
+    check('GLB weapon attaches to the viewmodel (M4)', (() => {
+      const idx = S.weapons.findIndex(w => w.id === 'm4');
+      if (idx < 0) return false;
+      S.player.weaponIdx = idx;
+      weapon.applyGunsmith();
+      const g = weapon.hands.gun;
+      return g.children.length === 1 && !!g.children[0].isGroup && !!g.userData.tip;
+    })());
+    check('Soldier plays Walk while moving', (() => {
+      const sb = S.bots.find(b => b.alive) || S.bots[0];
+      if (!sb.alive) bots.respawn(sb);
+      sb.burst = 0;
+      for (let i = 0; i < 10; i++) { sb.x += 0.05; sb.mesh.model.animate(1 / 60, sb, i / 60); }
+      return sb.mesh.model._clip === 'Walk';
+    })());
+    check('Soldier plays Death clip when killed', (() => {
+      const sb = S.bots.find(b => b.alive) || S.bots[0];
+      if (!sb.alive) bots.respawn(sb);
+      bots.damage(sb, 999);
+      for (let i = 0; i < 30; i++) sb.mesh.model.animate(1 / 60, sb, i / 60);
+      return sb.mesh.model._clip === 'Death';
+    })());
+    check('GLB props placed on every map', (() => {
+      const want = { foundry: 6, ember: 5, twin: 11, iron: 8, cargo: 1, harvest: 7, ruin: 9 };
+      let total = 0;
+      for (const [mapId, n] of Object.entries(want)) {
+        world.buildMap(mapId);
+        game.startRound();
+        if (world.glbPlacements.length !== n) return false;
+        total += world.glbPlacements.length;
+      }
+      return total === 47;
+    })());
     world.buildMap('foundry');
     game.startRound();
   } catch (e) {

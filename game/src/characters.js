@@ -184,7 +184,7 @@ function buildBotGun(weaponId, gunMat, glowMat) {
 }
 
 // Name + HP bar sprite above a bot's head. depthTest false so it reads through walls.
-function makeNameSprite(name) {
+export function makeNameSprite(name) {
   const canvas = document.createElement('canvas');
   canvas.width = 256; canvas.height = 64;
   const tex = new THREE.CanvasTexture(canvas);
@@ -777,6 +777,7 @@ export function createFirstPersonHands(S) {
   // moves the hands together with the gun — the gun no longer slides out
   // of the grip when it kicks.
   const handsGroup = new THREE.Group(); group.add(handsGroup);
+  const procHands = new THREE.Group(); handsGroup.add(procHands);
   // ROUNDED HANDS (2026-11-16): no more boxes — palms are flattened
   // spheres, fingers are 2 capsule segments + knuckle ball + tapered tip,
   // thumbs are capsules, forearms are capsules. Same positions/curls as
@@ -799,25 +800,25 @@ export function createFirstPersonHands(S) {
     const tip = ball(0.02, palmM); tip.position.set(0, 0, -0.055); tg.add(tip);
     parent.add(tg);
   };
-  const handR = ball(0.105, palmM); handR.scale.set(0.95, 0.62, 0.85); handR.position.set(0.08, -0.2, -0.04); handsGroup.add(handR);
-  for (let i = 0; i < 4; i++) mkFinger(handsGroup, 0.015 + i * 0.052, -0.1, -0.03 - i * 0.004, 0.45 + i * 0.12);
-  mkThumb(handsGroup, 0.16, -0.15, -0.03, -0.6);
-  const armR = cap(0.048, 0.15, sleeveM); armR.position.set(0.11, -0.38, 0.16); armR.rotation.x = Math.PI / 2 + 0.55; handsGroup.add(armR);
+  const handR = ball(0.105, palmM); handR.scale.set(0.95, 0.62, 0.85); handR.position.set(0.08, -0.2, -0.04); procHands.add(handR);
+  for (let i = 0; i < 4; i++) mkFinger(procHands, 0.015 + i * 0.052, -0.1, -0.03 - i * 0.004, 0.45 + i * 0.12);
+  mkThumb(procHands, 0.16, -0.15, -0.03, -0.6);
+  const armR = cap(0.048, 0.15, sleeveM); armR.position.set(0.11, -0.38, 0.16); armR.rotation.x = Math.PI / 2 + 0.55; procHands.add(armR);
   // Left hand rides a subgroup so buildGun can slide it along the fore-end
   // per weapon class (pump on shotguns, handguard on rifles, grip on pistols).
-  const gripL = new THREE.Group(); handsGroup.add(gripL);
+  const gripL = new THREE.Group(); procHands.add(gripL);
   const handL = ball(0.105, palmM); handL.scale.set(0.95, 0.6, 0.85); handL.position.set(-0.05, -0.21, 0); gripL.add(handL);
   for (let i = 0; i < 4; i++) mkFinger(gripL, -0.12 + i * 0.052, -0.11, 0.0 - i * 0.004, 0.45 + i * 0.12);
   mkThumb(gripL, 0.03, -0.16, 0, 0.6);
   gripL.position.set(0, 0, -0.5);
-  const armL = cap(0.048, 0.15, sleeveM); armL.position.set(-0.08, -0.38, -0.3); armL.rotation.x = Math.PI / 2 + 0.6; handsGroup.add(armL);
+  const armL = cap(0.048, 0.15, sleeveM); armL.position.set(-0.08, -0.38, -0.3); armL.rotation.x = Math.PI / 2 + 0.6; procHands.add(armL);
   // Camo repaints the GUN only: hands + sleeves keep their colours.
   handsGroup.traverse(o => { if (o.isMesh) o.userData.noCamo = true; });
   // Gun (rebuilt per weapon below).
   const gun = new THREE.Group();
   group.add(gun);
   const hands = {
-    group, gun, parts: { handL, handR, armL, armR, gun, gripL, handsGroup },
+    group, gun, parts: { handL, handR, armL, armR, gun, gripL, handsGroup, procHands },
     kickT: 0, weaponId: null,
     buildGun(w, mythicDef) {
       while (gun.children.length) gun.remove(gun.children[0]);

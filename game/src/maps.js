@@ -104,6 +104,13 @@ export const MAP_DEFS = {
       // v27.0 ambient: dog, mechanic, fridge/stove/safe/wardrobe.
       api.addAnimal('dog', -30, 18); api.addNPC('mechanic', 22, -16);
       api.addFridge(10, 16); api.addStove(12, 16); api.addSafe(-10, 20); api.addWardrobe(34, 12);
+      // GLB props (wiring 2026-11-16): Kenney industrial set + skyscraper backdrop.
+      api.addGLB('models/kenney/buildings/industrial/factory.glb', -30, 22, { scale: 6 });
+      api.addGLB('models/kenney/buildings/industrial/chimney.glb', -20, 23, { scale: 5 });
+      api.addGLB('models/kenney/buildings/industrial/tank.glb', 30, 22, { scale: 5 });
+      api.addGLB('models/kenney/buildings/industrial/watertower.glb', 34, -22, { scale: 5 });
+      api.addGLB('models/kenney/props/factory/conveyor.glb', 14, -16, { scale: 4 });
+      api.addGLB('models/kenney/buildings/skyscraper.glb', 14, 22, { scale: 8 });
       lights(api);
     },
   },
@@ -167,6 +174,12 @@ export const MAP_DEFS = {
       // v27.0 ambient: merchant + cook at the stalls, chicken, dog, fruit tree.
       api.addNPC('merchant', -8, 2); api.addNPC('cook', 8, 2);
       api.addAnimal('chicken', -26, 18); api.addAnimal('dog', 24, 22); api.addFruitTree(28, 24);
+      // GLB props: market goods on the stall counters + palms.
+      api.addGLB('models/kenney/props/shop/market-fruit.glb', -10, 0, { scale: 2, y: 1 });
+      api.addGLB('models/kenney/props/shop/market-bread.glb', 10, 0, { scale: 2, y: 1 });
+      api.addGLB('models/kenney/props/shop/cash-register.glb', -6, 10, { scale: 1.5, y: 1 });
+      api.addGLB('models/kenney/nature/palm.glb', -36, -24, { scale: 4 });
+      api.addGLB('models/kenney/nature/palm.glb', 36, -8, { scale: 4 });
       lights(api);
     },
   },
@@ -219,6 +232,18 @@ export const MAP_DEFS = {
       // v27.0 ambient: cat, dog, doctor by the bus, fridge + wardrobe.
       api.addAnimal('cat', -20, 16); api.addAnimal('dog', 20, -14); api.addNPC('doctor', 6, 6);
       api.addFridge(-12, 17); api.addWardrobe(12, -17);
+      // GLB props: real buses at the Bus Stop site + parked two-wheelers + ambulance.
+      api.addGLB('models/lowpoly/city_bus.glb', -16, 10, { yaw: Math.PI / 2 });
+      api.addGLB('models/lowpoly/school_bus.glb', 16, -14, { yaw: Math.PI / 2 });
+      api.addGLB('models/lowpoly/motorbike.glb', 6, 14, { yaw: 0.5 });
+      api.addGLB('models/lowpoly/scooter.glb', -6, 16, { yaw: -0.4 });
+      api.addGLB('models/lowpoly/bicycle.glb', 12, 16, { yaw: 0.2 });
+      api.addGLB('models/lowpoly/ambulance.glb', 12, 2, { yaw: Math.PI / 2 });
+      api.addGLB('models/kenney/buildings/suburban/house-g.glb', -30, -20, { scale: 6, yaw: Math.PI / 2 });
+      api.addGLB('models/kenney/buildings/suburban/house-a.glb', 30, -20, { scale: 6, yaw: -Math.PI / 2 });
+      api.addGLB('models/kenney/buildings/suburban/house-d.glb', 30, 20, { scale: 6 });
+      api.addGLB('models/kenney/nature/suburban/tree-large.glb', -32, 4, { scale: 8 });
+      api.addGLB('models/kenney/nature/suburban/tree-small.glb', 32, 4, { scale: 8 });
       lights(api);
     },
   },
@@ -280,6 +305,15 @@ export const MAP_DEFS = {
       // v27.0 ambient: mechanic, cook, cat, firefly.
       api.addNPC('mechanic', -22, 18); api.addNPC('cook', 22, 16);
       api.addAnimal('cat', 32, -18); api.addAnimal('firefly', -4, -18);
+      // GLB props: city vehicles + lamp posts (procedural traffic lights stay).
+      api.addGLB('models/lowpoly/school_bus.glb', -18, 14, { yaw: Math.PI / 2 });
+      api.addGLB('models/lowpoly/motorbike.glb', -6, 12, { yaw: 0.3 });
+      api.addGLB('models/lowpoly/scooter.glb', 8, -14, { yaw: -0.5 });
+      api.addGLB('models/lowpoly/bicycle.glb', -8, 16, { yaw: 0.2 });
+      api.addGLB('models/lowpoly/car_taxi.glb', 16, -14, { yaw: Math.PI / 2 });
+      api.addGLB('models/lowpoly/car_police.glb', 22, -18, { yaw: Math.PI / 2 });
+      api.addGLB('models/kenney/props/lampPost.glb', -20, 20, { scale: 8, yaw: Math.PI });
+      api.addGLB('models/kenney/props/lampPost.glb', 20, -20, { scale: 8 });
       lights(api);
     },
   },
@@ -339,6 +373,8 @@ export const MAP_DEFS = {
       api.addRock(-36, 10); api.addRock(36, 10);
       // v27.0 ambient: yard dog + mechanic.
       api.addAnimal('dog', -4, 22); api.addNPC('mechanic', 28, -18);
+      // GLB props: a real forklift in the yard (procedural forklifts stay).
+      api.addGLB('models/lowpoly/forklift.glb', 14, 21, { yaw: Math.PI / 2 });
       lights(api);
     },
   },
@@ -405,6 +441,14 @@ export const MAP_DEFS = {
       api.addNPC('merchant', 4, 4); api.addNPC('cook', -14, 20);
       api.addCropPatch(-14, -1); api.addCropPatch(14, -1); api.addCropPatch(20, 11);
       api.addFruitTree(32, 16);
+      // GLB props: user animals (coloured, static) + hay + user houses as facades.
+      api.addGLB('models/user/animals/Pug_49_ye3e.glb', 10, 20, { scale: 0.23, yaw: Math.PI });
+      api.addGLB('models/user/animals/Sheep_50_c304.glb', -20, 20, { scale: 0.25, yaw: 0.6 });
+      api.addGLB('models/user/animals/Cow_51_ek9q.glb', 18, 16, { scale: 0.27, yaw: -0.8 });
+      api.addGLB('models/user/animals/Pig_52_dqpm.glb', -8, 20, { scale: 0.2, yaw: 0.3 });
+      api.addGLB('models/kenney/nature/graveyard/haybale.glb', 24, -4, { scale: 3 });
+      api.addGLB('models/user/House1_41_skda.glb', -28, 23, { scale: 2.5 });
+      api.addGLB('models/user/House2_39_vypb.glb', 28, 23, { scale: 2.5 });
       lights(api);
     },
   },
@@ -463,6 +507,16 @@ export const MAP_DEFS = {
       // v27.0 ambient: doctor, dog, firefly, cat in the ruins.
       api.addNPC('doctor', -8, 20); api.addAnimal('dog', 14, 20);
       api.addAnimal('firefly', -26, 14); api.addAnimal('cat', 30, -14);
+      // GLB props: graveyard cluster + dead pines + ruined facades + fire truck.
+      api.addGLB('models/kenney/buildings/graveyard/crypt.glb', -30, -20, { scale: 3 });
+      api.addGLB('models/kenney/buildings/graveyard/coffin.glb', -27, -19, { scale: 3, yaw: 0.4 });
+      api.addGLB('models/kenney/props/graveyard/gravestone.glb', -24, -21, { scale: 1.5 });
+      api.addGLB('models/kenney/nature/graveyard/pine-dead.glb', 30, -20, { scale: 3 });
+      api.addGLB('models/kenney/nature/graveyard/pine-dead.glb', -32, 8, { scale: 3 });
+      api.addGLB('models/kenney/nature/graveyard/haybale.glb', 24, 18, { scale: 3 });
+      api.addGLB('models/user/Building1_Small_47_2o6l.glb', 36, -24, { scale: 2, yaw: -Math.PI / 2 });
+      api.addGLB('models/kenney/buildings/building.glb', -36, 20, { scale: 8 });
+      api.addGLB('models/lowpoly/fire_truck.glb', -16, 22, { yaw: Math.PI / 2 });
       lights(api);
     },
   },

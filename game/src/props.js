@@ -6,6 +6,7 @@
 // the props added so a new map can be built in place.
 import * as THREE from 'three';
 import { SEASONS } from './palette.js';
+import { placePropGLB, nextPropGen, propGenNow } from './models.js';
 
 export const FH = 4.7; // floor height — floor 2 standing Y, 6 stair steps
 
@@ -64,6 +65,7 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
   const interactables = []; // {type, x, z, mesh, used} — vending/atm/phone/suitcase/cart
   // v27.0 ambient life: animals wander + NPCs stand at their stalls.
   const decorAnimals = []; // {kind, group, x, z, phase, head, tail, wanderT, tx, tz}
+  const glbPlacements = []; // {url, x, z} — GLB props requested for this map (async)
   // v24.1 color system: materials tagged by kind so the whole map can be
   // recolored live (building/roof/door/window/container/fence/tent/statue/
   // rock/road/leaves/flowers/water/grass/billboard). Each box()/mat() call
@@ -402,6 +404,7 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
     // (houses, containers, crates, trees) on every map after the first build,
     // while their colliders stayed active (invisible walls). That is why Twin
     // Court rendered with no houses/containers in the v2 screenshots.
+    nextPropGen(); // stale async GLB loads from the old map are dropped on arrival
     group.clear();
     for (const c of propColliders) { const i = colliders.indexOf(c); if (i >= 0) colliders.splice(i, 1); }
     for (const m of propShootables) { const i = shootables.indexOf(m); if (i >= 0) shootables.splice(i, 1); }
@@ -409,6 +412,7 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
     for (const l of propLevels) { const i = levels.indexOf(l); if (i >= 0) levels.splice(i, 1); }
     for (const s of propStairs) { const i = stairs.indexOf(s); if (i >= 0) stairs.splice(i, 1); }
     propColliders.length = 0; propShootables.length = 0; propDoors.length = 0; propLevels.length = 0; propStairs.length = 0;
+    glbPlacements.length = 0;
     decorFlags.length = 0; decorTvs.length = 0; decorFires.length = 0; decorLights.length = 0; decorSwings.length = 0;
     decorBirds.length = 0; decorBrokenLights.length = 0; decorHouseLights.length = 0;
     decorSparks.length = 0; decorNeon.length = 0; decorFountains.length = 0; decorBubbles.length = 0;
@@ -2183,8 +2187,14 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
     interactables.push({ type: 'fruit', x, z, mesh: g, used: false });
     return g;
   }
+  // GLB prop (decoration only, no collider): loads async from the cache and
+  // is dropped if the map changed before it arrived (gen guard).
+  function addGLB(url, x, z, opts = {}) {
+    placePropGLB(group, url, x, z, { ...opts, gen: propGenNow() });
+    glbPlacements.push({ url, x, z });
+  }
   return {
-    clear, addBox, addCylinder, addContainer, addCrate, addBarrel, addSandbag,
+    clear, addBox, addCylinder, addContainer, addCrate, addBarrel, addSandbag, addGLB,
     addTree, addCar, addBus, addTower, addBridge, addStreetlight, addHelicopter,
     addRubble, addRiceField, addFence, addHaystack, addHouse, addBarn,
     addTV, addFlag, addMailbox, addCactus, addTent, addCarpet, addBed, addSofa,
@@ -2207,6 +2217,7 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
     animateDecor, decorCounts, destructibles, houseRects, pools,
     treeRecs, flowerSpots, ammoBoxes, lifts, mudRects, lootCrates,
     bushes, containers, decorTraffic, decorDummies, interactables, decorAnimals,
+    glbPlacements,
     // Low graphics turns the per-house PointLights off (emissive bulbs stay).
     setHouseLights(on) { for (const h of decorHouseLights) h.light.visible = !!on; },
   };

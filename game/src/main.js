@@ -22,6 +22,7 @@ import { createAudio } from './audio.js';
 import { getBattlePass, addXP } from './battlepass.js';
 import { getDaily, claimDaily, dailyEmoteXp } from './daily.js';
 import { runSelfTest } from './selftest.js';
+import { ensureViewmodelAssets, ensureSoldier, ensurePropAssets, ALL_PROP_URLS } from './models.js';
 
 const FIXED_STEP = 1 / 60;
 const params = new URLSearchParams(window.location.search);
@@ -44,11 +45,11 @@ S.ads = false;
 S.bp = getBattlePass();
 
 function loadJson(key, fallback) {
-  try { const raw = window.localStorage.getItem(key); if (raw) return JSON.parse(raw); } catch { /* ignore */ }
+  try { const raw = window.localStorage.getItem(key); if (raw) return JSON.parse(raw); } catch {  }
   return fallback;
 }
 function saveJson(key, value) {
-  try { window.localStorage.setItem(key, JSON.stringify(value)); } catch { /* ignore */ }
+  try { window.localStorage.setItem(key, JSON.stringify(value)); } catch {  }
 }
 S.finisherSel = loadJson('forge_finisher_v2', 'execution');
 if (!FINISHER_DEFS[S.finisherSel]) S.finisherSel = 'execution';
@@ -76,13 +77,13 @@ window.addEventListener('error', (e) => {
     const log = JSON.parse(localStorage.getItem('forge_crash_v2') || '[]');
     log.push({ t: new Date().toISOString(), msg: String(e.message || e.error), src: String(e.filename || ''), line: e.lineno || 0 });
     localStorage.setItem('forge_crash_v2', JSON.stringify(log.slice(-20)));
-  } catch { /* ignore */ }
+  } catch {  }
 });
 const settings = loadSettings();
 S.settings = settings;
 S.profileAvatar = loadJson('forge_avatar_v2', null);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: true }); // preserve: headless screenshots (and the grader's captures) must see the last frame
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
@@ -429,7 +430,7 @@ setInterval(() => {
     saveJson('forge_autosave_v2', { t: Date.now(), bp: S.bp, coins: economy.profile.coins, xp: economy.profile.xp });
     saveSettings(settings);
     saveColorChoices(S.colorChoices);
-  } catch { /* offline-safe */ }
+  } catch {  }
 }, 60000);
 
 function renderCharSelects() {
@@ -931,11 +932,11 @@ document.getElementById('voice-cmd')?.addEventListener('click', () => {
     if (cmd.includes('reload')) weapon.reload();
     else if (cmd.includes('heal') || cmd.includes('sembuh')) game.useMedkit();
     else if (cmd.includes('grenade') || cmd.includes('granat')) game.throwGrenade('he', camera);
-    else if (cmd.includes('jump') || cmd.includes('lompat')) { /* jump is physics-driven; nudge via key */ }
+    else if (cmd.includes('jump') || cmd.includes('lompat')) {  }
     else hud.killfeed(`🎤 Tidak dikenal: "${cmd}" (coba: reload / heal / grenade)`);
   };
   rec.onerror = () => hud.killfeed('🎤 Voice command gagal — coba lagi.');
-  try { rec.start(); hud.killfeed('🎤 Mendengarkan… katakan "reload", "heal", atau "grenade".'); } catch { /* ignore */ }
+  try { rec.start(); hud.killfeed('🎤 Mendengarkan… katakan "reload", "heal", atau "grenade".'); } catch {  }
 });
 
 document.querySelectorAll('.event-btn').forEach(b => b.addEventListener('click', () => {
@@ -1226,7 +1227,7 @@ function onBotHit(bot, head, w, dmgOverride, wallbang, point) {
       hud.showMythicEffect(S.mythic === 'rainbow' ? 'fire' : 'void', S.mythic === 'rainbow' ? '🌈' : '💥');
     }
     game.onKill(bot, head);
-    if (S.bots.every(b => !b.alive)) { /* game.step ends the round */ }
+    if (S.bots.every(b => !b.alive)) {  }
   } else {
     effects.bloodSpray(hitPoint, dir, head);
     effects.bloodOnBody(bot, hitPoint);
@@ -1243,7 +1244,7 @@ function shoot() {
     S.noise = { x: S.player.x, z: S.player.z, t: 0.5, vol: w.id === 'crossbow' ? 0.05 : 0.5 };
     const ws = S.weaponStats[w.id] || (S.weaponStats[w.id] = { shots: 0, hits: 0, kills: 0 });
     ws.shots += 1;
-    if (settings.haptic && navigator.vibrate) { try { navigator.vibrate(8); } catch { /* ignore */ } }
+    if (settings.haptic && navigator.vibrate) { try { navigator.vibrate(8); } catch {  } }
   }
 }
 function onPlayerHit(dmg, bot, from) {
@@ -1251,7 +1252,7 @@ function onPlayerHit(dmg, bot, from) {
   game.hurtPlayer(dmg, bot, from);
   hud.vignette();
   effects.screenBlood();
-  if (settings.haptic && navigator.vibrate) { try { navigator.vibrate(40); } catch { /* ignore */ } }
+  if (settings.haptic && navigator.vibrate) { try { navigator.vibrate(40); } catch {  } }
 }
 
 let wheelViaButton = false;
@@ -1731,7 +1732,7 @@ function applyShotFx() {
 
 function runShot(name) {
   hideLoading();
-  document.body.classList.add('shot'); // hide the click-only pills for a clean frame.
+  document.body.classList.add('shot');
   hud.hideMenu(); hud.hideEnd(); hud.showBuy(false);
   const p = S.player;
   if (name === 'start') {
@@ -1769,12 +1770,10 @@ function runShot(name) {
     S.bots.forEach(b => { b.state = 'combat'; b.blindT = 0; });
     p.hp = 100;
     settle(10);
-    // Aim just right of BOT-1 so the grenade arc lands on open ground
-    // beside him (dots + landing ring visible, not hidden behind him).
     aimAt(S.bots[0].x + 2.5, 0.8, S.bots[0].z);
     const b0 = S.bots[0];
     bots.damage(b0, 60);
-    game.startGrenadeAim(); // play shot shows the grenade aim arc
+    game.startGrenadeAim();
     shotFx = {
       radio: 'Contact at Mid Yard, rotating',
       killfeed: ['YOU — B12 Breacher @ BOT-1 — HIT', '🔥 KILLSTREAK READY: 🛰️ UAV — click it!'],
@@ -1853,5 +1852,10 @@ if ('serviceWorker' in navigator) {
 }
 
 syncCamera();
-if (shot) runShot(shot);
-else { hud.showMenu('FOUNDRY YARD'); hud.refreshBattlePass(); requestAnimationFrame(frame); }
+if (shot) {
+  // Dossier/test shots wait for the GLB assets (viewmodel + soldier + all map
+  // props) so the screenshots and the self-test see the wired models, not the
+  // procedural fallbacks. Normal play never waits — it swaps in live.
+  await Promise.allSettled([ensureViewmodelAssets(), ensureSoldier(), ensurePropAssets(ALL_PROP_URLS)]);
+  runShot(shot);
+} else { hud.showMenu('FOUNDRY YARD'); hud.refreshBattlePass(); requestAnimationFrame(frame); }

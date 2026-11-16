@@ -445,6 +445,7 @@ export function buildWorld(scene) {
     containers: props.containers,
     decorTraffic: props.decorTraffic,
     interactables: props.interactables,
+    glbPlacements: props.glbPlacements,
     setHouseLights(on) { props.setHouseLights(on); },
     // Nearest interactable (vending / ATM / phone / suitcase / cart) within 2m.
     nearestInteractable(x, z, type) {

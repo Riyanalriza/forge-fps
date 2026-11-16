@@ -189,8 +189,8 @@ export const FINISHER_DEFS = {
 export function createState(rng) {
   return {
     rng, time: 0, seed: 1,
-    phase: 'menu', // menu | playing | roundEnd | matchEnd
-    mode: 'snd', // snd | tdm | dom | br
+    phase: 'menu',
+    mode: 'snd',
     round: { num: 1, wins: 0, losses: 0, timer: 100, maxRounds: 5, winAt: 3, result: '' },
     player: {
       x: 0, y: 0, z: 24, yaw: 0, pitch: 0, vx: 0, vz: 0,
@@ -207,82 +207,82 @@ export function createState(rng) {
     })),
     owned: [...DEFAULT_OWNED],
     economy: { money: 800 },
-    perks: [], // up to 3 perk ids
+    perks: [],
     operator: 'tempest', opCd: 0, opShots: 0, opActive: false,
     charOp: 'specter', charSkin: 'default',
-    costume: 'default', // costume shop set (v18.7) — colors/helmet/effect/camo
+    costume: 'default',
     atts: { barrel: 'standard', scope: 'iron', grip: 'none', stock: 'standard', mag: 'normal', muzzle: 'none', laser: 'none', perk: 'none' },
-    weaponCamo: 'none', // Gold/Diamond/Damascus/Neon/Red/Blue (v20.0.10)
+    weaponCamo: 'none',
     weather: 'clear', weatherSelect: 'clear', weatherAuto: false, mapWeatherOn: true,
     cycleOn: false, cycleT: 0, cyclePhase: 'day', weatherManual: false,
-    joyMag: 0, // virtual joystick magnitude 0-1 (0 = keyboard, full speed)
-    lastKiller: null, spectate: null, // { botId } or null
-    spectateFree: false, // spectator free-cam mode (WASD fly, no collision)
-    freeCam: { x: 0, y: 3, z: 0 }, // free-cam position
-    windAmp: 1, // wind strength for flag waves (sandstorm = 3)
-    streak: 0, streaksReady: [], // streak ids earned and not yet used
-    score: 0, // scorestreak points: +100 per kill (v20.0.6); Nuke at 2000
+    joyMag: 0,
+    lastKiller: null, spectate: null,
+    spectateFree: false,
+    freeCam: { x: 0, y: 3, z: 0 },
+    windAmp: 1,
+    streak: 0, streaksReady: [],
+    score: 0,
     nukeReady: false, nukeUsed: false,
-    knockT: 0, knockReviveT: 0, // BR knock timer (v18.8.7)
-    multiKill: { count: 0, lastT: -99 }, // Double/Triple/Quad within 3s (v19.0.18)
-    markedBot: null, // {x, z, t, color} minimap mark (v19.1.4/5)
-    flashlightOn: false, // spotlight following the camera (v18.9.20)
-    radioOn: false, // a radio is playing its tune (v19.2.11)
-    lightsOutT: 0, // generator: map lights off countdown (v19.2.12)
-    parachuting: false, // BR drop from the sky (v20.0.1)
-    medkits: 2, armorKits: 1, // consumables (medkit channel v19.0.14, armor J)
-    medkitChannel: 0, // seconds left of the 3s heal channel
-    reloadFrac: 0, reloadSecs: 0, reloadStage: '', // reload bar HUD (v19.0.6)
-    ggIdx: 0, // Gun Game ladder position (v20.0.13)
-    hardpoint: { you: 0, bot: 0 }, // Hardpoint points (v20.0.12)
-    fireZones: [], // molotov fire {x,z,t} (v20.0.11)
-    c4: null, // planted C4 {x,z,mesh} or null
-    tripmines: [], // {x,z,mesh} (v20.0.11)
-    droppedWeapons: [], // {x,z,weaponIdx,t,mesh} weapons dropped by dead bots (v18.0.5)
-    uavT: 0, // seconds of UAV reveal left
-    sentry: null, // {x,z,t,mesh,shootT} or null
-    heli: null, // {t, angle, shootT} attack-heli killstreak or null
-    airstrike: null, // {x,z,t,bombs,bombT} plane + sequential blasts or null
-    bots: [], // {id,x,z,yaw,hp,alive,state,wp,wpIdx,holdT,shootT,lastSeenX,lastSeenZ,defuseT,blindT,respawnT,mesh,headMesh,bodyMesh}
+    knockT: 0, knockReviveT: 0,
+    multiKill: { count: 0, lastT: -99 },
+    markedBot: null,
+    flashlightOn: false,
+    radioOn: false,
+    lightsOutT: 0,
+    parachuting: false,
+    medkits: 2, armorKits: 1,
+    medkitChannel: 0,
+    reloadFrac: 0, reloadSecs: 0, reloadStage: '',
+    ggIdx: 0,
+    hardpoint: { you: 0, bot: 0 },
+    fireZones: [],
+    c4: null,
+    tripmines: [],
+    droppedWeapons: [],
+    uavT: 0,
+    sentry: null,
+    heli: null,
+    airstrike: null,
+    bots: [],
     bomb: { state: 'none', site: null, x: 0, z: 0, plantT: 0, fuse: 40, defuseT: 0, defuser: -1 },
-    dom: { // Domination zones: value -100 (bots) .. +100 (you); owner derived from sign
+    dom: {
       A: { value: 0, owner: null }, B: { value: 0, owner: null }, C: { value: 0, owner: null },
       points: { you: 0, bot: 0 },
     },
-    br: { radius: 40, cx: 0, cz: 0, shrinkT: 0 }, // shrinking zone
-    grenades: { smoke: 2, flash: 1, he: 1, molotov: 1, c4: 1, tripmine: 1, trophy: 1, gas: 1, cryo: 1, smokes: [], flying: [] }, // smokes: {x,z,r,t}; flying: {kind,x,y,z,vx,vy,vz}
+    br: { radius: 40, cx: 0, cz: 0, shrinkT: 0 },
+    grenades: { smoke: 2, flash: 1, he: 1, molotov: 1, c4: 1, tripmine: 1, trophy: 1, gas: 1, cryo: 1, smokes: [], flying: [] },
     kills: 0, botKills: 0, shotsFired: 0, shotsHit: 0, headshots: 0,
     mythic: 'none', card: 'firestorm',
-    mapId: 'foundry', // current map (MAP_DEFS)
-    emote: null, // {id, t} active emote or null
-    wheel: ['dance', 'wave', 'laugh', 'salute', 'tpose', 'dab', 'heart', 'taunt'], // 8 emote ids
-    finisherSel: 'execution', // finisher kind (FINISHER_DEFS)
-    finisher: null, // {kind, t, dur, cx, cz} active cinematic or null
-    pendingEnd: null, // {title, sub, matchOver} shown after the finisher
-    noFinisher: false, // shot mode: skip the cinematic, show the end screen at once
-    unlockedSkins: [], // skins unlocked via daily rewards (localStorage)
-    events: [], // killfeed strings {text, t}
-    lastShotPos: null, // {x,z} for bot investigation
-    noise: null, // {x,z,t,vol} loudest recent noise — bots investigate (v22.2.2)
-    stamina: 100, windT: 0, // sprint stamina + winded timer (v22.2.3)
-    diveT: 0, fallDmg: 0, fallDrop: 0, landedSoft: false, diveLanded: false, // v22.2.4/5
-    swimT: 0, diving: false, diveBreathT: 10, // swimming / diving (v22.2.6)
-    mudT: 0, // mud slow timer (v19.2.14)
-    droneMark: false, // drone active: enemies marked on minimap (v22.4.6)
-    noCountdown: false, // shot mode: skip the 3-2-1 countdown
-    isMobile: false, // set by main.js from the user agent
-    indoors: false, surface: 'concrete', // per-frame, for reverb + shell sounds
-    lean: 0, zoomLevel: 0, laserOn: false, breathT: 2, // ADS lean/zoom/laser/breath
+    mapId: 'foundry',
+    emote: null,
+    wheel: ['dance', 'wave', 'laugh', 'salute', 'tpose', 'dab', 'heart', 'taunt'],
+    finisherSel: 'execution',
+    finisher: null,
+    pendingEnd: null,
+    noFinisher: false,
+    unlockedSkins: [],
+    events: [],
+    lastShotPos: null,
+    noise: null,
+    stamina: 100, windT: 0,
+    diveT: 0, fallDmg: 0, fallDrop: 0, landedSoft: false, diveLanded: false,
+    swimT: 0, diving: false, diveBreathT: 10,
+    mudT: 0,
+    droneMark: false,
+    noCountdown: false,
+    isMobile: false,
+    indoors: false, surface: 'concrete',
+    lean: 0, zoomLevel: 0, laserOn: false, breathT: 2,
     wetT: 0, minimapDanger: false, firstBloodDone: false,
     lastKillCause: null, meleeBackstab: false, barrelHot: false, gunBlood: 0,
-    wmQueue: null, // War Machine: {n, t} grenades left to lob (v20.0.7)
-    planeT: 0, brPlane: null, // BR plane fly-over + parachute (v20.0.1)
-    propDisguise: null, // Prop Hunt disguise: 'box' | 'chair' (v22.0.5)
-    control: { A: null, B: null }, // Control mode ownership (v22.0.6)
-    flashT: 0, // player flash blindness
+    wmQueue: null,
+    planeT: 0, brPlane: null,
+    propDisguise: null,
+    control: { A: null, B: null },
+    flashT: 0,
     msg: '', msgT: 0,
-    bp: null, // battle pass record (loaded by battlepass.js)
-    kcTags: [], // {x,z,t,mesh} dropped dog tags
+    bp: null,
+    kcTags: [],
     kcScore: 0, ffaKills: 0,
     timeScale: 1, timeScaleT: 0, freezeT: 0,
     nightVision: false, thermal: false, mounted: false, hideT: 0,
@@ -292,16 +292,16 @@ export function createState(rng) {
     difficulty: 'normal', spawnProtT: 0, weaponStats: {}, achievements: {},
     hardcore: false, realistic: false, colorblind: false,
     engineStats: { fps: 0, draws: 0, tris: 0, ram: 0 },
-    hint: '', // contextual hint (v25.0.8)
-    tacSprint: false, // tactical sprint: gun lowered, 10.5 speed (v23.0.7)
-    papWeapons: [], // Pack-a-Punch upgraded weapon ids (v23.0.9)
-    perkCola: [], // Perk-a-Cola ids owned in zombie mode (v23.0.9)
-    maxHp: 100, // Juggernog raises this to 150 (v23.0.9)
-    trophySys: null, // {x,z,t,blocks} trophy system (v23.0.6)
-    gasClouds: [], // {x,z,r,t} damaging gas (v23.0.6)
-    frozenBots: [], // {bot, t} cryo-frozen bots (v23.0.6)
-    k9: null, // K9 attack dog {bot, t} (v23.0.3)
-    vtolPasses: 0, // VTOL strafing passes left (v23.0.4)
-    stealthT: 0, // stealth chopper time left (v23.0.4)
+    hint: '',
+    tacSprint: false,
+    papWeapons: [],
+    perkCola: [],
+    maxHp: 100,
+    trophySys: null,
+    gasClouds: [],
+    frozenBots: [],
+    k9: null,
+    vtolPasses: 0,
+    stealthT: 0,
   };
 }

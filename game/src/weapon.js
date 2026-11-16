@@ -9,6 +9,7 @@ import { WEAPONS, MYTHIC_DEFS, calcBulletDrop, calcTravelTime } from './state.js
 import { createFirstPersonHands } from './characters.js';
 import { calcGunStats, damageAtRange, WEAPON_CAMOS } from './gunsmith.js';
 import { fxFor } from './weaponfx.js';
+import { attachViewmodel, ensureViewmodelAssets, onViewmodelReady } from './models.js';
 
 const _dir = new THREE.Vector3();
 const _cam = new THREE.Vector3();
@@ -38,6 +39,11 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
   camera.add(fillLight);
   scene.add(camera);
   const gun = hands.group; // the whole viewmodel (hands + gun), for positioning
+  // GLB viewmodel (real weapon models + re-posed laggy arms): loads in the
+  // background; the procedural viewmodel stays until each file arrives, then
+  // the swap happens via the notify below. No mythic glow on GLB guns.
+  ensureViewmodelAssets();
+  onViewmodelReady((id) => { if (id === '__arms__' || id === cur().id) attachViewmodel(hands, cur().id); });
 
   // Mythic particle pool (glowing motes shed from the barrel tip)
   const moteGeo = new THREE.SphereGeometry(0.02, 6, 6);
@@ -85,9 +91,11 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
       if (w.mag > w.magSize) w.mag = w.magSize;
     });
     hands.buildGun(cur(), MYTHIC_DEFS[S.mythic] || MYTHIC_DEFS.none);
+    attachViewmodel(hands, cur().id);
   }
   function applyMythic() {
     hands.buildGun(cur(), MYTHIC_DEFS[S.mythic] || MYTHIC_DEFS.none);
+    attachViewmodel(hands, cur().id);
   }
   function cur() { return S.weapons[S.player.weaponIdx]; }
   function spread() {
@@ -189,6 +197,7 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
       // sniper shot a coin flip at 15m).
       S.player.spreadBloom = 0;
       hands.buildGun(w, MYTHIC_DEFS[S.mythic] || MYTHIC_DEFS.none);
+      attachViewmodel(hands, w.id);
     }
     if (w.reloading) {
       w.reloadT -= dt;

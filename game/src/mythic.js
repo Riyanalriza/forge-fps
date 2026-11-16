@@ -146,8 +146,8 @@ export function createMythicFx(scene, S, audio, hud) {
     }
   }
 
-  const dragons = []; // {dragon, t, dur, from, ctrl, to}
-  const portals = []; // {portal, t, dur, bot}
+  const dragons = [];
+  const portals = [];
   function dragonKill(from, to) {
     const d = createDragon3D(1);
     scene.add(d.group);
@@ -165,7 +165,7 @@ export function createMythicFx(scene, S, audio, hud) {
     portal.group.position.set(bot.x, 1.4, bot.z);
     portal.group.rotation.y = Math.random() * 3;
     scene.add(portal.group);
-    bot.mesh.group.visible = true; // re-show so the suck animation reads
+    bot.mesh.group.visible = true;
     portals.push({ portal, t: 0, dur: 0.9, bot });
     audio.voidSound();
   }
@@ -207,7 +207,7 @@ export function createMythicFx(scene, S, audio, hud) {
     }
   }
 
-  const fin = { active: null }; // {kind, t, dur, cx, cz, objs: [{update}]}
+  const fin = { active: null };
   const finisherObjs = [];
   function clearFinisherObjs() {
     for (const o of finisherObjs) if (o.group) scene.remove(o.group);
@@ -390,7 +390,7 @@ export function createMythicFx(scene, S, audio, hud) {
     const def = FINISHER_DEFS[kind] || FINISHER_DEFS.execution;
     clearFinisherObjs();
     fin.active = { kind, t: 0, dur: def.dur, cx, cz };
-    S.finisher = fin.active; // main.js reads this for the cinematic camera + slow-mo
+    S.finisher = fin.active;
     if (kind === 'dragon') spawnDragonFinisher(cx, cz);
     else if (kind === 'void') spawnVoidFinisher(cx, cz);
     else if (kind === 'gold') spawnGoldFinisher(cx, cz);
