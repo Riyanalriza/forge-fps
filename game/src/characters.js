@@ -1027,6 +1027,18 @@ export function createFirstPersonHands(S) {
       // fore-end for long guns, supporting the grip for pistols).
       const GRIP_Z = { shotgun: -0.5, ar: -0.5, smg: -0.42, sniper: -0.55, dmr: -0.55, lmg: -0.48, pistol: -0.16, launcher: -0.35, melee: -0.14, crossbow: -0.48 };
       gripL.position.z = GRIP_Z[cls] ?? -0.5;
+      // LEFT-HAND VISIBILITY (2026-11-16): the left hand floated ~50 px
+      // below the fore-end (knuckles 0.065 under the handguard bottom), so
+      // it read as a detached ball. Raise the grip so the knuckles touch
+      // the handguard and the fingers wrap it from below; the forearm
+      // follows so the wrist stays connected. Pistol stays low (it supports
+      // the grip, it does not reach the fore-end); melee rises most (the
+      // katana handle is thin and high, the hand must wrap it, not dangle).
+      const GRIP_Y = { shotgun: 0.06, ar: 0.06, smg: 0.06, sniper: 0.06, dmr: 0.06, lmg: 0.06, pistol: 0.02, launcher: 0.06, melee: 0.15, crossbow: 0.06 };
+      const gy = GRIP_Y[cls] ?? 0.06;
+      gripL.position.y = gy;
+      armL.position.y = -0.38 + gy;
+      armL.position.z = (GRIP_Z[cls] ?? -0.5) + 0.2;
       gun.userData.mag = mag;
       const tip = new THREE.Object3D();
       tip.position.set(0, -0.01, tipZ);
@@ -1051,13 +1063,22 @@ export function createFirstPersonHands(S) {
       gun.position.z = this.kickT * 0.08;
       handsGroup.position.z = this.kickT * 0.08;
       // Reload: weapon dips down and the magazine drops, then returns.
+      // Per-class feel (2026-11-16, presentation only — the reload
+      // DURATION is balance and is untouched): heavy launchers dip
+      // deepest, bolt guns dip + tilt, pistols barely move, the crossbow
+      // rolls sideways as the string is drawn, shotguns pump.
       if (w.reloading) {
         const p = 1 - Math.max(0, w.reloadT) / w.reload;
         const dip = Math.sin(Math.min(1, p) * Math.PI);
-        gun.rotation.x = -0.5 * dip;
+        const cls = w.cls || '';
+        const amp = cls === 'Launcher' ? 0.7 : (cls === 'Sniper' || cls === 'DMR') ? 0.6 : cls === 'Pistol' ? 0.3 : 0.5;
+        gun.rotation.x = -amp * dip;
+        gun.rotation.z = cls === 'Crossbow' ? 0.25 * dip : 0;
+        if (cls === 'Shotgun') gun.position.z += -0.06 * Math.sin(p * Math.PI * 2);
         if (gun.userData.mag) gun.userData.mag.position.y = -0.09 - dip * 0.12;
       } else {
         gun.rotation.x = 0;
+        gun.rotation.z = 0;
         if (gun.userData.mag) gun.userData.mag.position.y = -0.09;
       }
     },

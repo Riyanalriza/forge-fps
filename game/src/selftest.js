@@ -1,4 +1,5 @@
-import { EMOTE_DEFS, WHEEL_PRESETS, FINISHER_DEFS, OPERATOR_DEFS } from './state.js';
+import * as THREE from 'three';
+import { EMOTE_DEFS, WHEEL_PRESETS, FINISHER_DEFS, OPERATOR_DEFS, WEAPONS_DB } from './state.js';
 import { MAP_IDS, MAP_DEFS } from './maps.js';
 import { getDaily, dailyEmoteXp } from './daily.js';
 import { createBotModel, BOT_SKINS, BOT_WEAPONS, CHAR_OPERATORS, CHAR_SKINS, killerInfo } from './characters.js';
@@ -10,7 +11,7 @@ import { loadColorChoices, saveColorChoices } from './palette.js';
 import { FLAGS, setFlag } from './state.js';
 import { dmgAngle } from './hud.js';
 import { fxFor } from './weaponfx.js';
-import { viewmodelReady, soldierReady, WEAPON_GLB, armsMountReport } from './models.js';
+import { viewmodelReady, soldierReady, WEAPON_GLB, armsMountReport, attachViewmodel, leftArmPocket } from './models.js';
 
 export function runSelfTest(ctx) {
   const { S, game, bots, hud, mythicFx, world, weapon, player, doEmote, settle, FIXED_STEP, createDragon3D, createVoidPortal3D, weather, zombies, vehicles, economy, effects, audio, input } = ctx;
@@ -734,6 +735,111 @@ export function runSelfTest(ctx) {
     playEl.click();
     check('Clicking Play after the panel throws no error', S.phase === 'menu');
     hud.tutorial.reset();
+    // ---- §47: Left hand visible on ALL 21 weapons (2026-11-16) ----
+    // The v4/B2 GLB re-pose (left mesh shifted + yaw/pitch) + the per-class
+    // procedural GRIP_Y lift + the per-weapon left-arm offsets (p12,
+    // katana) must hold for every weapon, not just B12 + VK-9. Loops all
+    // 21: builds the real gun, attaches the real GLB arms, then checks
+    // from the FP camera that both pockets project inside the frustum and
+    // the left one is not hidden behind the receiver (raycast: first hit
+    // must be a hand mesh, or the gun surface within 0.03 of the hand).
+    // Also records the procedural grip height + left pocket z per weapon
+    // for §48. (weapon.js step() rebuilds the current weapon on the next
+    // frame, so leaving the hands on the last loop weapon is harmless.)
+    const cam47 = weapon.hands.group.parent;
+    const hg47 = weapon.hands.parts.handsGroup;
+    const ray47 = new THREE.Raycaster();
+    const isShown47 = (o) => { while (o) { if (o.visible === false) return false; o = o.parent; } return true; };
+    const gripY47 = {}, pocketZ47 = {};
+    const fail47 = [];
+    for (const w of WEAPONS_DB) {
+      weapon.hands.buildGun(w, null);
+      attachViewmodel(weapon.hands, w.id);
+      cam47.updateMatrixWorld(true);
+      const armsObj47 = [...hg47.children].find((c) => c !== weapon.hands.parts.procHands);
+      const armMeshes47 = new Set(), gunMeshes47 = new Set();
+      if (armsObj47) armsObj47.traverse((o) => { if (o.isMesh) armMeshes47.add(o); });
+      weapon.hands.gun.traverse((o) => { if (o.isMesh) gunMeshes47.add(o); });
+      const lp = leftArmPocket();
+      const lpW = new THREE.Vector3(lp.x, lp.y, lp.z).applyMatrix4(hg47.matrixWorld);
+      // Right hand: check the FINGERTIPS (cream-UV mean of the right mesh),
+      // not the pocket — the right pocket sits inside the procedural gun's
+      // grip, so a ray to it always hits gun first (false occlusion).
+      let rpW = new THREE.Vector3(0, -0.08, -0.02).applyMatrix4(hg47.matrixWorld);
+      if (armsObj47) {
+        let rightMesh47 = null, bestZ47 = -Infinity;
+        armsObj47.traverse((o) => {
+          if (!o.isMesh || !o.geometry) return;
+          if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+          const z = o.geometry.boundingBox.getCenter(new THREE.Vector3()).z;
+          if (z > bestZ47) { bestZ47 = z; rightMesh47 = o; }
+        });
+        if (rightMesh47) {
+          const pos47 = rightMesh47.geometry.attributes.position, uv47 = rightMesh47.geometry.attributes.uv;
+          let cx = 0, cy = 0, cz = 0, cn = 0;
+          const v47 = new THREE.Vector3();
+          for (let i = 0; i < pos47.count; i++) {
+            if (uv47 && uv47.getX(i) > 0.75) { v47.set(pos47.getX(i), pos47.getY(i), pos47.getZ(i)); rightMesh47.localToWorld(v47); cx += v47.x; cy += v47.y; cz += v47.z; cn++; }
+          }
+          if (cn) rpW = new THREE.Vector3(cx / cn, cy / cn, cz / cn);
+        }
+      }
+      const chk47 = (pt) => {
+        const v = pt.clone().project(cam47);
+        const inFr = v.z < 1 && Math.abs(v.x) <= 1 && Math.abs(v.y) <= 1;
+        if (!inFr) return false;
+        ray47.setFromCamera(new THREE.Vector2(v.x, v.y), cam47);
+        const hits = ray47.intersectObject(weapon.hands.group, true).filter((h) => isShown47(h.object));
+        if (!hits.length) return true;
+        const h0 = hits[0];
+        const cat = armMeshes47.has(h0.object) ? 'hand' : gunMeshes47.has(h0.object) ? 'gun' : 'other';
+        return !(cat === 'gun' && h0.distance < cam47.position.distanceTo(pt) - 0.03);
+      };
+      if (!chk47(lpW) || !chk47(rpW)) fail47.push(w.id);
+      gripY47[w.id] = weapon.hands.parts.gripL.position.y;
+      pocketZ47[w.id] = lp.z;
+    }
+    check(`§47 all 21 weapons: left hand visible + right hand on grip (${21 - fail47.length}/21)` + (fail47.length ? ' — fails: ' + fail47.join(',') : ''), fail47.length === 0);
+    // ---- §48: Hold / reload / light / sound per weapon (2026-11-16) ----
+    // Hold: procedural grip height per class (GRIP_Y) + per-weapon GLB
+    // left-arm offsets (p12 supports the pistol grip, katana grips the
+    // lower handle two-handed). Reload: stage text per weapon, per-class
+    // reload sound groups + per-class reload animation (dip/tilt/pump).
+    // Light + shot sound are proven per weapon by §43 (flash shapes) and
+    // the WEAPON_FX table (distinct freq+pattern per weapon, below).
+    const gripYok48 = ['vk9', 'm4', 'ak117', 'lr50', 'qq9', 'rpd', 'by15', 'krm', 'kilo', 'sks', 'rpg', 'fhj', 'thumper', 'mp5', 'pdw', 'm4lmg', 'arctic', 'crossbow'].every((id) => Math.abs(gripY47[id] - 0.06) < 0.001)
+      && Math.abs(gripY47.p12 - 0.02) < 0.001 && Math.abs(gripY47.dual - 0.02) < 0.001
+      && Math.abs(gripY47.katana - 0.15) < 0.001;
+    check('§48 procedural left grip height per class (0.06 long / 0.02 pistol / 0.15 melee)', gripYok48);
+    check('§48 G17 left hand pulled back to the pistol grip (pocket z > -0.15)', pocketZ47.p12 > -0.15);
+    check('§48 katana left hand on the lower handle (pocket z > -0.2)', pocketZ47.katana > -0.2);
+    check('§48 other weapons keep the forend pocket (z ≈ -0.35)', Math.abs(pocketZ47.vk9 + 0.35) < 0.01 && Math.abs(pocketZ47.by15 + 0.35) < 0.01 && Math.abs(pocketZ47.lr50 + 0.35) < 0.01);
+    const sndKeys48 = WEAPONS_DB.map((w) => { const s = fxFor(w.id).sound; return s.pattern + '@' + s.freq; });
+    check('§48 every weapon has a distinct shot sound (pattern+freq)', new Set(sndKeys48).size === sndKeys48.length);
+    const stagesOk48 = WEAPONS_DB.every((w) => { const st = fxFor(w.id).reload.stages; return w.cls === 'Melee' ? st.length === 0 : st.length >= 1; });
+    check('§48 every non-melee weapon has reload stages, melee has none', stagesOk48);
+    let sndOk48 = true;
+    try { for (const id of ['lr50', 'rpg', 'thumper', 'crossbow', 'p12', 'by15', 'rpd', 'vk9']) { audio.reloadStage(1, id); audio.reload(id); } } catch { sndOk48 = false; }
+    check('§48 reload sounds accept bolt/tube/break/string/light/pump/belt/std', sndOk48);
+    // Reload animation per class: shotgun pumps, crossbow rolls, pistol dips least.
+    const hands48 = weapon.hands;
+    const wSg48 = WEAPONS_DB.find((w) => w.id === 'by15');
+    hands48.buildGun(wSg48, null); attachViewmodel(hands48, 'by15');
+    hands48.step(0.016, { ...wSg48, reloading: true, reloadT: wSg48.reload * 0.5 });
+    const sgDip48 = hands48.gun.rotation.x, sgPump48 = hands48.gun.position.z;
+    const wCb48 = WEAPONS_DB.find((w) => w.id === 'crossbow');
+    hands48.buildGun(wCb48, null); attachViewmodel(hands48, 'crossbow');
+    hands48.step(0.016, { ...wCb48, reloading: true, reloadT: wCb48.reload * 0.5 });
+    const cbRoll48 = hands48.gun.rotation.z;
+    const wPi48 = WEAPONS_DB.find((w) => w.id === 'p12');
+    hands48.buildGun(wPi48, null); attachViewmodel(hands48, 'p12');
+    hands48.step(0.016, { ...wPi48, reloading: true, reloadT: wPi48.reload * 0.5 });
+    const piDip48 = hands48.gun.rotation.x;
+    hands48.step(0.016, { ...wPi48, reloading: false, reloadT: 0 });
+    check('§48 shotgun reload dips + pumps (rotation.x < 0, position.z moves)', sgDip48 < 0 && sgPump48 !== 0);
+    check('§48 crossbow reload rolls sideways (rotation.z > 0)', cbRoll48 > 0);
+    check('§48 pistol reload dips least (|rotation.x| < 0.35)', Math.abs(piDip48) < 0.35 && piDip48 < 0);
+    check('§48 reload animation resets when reload ends', hands48.gun.rotation.x === 0 && hands48.gun.rotation.z === 0);
     world.buildMap('foundry');
     game.startRound();
   } catch (e) {

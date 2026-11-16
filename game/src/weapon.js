@@ -115,7 +115,7 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
     w.shellT = 0;
     const fx = fxFor(w.id);
     S.reloadStage = fx.reload.stages[0];
-    audio.reload();
+    audio.reload(w.id);
   }
   function cancelReload() {
     const w = cur();

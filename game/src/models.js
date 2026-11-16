@@ -33,14 +33,43 @@ export const WEAPON_GLB = {
 const GRIP_POINT = { x: 0, y: -0.08, z: -0.02 };
 // Re-posed laggy arms, placed so the right pocket sits on the pistol grip.
 // Pockets (file space, rotation.y=0 so file == game space): R (-0.0507,
-// 0.0609,-0.33), L (-0.0507,0.0609,-0.66). v3 re-pose (2026-11-16): fingers
-// REALLY curled (tight R 0.07/0.08 around the grip/forend); v1 bent the
-// forearm instead and left the fingers flat, and v2's R=0.145 loop hung
-// 0.12 off the grip. Mounting is rotation.y=0 (NOT PI): file fingers point
-// -Z = forward along the gun, elbows +Z = toward the camera. PI flipped
-// both the fingers (toward the camera) and left/right.
+// 0.0609,-0.33), L (-0.1107,0.0109,-0.66) — v4 (2026-11-16): left mesh
+// shifted (-0.06,-0.05,0) + yaw -0.3 + pitch +0.2 about the pocket, so the
+// left hand clears the receiver's bottom edge from the FP camera (v3 sat
+// dead-centre behind it) AND the forearm angles down-left like a real
+// support arm instead of paralleling the gun (a plain shift read as a
+// second barrel). Right pocket untouched. Fingers REALLY curled (tight
+// R 0.07/0.08 around the grip/forend). Mounting is rotation.y=0 (NOT PI):
+// file fingers point -Z = forward along the gun, elbows +Z = toward the
+// camera. PI flipped both the fingers (toward the camera) and left/right.
 const ARMS_POS = { x: 0.0507, y: -0.1409, z: 0.31 };
 const ARMS_URL = 'models/arms/rigged-laggy-arms-grip.glb';
+// Left-hand pocket in arms FILE space (the B2 re-pose pocket).
+const LEFT_POCKET_FILE = { x: -0.1107, y: 0.0109, z: -0.66 };
+// Per-weapon LEFT-arm offset (armsObj space, left mesh only; the right
+// mesh never moves — its grip is correct for every weapon). The arms are
+// one rigid object with a fixed 0.33 grip-to-forend span, so short weapons
+// leave the left hand floating past the muzzle/blade: the G17's muzzle is
+// at z≈-0.25 and the katana's handle ends at z≈-0.20, while the left
+// pocket sits at z=-0.35. Both read as a detached hand in the FP render
+// (2026-11-16 probe). Shift the left arm back toward the grip: p12
+// supports the pistol grip from the front-below; katana grips the lower
+// handle two-handed. All other weapons keep offset 0 (probe-verified).
+const LEFT_ARM_OFFSET = {
+  p12: { x: 0, y: 0, z: 0.27 },
+  katana: { x: 0, y: 0.03, z: 0.23 },
+};
+let leftArmMesh = null;
+// Left pocket in handsGroup space (ARMS_POS + file pocket + per-weapon
+// mesh offset). Null until the arms GLB loads.
+export function leftArmPocket() {
+  if (!leftArmMesh) return null;
+  return {
+    x: ARMS_POS.x + LEFT_POCKET_FILE.x + leftArmMesh.position.x,
+    y: ARMS_POS.y + LEFT_POCKET_FILE.y + leftArmMesh.position.y,
+    z: ARMS_POS.z + LEFT_POCKET_FILE.z + leftArmMesh.position.z,
+  };
+}
 
 let armsObj = null, armsState = 'idle';
 const weaponState = new Map();
@@ -99,6 +128,17 @@ export function ensureViewmodelAssets() {
         armsObj.rotation.y = 0; // v3 re-pose: file fingers already point -Z (forward); PI flipped them toward the camera + swapped left/right
         armsObj.position.set(ARMS_POS.x, ARMS_POS.y, ARMS_POS.z);
         noCamoDeep(armsObj);
+        // Identify the LEFT mesh (its bbox centre z is more negative — the
+        // forward hand on the forend) so attachViewmodel can shift it per
+        // weapon without touching the right hand.
+        let best = null, bestZ = Infinity;
+        armsObj.traverse((o) => {
+          if (!o.isMesh || !o.geometry) return;
+          o.geometry.computeBoundingBox();
+          const z = o.geometry.boundingBox.getCenter(new THREE.Vector3()).z;
+          if (z < bestZ) { bestZ = z; best = o; }
+        });
+        leftArmMesh = best;
         armsState = 'ready';
         if (viewmodelNotify) viewmodelNotify('__arms__');
       }).catch(() => { armsState = 'failed'; }));
@@ -123,6 +163,11 @@ export function attachViewmodel(hands, weaponId) {
   if (armsState === 'ready' && armsObj && !armsObj.parent) {
     if (hands.parts.procHands) hands.parts.procHands.visible = false;
     hands.parts.handsGroup.add(armsObj);
+  }
+  // Per-weapon left-arm placement (reset first — the mesh is shared).
+  if (leftArmMesh) {
+    const off = LEFT_ARM_OFFSET[weaponId] || { x: 0, y: 0, z: 0 };
+    leftArmMesh.position.set(off.x, off.y, off.z);
   }
   const def = WEAPON_GLB[weaponId];
   if (!def) return;

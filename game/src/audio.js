@@ -12,6 +12,17 @@ export function createAudio() {
   let muted = false; // v18.3: mute-all silences every sound
   let hapticOn = true; // v28.0.1: vibration master switch
   let mobile = false; // v18.4: phone speakers get a bass boost in shot()
+  // Reload sound groups (2026-11-16, Priority 2): the shot sound was
+  // already per weapon via WEAPON_FX, but the reload clicks were one
+  // generic sound for all 21 weapons. Belt-fed and pump guns are deep,
+  // bolt guns rack metallic, launchers clunk heavy, crossbow twangs a
+  // string, pistols click light. Groups not listed use the standard click.
+  const RELOAD_CLS = {
+    rpd: 'belt', m4lmg: 'belt', by15: 'pump', krm: 'pump',
+    lr50: 'bolt', kilo: 'bolt', sks: 'bolt', arctic: 'bolt',
+    rpg: 'tube', fhj: 'tube', thumper: 'break', crossbow: 'string',
+    p12: 'light', dual: 'light',
+  };
   function stopAmbient() {
     if (ambientBirdTimer) { clearInterval(ambientBirdTimer); ambientBirdTimer = null; }
     const s = ambientSrc, g = ambientGain; ambientSrc = null; ambientGain = null;
@@ -159,7 +170,14 @@ export function createAudio() {
         setTimeout(() => { noise(0.09, 0.08, 900); tone(140, 0.08, 'sawtooth', 0.05, -60); }, 110);
       }
     },
-    reload() { tone(900, 0.05, 'square', 0.06); setTimeout(() => tone(600, 0.05, 'square', 0.06), 120); },
+    reload(weaponId = '') {
+      // Start click (mag release) varies per reload group; the sound-test
+      // button calls it with no id and gets the standard click.
+      const g = RELOAD_CLS[weaponId] || 'std';
+      const f = g === 'belt' || g === 'pump' ? 300 : g === 'tube' ? 200 : g === 'bolt' ? 750 : g === 'string' ? 1100 : g === 'light' ? 1200 : 900;
+      tone(f, 0.05, g === 'bolt' || g === 'string' ? 'square' : 'sine', 0.06);
+      setTimeout(() => tone(f * 0.67, 0.05, 'square', 0.06), 120);
+    },
     hit(head, kill) {
       if (kill) { tone(1400, 0.06, 'sine', 0.12); setTimeout(() => tone(1800, 0.1, 'sine', 0.14), 60); return; }
       tone(head ? 1400 : 1000, 0.06, 'sine', 0.12);
@@ -361,11 +379,22 @@ export function createAudio() {
       }
     },
     // Reload in 3 stages (v19.0.7): mag out -> mag in -> cock, per weapon.
+    // Stage frequencies per reload group (2026-11-16): belt/pump keep the
+    // old deep values (300/380/220); bolt, tube, break, string and light
+    // get their own pitch + timbre. Pump adds a second click (the pump
+    // stroke) and bolt adds a slam noise on the final cock.
     reloadStage(stage, weaponId = '') {
-      const deep = ['rpd', 'm4lmg', 'by15', 'krm'].includes(weaponId);
-      const f = stage === 0 ? (deep ? 300 : 420) : stage === 1 ? (deep ? 380 : 540) : (deep ? 220 : 300);
-      tone(f, stage === 2 ? 0.14 : 0.07, stage === 2 ? 'square' : 'sine', 0.1, stage === 2 ? -150 : 0);
+      const g = RELOAD_CLS[weaponId] || 'std';
+      const F = {
+        belt: [300, 380, 220], pump: [300, 380, 220], std: [420, 540, 300],
+        bolt: [800, 650, 1100], tube: [180, 240, 160], break: [500, 700, 400],
+        string: [1200, 900, 1500], light: [1100, 1300, 900],
+      }[g];
+      const f = F[Math.min(stage, 2)];
+      tone(f, stage === 2 ? 0.14 : 0.07, g === 'bolt' || g === 'string' || g === 'light' ? 'square' : 'sine', 0.1, stage === 2 ? -150 : 0);
       if (stage === 0) noise(0.05, 0.03, 'highpass');
+      if (g === 'pump' && stage === 1) setTimeout(() => tone(300, 0.06, 'square', 0.08), 90);
+      if (g === 'bolt' && stage === 2) noise(0.06, 0.05, 'highpass');
     },
     // Tire pop (v19.2.5): short low burst.
     pop() { noise(0.09, 0.22, 'lowpass'); tone(90, 0.1, 'sine', 0.2, -60); },
