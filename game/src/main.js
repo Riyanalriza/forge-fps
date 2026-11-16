@@ -1788,7 +1788,7 @@ function runShot(name) {
     const right = new THREE.Vector3().crossVectors(camDir, camera.up).normalize();
     const tip = camPos.clone().addScaledVector(camDir, 0.7).addScaledVector(right, 0.18);
     tip.y -= 0.12;
-    effects.muzzle(tip, camDir, camPos, 0.6);
+    effects.muzzle(tip, camDir, camPos, 0.6, { color: 0xffcc55, scale: 1.9, dur: 0.1, shape: 'wide' });
     effects.tracer(tip, new THREE.Vector3(b0.x, 1.4, b0.z), false);
     S.msgT = 0;
     hud.update(world);

@@ -1,8 +1,3 @@
-// Weapons: loadout of 21 (WEAPONS_DB). Fire / reload / spread / recoil.
-// First-person hands hold the gun; Gunsmith attachments change the effective stats.
-// Raycast vs bot hitboxes; shotguns fire 8 pellets; launchers/crossbow fire
-// real projectiles; melee swings in an arc. Mythic skins recolor the viewmodel
-// and shed particles; operator skills (Tempest / Annihilator) modify the shots.
 import * as THREE from 'three';
 import { PALETTE } from './palette.js';
 import { WEAPONS, MYTHIC_DEFS, calcBulletDrop, calcTravelTime } from './state.js';
@@ -20,16 +15,12 @@ const _tmpV2 = new THREE.Vector3();
 const _prev = new THREE.Vector3();
 const _colA = new THREE.Color();
 const _colB = new THREE.Color();
-// Mythic tracer colors (v18.5.12): dragon = orange fire, void = purple.
 const MYTHIC_TRACER = { dragon: 0xff7a1a, void: 0xaa44ff };
 
 export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
   const ray = new THREE.Raycaster();
   ray.far = 120;
-  // First-person hands + gun viewmodel attached to the camera.
   const hands = createFirstPersonHands(S);
-  // Shot-mode close-up (dossier play shot only): bigger viewmodel so the
-  // rounded hands read clearly. Gameplay always uses 0.62.
   const shotPlay = new URLSearchParams(location.search).get('shot') === 'play';
   hands.group.scale.setScalar(shotPlay ? 0.76 : 0.62);
   hands.group.position.set(shotPlay ? 0.17 : 0.2, shotPlay ? -0.13 : -0.16, -0.8);
@@ -39,13 +30,9 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
   camera.add(fillLight);
   scene.add(camera);
   const gun = hands.group; // the whole viewmodel (hands + gun), for positioning
-  // GLB viewmodel (real weapon models + re-posed laggy arms): loads in the
-  // background; the procedural viewmodel stays until each file arrives, then
-  // the swap happens via the notify below. No mythic glow on GLB guns.
   ensureViewmodelAssets();
   onViewmodelReady((id) => { if (id === '__arms__' || id === cur().id) attachViewmodel(hands, cur().id); });
 
-  // Mythic particle pool (glowing motes shed from the barrel tip)
   const moteGeo = new THREE.SphereGeometry(0.02, 6, 6);
   const motes = [];
   for (let i = 0; i < 24; i++) {
@@ -56,11 +43,8 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
   let moteIdx = 0, moteT = 0;
   let inspectT = 0; // weapon inspect animation (1s gun tilt + spin)
   let lastEmptyClick = -9; // rate-limit the empty-click sound (v18.1.1)
-  // Sniper travel time (v18.9): hits resolve 200ms after the shot.
   const pendingShots = []; // {bot, head, w, point, t, dmgOverride}
-  // Flying projectiles (v18.5): rockets / FHJ / thumper grenades / arrows.
   const projectiles = []; // {kind, mesh, vel, life, maxLife, dmg, blastR, target}
-  // Laser sight (v18.8): red line + dot from the gun tip.
   const laserMat = new THREE.LineBasicMaterial({ color: 0xff2222, transparent: true, opacity: 0.9 });
   const laserGeo = new THREE.BufferGeometry();
   laserGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
@@ -72,7 +56,6 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
   laserDot.visible = false; scene.add(laserDot);
   let meleeSwingT = 0; // katana swing animation timer
 
-  // Lightning bolt visual for Tempest (line from muzzle to hit point)
   const boltMat = new THREE.LineBasicMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0 });
   const boltGeo = new THREE.BufferGeometry();
   boltGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
@@ -81,7 +64,6 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
   scene.add(bolt);
   let boltT = 0;
 
-  // Gunsmith: write the effective stats (base + attachments) onto each weapon.
   function applyGunsmith() {
     S.weapons.forEach((w, i) => {
       const eff = calcGunStats(WEAPONS[i], S.atts);
@@ -110,9 +92,7 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
   }
   function ready() {
     const w = cur();
-    // Overheat (v22.1.3): a hot barrel blocks firing until it cools.
     if ((w.overheatT || 0) > 0) return false;
-    // Double Tap cola (v23.0.9): fire rate 20% faster.
     const rate = (S.perkCola && S.perkCola.includes('doubletap')) ? w.rate * 0.8 : w.rate;
     return S.phase === 'playing' && S.player.alive && !w.reloading &&
       S.time - w.lastShot >= rate && (w.mag > 0 || w.melee);
@@ -121,8 +101,6 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
     const w = cur();
     if (w.melee) return; // blades never reload
     if (w.reloading || w.mag >= w.magSize || w.reserve <= 0) return;
-    // Reload modifiers (v19.0.3): sprint +30% time, crouch −20%, 3-kill
-    // streak −30% (fast reload, v19.0.2).
     const p = S.player;
     let mult = 1;
     if (p.moving && p.speed > 8) mult *= 1.3;
@@ -133,7 +111,6 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
     w.reloadTotal = w.reload * mult;
     w.reloadT = w.reloadTotal;
     w.reloadStageFired = 0;
-    // Shotgun shell reload (v19.0.5): 1 shell per 0.5s, click to stop.
     w.shellMode = w.cls === 'Shotgun';
     w.shellT = 0;
     const fx = fxFor(w.id);
@@ -143,13 +120,6 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
   function cancelReload() {
     const w = cur();
     if (!w.reloading) return;
-    // (Gameplay pass 2026-11-15: a cancelled reload used to leave the mag
-    // exactly as it was — under sustained fire (a zombie swarm landing a
-    // hit every ~0.05s) the 50% cancel chained forever and the gun could
-    // never reload: measured mag 0 with 9579 reserve for 200s+. A cancel
-    // now keeps the rounds loaded so far, proportional to reload progress,
-    // so the player always makes ammo progress and can fight back.
-    // Shell-fed shotguns already load shell-by-shell, so they skip this.)
     if (!w.shellMode && w.reloadTotal > 0 && w.mag < w.magSize && w.reserve > 0) {
       const progress = Math.max(0, Math.min(1, 1 - w.reloadT / w.reloadTotal));
       const need = w.magSize - w.mag;
@@ -164,12 +134,9 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
     const w = cur();
     return w.mag <= 0 && w.reserve <= 0 && !w.melee;
   }
-  // Weapon camo (v20.0.10): tint the viewmodel gun to the chosen camo.
   let lastCamo = null;
   let lastWeaponColor = null;
   function applyCamo() {
-    // v24.1.3: the 16-color weapon picker wins over camo; 'none' falls back
-    // to the camo tint (WEAPON_CAMOS), 'none' camo = steel.
     const wc = S.weaponColor && S.weaponColor !== 'none' ? S.weaponColor : null;
     const camo = WEAPON_CAMOS[S.weaponCamo] || WEAPON_CAMOS.none;
     const hex = wc ? parseInt(String(wc).replace('#', ''), 16) : camo.color;
@@ -186,15 +153,9 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
   function inspect() { if (S.phase === 'playing') inspectT = 1; }
   function step(dt) {
     const w = cur();
-    // Rebuild the viewmodel gun when the weapon changed — and cancel the
-    // old weapon's reload (v18.1.3: switching weapons cancels reloading).
     if (hands.weaponId !== w.id) {
       const prev = S.weapons.find(x => x.id === hands.weaponId);
       if (prev) { prev.reloading = false; prev.reloadT = 0; }
-      // Bloom belongs to the current weapon's sustained fire: switching
-      // resets it, so a sniper drawn right after spraying is precise
-      // (gameplay pass 2026-11-15 — the old carry-over made the first
-      // sniper shot a coin flip at 15m).
       S.player.spreadBloom = 0;
       hands.buildGun(w, MYTHIC_DEFS[S.mythic] || MYTHIC_DEFS.none);
       attachViewmodel(hands, w.id);
@@ -205,7 +166,6 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
       const done = w.reloadTotal > 0 ? 1 - Math.max(0, w.reloadT) / w.reloadTotal : 1;
       S.reloadFrac = done;
       S.reloadSecs = Math.max(0, w.reloadT);
-      // Reload stage sounds + labels (v19.0.7, v22.1.2) at 15/50/85%.
       const stages = fx.reload.stages;
       const idx = done >= 0.85 ? 2 : done >= 0.5 ? 1 : 0;
       if (idx > (w.reloadStageFired || 0)) {
@@ -214,7 +174,6 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
         if (audio.reloadStage) audio.reloadStage(idx, w.id);
       }
       if (w.shellMode) {
-        // Shotgun: one shell every 0.5s; firing stops the reload.
         w.shellT += dt;
         if (w.shellT >= 0.5 && w.mag < w.magSize && w.reserve > 0) {
           w.shellT = 0;
@@ -233,19 +192,14 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
         S.reloadFrac = 0; S.reloadStage = '';
       }
     }
-    // M4LMG heat (v18.5.8): recoil climbs while holding fire, cools off fast.
     if (w.heat) w.heatV = Math.max(0, (w.heatV || 0) - dt * 2);
-    // Hot barrel (v22.1.3): cools for 2s, then the shot counter resets.
     if ((w.overheatT || 0) > 0) {
       w.overheatT -= dt;
       if (w.overheatT <= 0) { w.overheatT = 0; w.shotsSinceReload = 0; S.barrelHot = false; }
     }
-    // Camo reapply when the player picks a new camo in the Gunsmith.
     if (S.weaponCamo !== lastCamo) applyCamo();
     if ((S.weaponColor || 'none') !== lastWeaponColor) applyCamo();
-    // Blood on the gun (v19.0.13) fades over ~8s.
     if (S.gunBlood > 0) S.gunBlood = Math.max(0, S.gunBlood - dt / 8);
-    // Sniper travel time: resolve delayed hits.
     for (let i = pendingShots.length - 1; i >= 0; i--) {
       const ps = pendingShots[i];
       ps.t -= dt;
@@ -254,8 +208,6 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
         if (ps.bot && ps.bot.alive !== false) ps.onHit(ps.bot, ps.head, ps.w, ps.dmgOverride, false, ps.point);
       }
     }
-    // Viewmodel bob + ADS position (emote can lift/hide the gun).
-    // ADS speed comes from the Gunsmith (stock / scope / barrel).
     const t = S.time;
     const bob = S.player.moving && S.player.onGround ? Math.sin(t * 11) * 0.016 : 0;
     const em = S.emote;
@@ -272,18 +224,13 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
       if (em.id === 'flex') gy += 0.1;
       if (em.id === 'cry') gy -= 0.1;
     }
-    // Tactical sprint (v23.0.7): gun lowered to the hip while tac-sprinting.
     if (S.tacSprint) { gy -= 0.12; gx += 0.1; }
     const lerp = Math.min(1, dt * 12 * (w.adsSpeed || 1));
-    // Vault (v18.8.5): the gun lifts while the player climbs a low wall.
     if (S.player.vaultT > 0) gy += 0.15;
-    // Body lean (v18.8.3): the gun shifts sideways with the lean.
     if (S.lean) gx += S.lean * 0.05;
     gun.position.x += (gx - gun.position.x) * lerp;
     gun.position.y += (gy - gun.position.y) * lerp;
     gun.visible = vis;
-    // Inspect / sway / lean / vault: rotation composed absolutely each frame
-    // (v18.8.3 lean, v18.8.5 vault) so nothing accumulates across frames.
     let rz = 0, rx = 0;
     if (inspectT > 0) {
       inspectT -= dt;
@@ -296,13 +243,11 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
     if (S.lean) rz += S.lean * 0.25; // body lean tilts the viewmodel
     if (S.player.vaultT > 0) rx -= 0.5; // vault lifts the gun (y via gy)
     gun.rotation.z = rz; gun.rotation.x = rx;
-    // Katana swing (v18.5.5): a wide diagonal slash of the viewmodel.
     if (meleeSwingT > 0) {
       meleeSwingT -= dt;
       const k = Math.sin((1 - Math.max(0, meleeSwingT) / 0.4) * Math.PI);
       gun.rotation.x = -k * 0.9; gun.rotation.z = k * 0.5;
     }
-    // Laser sight (v18.8): red line + dot from the gun tip while toggled on.
     if (S.laserOn && S.phase === 'playing' && S.player.alive) {
       const tip = hands.gun.userData.tip;
       if (tip) tip.getWorldPosition(_tip); else hands.gun.getWorldPosition(_tip);
@@ -318,7 +263,6 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
       laserLine.visible = false; laserDot.visible = false;
     }
     hands.step(dt, w);
-    // Mythic particles + pulsing glow (rainbow cycles hue)
     const def = MYTHIC_DEFS[S.mythic] || MYTHIC_DEFS.none;
     if (def.fx === 'rainbow') {
       _colA.setHSL((t * 0.15) % 1, 0.85, 0.5);
@@ -361,10 +305,6 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
     boltGeo.attributes.position.needsUpdate = true;
     bolt.visible = true; boltT = 0.25; boltMat.opacity = 1;
   }
-  // Fire one shot. hitMeshes: bot body/head meshes. Returns {hit, head, bot} or null.
-  // onHit(bot, head, w, dmgOverride, wallbang, point) — dmgOverride for operator skills.
-  // resolve(userData) maps a hit mesh to its target (bots or zombies).
-  // Spawn a flying projectile (rocket / FHJ / thumper grenade / arrow).
   function spawnProjectile(w, dir) {
     let mesh, speed, gravity;
     if (w.projectile === 'arrow') {
@@ -399,7 +339,6 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
     const point = hit.point;
     scene.remove(pr.mesh);
     if (pr.kind === 'arrow') {
-      // Silent arrow: a bot hit resolves damage, a wall hit sticks + dust.
       if (hit.object && (hit.object.userData.botId !== undefined || hit.object.userData.zombieId !== undefined)) {
         const bot = resolve ? resolve(hit.object.userData) : S.bots[hit.object.userData.botId];
         if (bot) {
@@ -411,27 +350,22 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
       }
       return;
     }
-    // Explosive projectile: fireball + area blast (main damages in radius).
     if (effects) effects.explosion({ x: point.x, y: Math.max(0.3, point.y), z: point.z }, pr.blastR >= 5);
     else if (audio.explosion) audio.explosion();
     if (cbs.onBlast) cbs.onBlast(point.x, point.z, pr.blastR, pr.dmg);
   }
-  // Step the flying projectiles (called from the main animate loop).
-  // hitMeshes/shootables/onHit/resolve are the same args as fire().
   function stepProjectiles(dt, hitMeshes, shootables, rng, onHit, resolve) {
     for (let i = projectiles.length - 1; i >= 0; i--) {
       const pr = projectiles[i];
       pr.life += dt;
       if (pr.gravity) pr.vel.y -= pr.gravity * dt;
       if (pr.kind === 'fhj' && S.heli) {
-        // Lock-on: steer toward the circling attack heli.
         _tmpV.set(Math.cos(S.heli.angle) * 18 - pr.mesh.position.x, 25 - pr.mesh.position.y, Math.sin(S.heli.angle) * 18 - pr.mesh.position.z).normalize();
         pr.vel.lerp(_tmpV2.copy(_tmpV).multiplyScalar(35), Math.min(1, dt * 3));
       }
       _prev.set(pr.px, pr.py, pr.pz);
       pr.mesh.position.addScaledVector(pr.vel, dt);
       pr.px = pr.mesh.position.x; pr.py = pr.mesh.position.y; pr.pz = pr.mesh.position.z;
-      // Rocket trail (v22.1.4): white smoke puffs behind rockets/FHJ.
       if ((pr.kind === 'rocket' || pr.kind === 'fhj') && effects && effects.smokePuff) {
         pr.trailT = (pr.trailT || 0) - dt;
         if (pr.trailT <= 0) {
@@ -456,16 +390,10 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
       if (done) projectiles.splice(i, 1);
     }
   }
-  // Fire one shot. hitMeshes: bot body/head meshes. Returns a truthy object
-  // whenever a shot was actually discharged (hit, miss, projectile, swing),
-  // null when not ready (reloading / rate / empty).
-  // onHit(bot, head, w, dmgOverride, wallbang, point) — dmgOverride for operator skills.
-  // resolve(userData) maps a hit mesh to its target (bots or zombies).
   function fire(hitMeshes, shootables, rng, onHit, resolve) {
     const w = cur();
     if (!ready()) {
       if (w.mag === 0 && !w.reloading && !w.melee) {
-        // Empty click (v18.1.1), rate-limited, then auto-reload.
         if (S.time - lastEmptyClick > 0.3) {
           lastEmptyClick = S.time;
           if (audio.emptyClick) audio.emptyClick();
@@ -477,7 +405,6 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
     w.lastShot = S.time;
     if (!w.melee) { w.mag -= 1; w.shotsSinceReload = (w.shotsSinceReload || 0) + 1; }
     if (w.heat) w.heatV = Math.min(16, (w.heatV || 0) + 1); // M4LMG heat climbs
-    // Hot barrel (v22.1.3): N shots without a reload overheat the barrel.
     const fxW = fxFor(w.id);
     if (!w.melee && fxW.hotAt && (w.shotsSinceReload || 0) >= fxW.hotAt && !(w.overheatT > 0)) {
       w.overheatT = 2; S.barrelHot = true;
@@ -490,7 +417,6 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
     _baseDir.copy(_dir);
     const tip = hands.gun.userData.tip;
     if (tip) tip.getWorldPosition(_tip); else hands.gun.getWorldPosition(_tip);
-    // Operator: Tempest — this shot is a one-hit lightning bolt.
     let dmgOverride = null;
     if (S.opActive && S.operator === 'tempest') {
       dmgOverride = 999; S.opActive = false;
@@ -499,7 +425,6 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
       S.opShots -= 1;
       if (S.opShots <= 0) S.opActive = false;
     }
-    // Melee (v18.5.5): arc check vs bot meshes (2.5m, ~35° cone) + swing.
     if (w.melee) {
       meleeSwingT = 0.4;
       if (audio.swish) audio.swish();
@@ -516,7 +441,6 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
       if (best) {
         const bot = resolve ? resolve(best.userData) : S.bots[best.userData.botId];
         if (bot) {
-          // Backstab (v22.1.5): katana from behind the bot = 115 damage.
           let backstab = false;
           if (w.id === 'katana' && bot.yaw != null) {
             const bdx = S.player.x - bot.x, bdz = S.player.z - bot.z;
@@ -531,10 +455,9 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
       }
       return { hit: false, swung: true };
     }
-    // Launchers / crossbow: real flying projectiles, no hitscan.
     if (w.projectile) {
       spawnProjectile(w, _baseDir);
-      if (effects) effects.muzzle(_tip, _baseDir, _cam, 0.7);
+      if (effects) effects.muzzle(_tip, _baseDir, _cam, 1, fxFor(w.id).muzzle);
       if (audio.shot) audio.shot(w.id, S.indoors, S.mythic);
       const p = S.player;
       p.recoilPitch += (0.006 + rng() * 0.004) * (w.recoil || 1) * (S.ads ? 0.6 : 1);
@@ -557,15 +480,12 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
       ray.set(_cam, _dir); ray.far = 120;
       const targets = ray.intersectObjects(hitMeshes.concat(shootables), false);
       const hit = targets[0] || null;
-      // Tempest lightning bolt on the first pellet's hit.
       if (dmgOverride === 999 && hit && pi === 0) showBolt(_cam, hit.point);
       if (hit && (hit.object.userData.botId !== undefined || hit.object.userData.zombieId !== undefined)) {
         const bot = resolve ? resolve(hit.object.userData) : S.bots[hit.object.userData.botId];
         if (!bot) continue;
         const head = hit.object.userData.part === 'head';
         if (!result) result = { hit: true, head, bot, point: hit.point };
-        // Sniper bullet drop (v18.9) + travel time (v24.0.2): the drop and
-        // delay come from the shared state.js helpers, not hardcoded here.
         if (isSniper && hit.distance > 30) {
           const drop = calcBulletDrop(hit.distance, w);
           _dir.y -= drop / hit.distance; _dir.normalize();
@@ -578,15 +498,11 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
           }
           continue;
         }
-        // Per-pellet damage (shotgun / dual pistol) with range falloff.
         const ov = dmgOverride != null ? dmgOverride
           : pellets > 1 ? Math.round(damageAtRange(w.dmg, hit.distance, w.range)) * (head ? w.headMult : 1) : null;
         onHit && onHit(bot, head, w, ov, false, hit.point);
       } else if (hit && pi === 0) {
-        // Wall / prop hit: impact effect by material (+ bullet hole on walls).
         const mat = hit.object.userData.mat || 'wall';
-        // Ricochet (v28.0.4): a grazing hit on metal deflects — spark +
-        // ting, no prop damage, no wallbang.
         let ricochet = false;
         if (mat === 'metal' && hit.face && hit.face.normal) {
           const n = hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
@@ -599,10 +515,7 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
         } else {
           if (mat === 'water' && effects) effects.splash(hit.point);
           else if (effects) effects.impact(hit.point, _dir, mat);
-          // Props (v19.2/v22.3): ANY propType routes to damagePropHit —
-          // not just the old destructible flag.
           if (cbs.onPropHit && (hit.object.userData.destructible || hit.object.userData.propType)) cbs.onPropHit(hit.object, w.dmg, hit.point);
-          // Wallbang: a bot right behind a thin wall takes 50% damage.
           const behind = targets[1];
           if (behind && (behind.object.userData.botId !== undefined || behind.object.userData.zombieId !== undefined)
             && behind.distance - hit.distance < 2) {
@@ -621,14 +534,10 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
         if (!result) result = { hit: true, head: false, bot: null, point: groundPoint };
       }
     }
-    // Muzzle flash + shell casing + tracer on every shot. Muzzle dims after
-    // 50+ shots without a reload (dirty weapon, v18.1.10); 2x on phones
-    // (small screen, v18.4.2). Muzzle scale and tracer color come from the
-    // WEAPON_FX table (v22.1); mythic tracer overrides the table color.
     if (effects) {
       const dirty = (w.shotsSinceReload || 0) > 50 ? 0.5 : 1;
       const fxShot = fxFor(w.id);
-      effects.muzzle(_tip, _baseDir, _cam, dirty * (S.isMobile ? 2 : 1) * (fxShot.muzzle.scale || 1));
+      effects.muzzle(_tip, _baseDir, _cam, dirty * (S.isMobile ? 2 : 1), fxShot.muzzle);
       if (!w.melee) {
         const right = { x: Math.cos(S.player.yaw), y: 0, z: -Math.sin(S.player.yaw) };
         effects.shell(_tip, right);
@@ -636,34 +545,20 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
       const end = result && result.point ? result.point : groundPoint || { x: _cam.x + _baseDir.x * 60, y: _cam.y + _baseDir.y * 60, z: _cam.z + _baseDir.z * 60 };
       effects.tracer(_tip, end, MYTHIC_TRACER[S.mythic] || fxShot.tracer.color || isSniper);
     }
-    // Recoil: the camera kicks up (per-weapon stats × WEAPON_FX recoil up,
-    // v22.1). ADS and prone steady it; rain makes it 10% worse; M4LMG heat
-    // climbs while holding fire. It recovers on its own in player.step.
-    // (Gameplay pass 2026-11-15: the old kick was ~0.008 rad/shot vs 0.09/s
-    // recovery, so sustained fire never climbed — the gun felt dead. Kick
-    // is now ~2x and recovery slower, so a 10-round burst climbs ~3-5°.)
     const p = S.player;
     const rainK = (S.weather === 'rain' || S.weather === 'storm') ? 1.1 : 1;
     const heatK = w.heat ? 1 + Math.min(0.8, (w.heatV || 0) * 0.05) : 1;
     const stanceK = p.prone ? 0.5 : p.crouched ? 0.75 : 1;
     const fxRec = fxFor(w.id);
     p.recoilPitch += (0.012 + rng() * 0.006) * (w.recoil || 1) * (S.ads ? 0.6 : 1) * stanceK * rainK * heatK * (fxRec.recoil.up || 1);
-    // Recoil pattern (v24.0.2): per-weapon sideways drift — AK pulls
-    // right, M4 stays straight, MP5 barely moves. (Gameplay pass: the old
-    // 0.0004 factor made the pattern invisible over a whole magazine.)
     p.yaw += (w.recoilPat ? w.recoilPat.side : 0.2) * 0.004 * (S.ads ? 0.6 : 1);
     hands.kick();
-    // Spread bloom (gameplay pass): +0.005/shot, cap 0.03 (was +0.008,
-    // cap 0.05 — sustained AR fire at 15m hit only ~30% because the cone
-    // grew wider than the target). Snipers bloom more per shot, but their
-    // 1.4s rate lets it clear between shots.
     S.player.spreadBloom = Math.min(0.03, S.player.spreadBloom + (isSniper ? 0.02 : 0.005));
     if (audio.shot) audio.shot(w.id, S.indoors, S.mythic);
     if (w.id === 'dual') setTimeout(() => audio.shot && audio.shot('p12', S.indoors, S.mythic), 60); // second pistol
     return result || { hit: false };
   }
   applyGunsmith();
-  // TEMP debug accessor for the gameplay probe (remove before commit).
   return { cur, ready, reload, inspect, step, fire, stepProjectiles, spread, gun, hands, applyMythic, applyGunsmith, outOfAmmo, isReloading, cancelReload, applyCamo };
 }
 

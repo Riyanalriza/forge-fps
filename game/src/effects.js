@@ -1,12 +1,8 @@
-// Combat effects: blood, muzzle flash, tracers, shells, impacts, decals,
-// blood pools. ONE shared particle pool, updated in the main animate loop —
-// never a setInterval per particle (that leaks and stutters).
 import * as THREE from 'three';
 
 const _v = new THREE.Vector3();
 
 export function createEffects(scene, S, audio) {
-  // ---- Particle pool: blood, sparks, dust, splinters (small reused meshes) ----
   const P_COUNT = 140;
   const pGeo = new THREE.SphereGeometry(0.045, 6, 6);
   const particles = [];
@@ -25,7 +21,6 @@ export function createEffects(scene, S, audio) {
     p.grav = grav; p.stain = stain;
     p.mesh.visible = true; p.mesh.material.opacity = 1;
   }
-  // ---- Decal pool: bullet holes + blood stains (flat circles on surfaces) ----
   const D_COUNT = 28;
   const dGeo = new THREE.CircleGeometry(0.09, 10);
   const decals = [];
@@ -43,7 +38,6 @@ export function createEffects(scene, S, audio) {
     d.mesh.scale.setScalar(size);
     d.life = life; d.mesh.visible = true; d.mesh.material.opacity = 0.9;
   }
-  // ---- Blood pools: flat dark-red circles on the floor that grow, fade in 10s ----
   const pools = [];
   for (let i = 0; i < 8; i++) {
     const m = new THREE.Mesh(new THREE.CircleGeometry(0.5, 16),
@@ -52,7 +46,6 @@ export function createEffects(scene, S, audio) {
     pools.push({ mesh: m, life: 0, maxR: 0.6, big: false });
   }
   let poolIdx = 0;
-  // ---- Tracer pool: glowing lines from the muzzle to the hit ----
   const tracers = [];
   const tubeGeo = new THREE.CylinderGeometry(0.02, 0.02, 1, 6); // thinner: 0.035 read as a laser
   for (let i = 0; i < 8; i++) {
@@ -60,15 +53,12 @@ export function createEffects(scene, S, audio) {
     g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
     const l = new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0xffdd55, transparent: true, opacity: 0 }));
     l.visible = false; l.frustumCulled = false; scene.add(l);
-    // Tube: a real 3D tracer the line alone can't give (WebGL ignores line
-    // width), so the shot reads as a bright streak from every angle.
     const tube = new THREE.Mesh(tubeGeo,
       new THREE.MeshBasicMaterial({ color: 0xffdd55, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
     tube.visible = false; tube.frustumCulled = false; scene.add(tube);
     tracers.push({ line: l, tube, life: 0 });
   }
   let trIdx = 0;
-  // ---- Shell pool: brass casings with gravity + spin, ting on first bounce ----
   const shells = [];
   const shellGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.07, 6);
   for (let i = 0; i < 10; i++) {
@@ -77,16 +67,10 @@ export function createEffects(scene, S, audio) {
     shells.push({ mesh: m, life: 0, vx: 0, vy: 0, vz: 0, rx: 0, rz: 0, bounced: false });
   }
   let shIdx = 0;
-  // ---- Muzzle flash: bright plane + 3D point light + growing smoke puff ----
-  // (Gameplay pass 2026-11-15: the flash was a flat solid-yellow square
-  // (plain MeshBasicMaterial, no texture). It now uses a procedural
-  // starburst texture — white-hot core, orange spikes, transparent
-  // edges — so it reads as a flame burst, not a yellow card.)
   function makeFlashTexture() {
     const c = document.createElement('canvas'); c.width = c.height = 128;
     const g = c.getContext('2d');
     const cx = 64, cy = 64;
-    // Spikes: 6 elongated flame tongues radiating from the centre.
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * Math.PI * 2 + (i % 2 ? 0.35 : -0.2);
       const len = 58 - (i % 3) * 10;
@@ -102,7 +86,6 @@ export function createEffects(scene, S, audio) {
       g.lineTo(len, Math.sin(wdt) * len * 0.5);
       g.closePath(); g.fill(); g.restore();
     }
-    // Hot core: white centre fading to yellow, then transparent.
     const core = g.createRadialGradient(cx, cy, 0, cx, cy, 42);
     core.addColorStop(0, 'rgba(255,255,240,1)');
     core.addColorStop(0.35, 'rgba(255,220,120,0.9)');
@@ -118,10 +101,9 @@ export function createEffects(scene, S, audio) {
   const flashLight = new THREE.PointLight(0xffaa33, 0, 6);
   scene.add(flashLight);
   let flashT = 0;
-  // ---- Soft smoke: radial-gradient sprite (dense core fading to
-  // transparent, NO outline) — reads as a real cloud, not hard balls.
-  // One shared texture; each sprite gets its own material so opacities
-  // fade independently.
+  let flashDur = 0.08;
+  let flashLightPeak = 0;
+  const FLASH_DEFAULT = { color: 0xffcc66, scale: 1, dur: 0.08, shape: 'burst' };
   function makeSmokeTexture() {
     const cv = document.createElement('canvas'); cv.width = cv.height = 128;
     const g = cv.getContext('2d');
@@ -141,7 +123,6 @@ export function createEffects(scene, S, audio) {
     smokes.push({ sprite: m, life: 0, maxLife: 0.9, vx: 0, vy: 0, vz: 0, size: 1, grow: 1, baseOp: 0.35 });
   }
   let smIdx = 0;
-  // ---- Blood on clothes: red decals parented to the bot's body mesh ----
   const clothBlood = [];
   let shakeT = 0;
 
@@ -150,7 +131,6 @@ export function createEffects(scene, S, audio) {
     const n = head ? 30 : 20;
     for (let i = 0; i < n; i++) {
       const sp = 1.5 + Math.random() * 3.5;
-      // Spray mostly along the bullet direction, with spread.
       const vx = dir.x * sp + (Math.random() - 0.5) * 2.2;
       const vy = dir.y * sp + Math.random() * 1.6 + 0.4;
       const vz = dir.z * sp + (Math.random() - 0.5) * 2.2;
@@ -167,7 +147,6 @@ export function createEffects(scene, S, audio) {
     p.maxR = big ? 1.1 : 0.65;
     p.big = big; p.life = 10;
     p.mesh.visible = true; p.mesh.material.opacity = 0.85;
-    // 5 small stains around the pool.
     for (let i = 0; i < 5; i++) {
       const a = Math.random() * Math.PI * 2, r = 0.5 + Math.random() * 0.7;
       decal(x + Math.cos(a) * r, 0.025, z + Math.sin(a) * r, 0, 1, 0, 0x550000, 0.4 + Math.random() * 0.5, 10);
@@ -180,7 +159,6 @@ export function createEffects(scene, S, audio) {
     const m = new THREE.Mesh(dGeo, new THREE.MeshBasicMaterial({ color: 0x880000, transparent: true, opacity: 0.95, depthWrite: false }));
     const local = body.worldToLocal(_v.copy(point).clone());
     m.position.copy(local);
-    // Face outward from the body (roughly toward the hit direction).
     m.lookAt(local.x * 2, local.y, local.z * 2);
     m.scale.setScalar(1.6);
     m.renderOrder = 3;
@@ -196,21 +174,36 @@ export function createEffects(scene, S, audio) {
     }
     shakeT = Math.max(shakeT, 0.35);
   }
-  function muzzle(tip, dir, camPos, scale = 1) {
+  function muzzle(tip, dir, camPos, scale = 1, fx = null) {
     if (S.settings && S.settings.graphics && S.settings.graphics.muzzle === false) return;
+    const f = fx || FLASH_DEFAULT;
+    if (f.shape === 'none' || (f.scale || 0) <= 0) return;
+    const s = (f.scale || 1) * scale;
+    const j = 0.8 + Math.random() * 0.4;
     flash.position.copy(tip);
     flash.lookAt(camPos);
-    flash.visible = true; flashT = 0.08;
+    flash.rotateZ(Math.random() * Math.PI);
+    flash.visible = true;
+    flashT = f.dur || 0.08; flashDur = flashT;
     flash.material.opacity = 1;
-    flash.scale.setScalar((0.8 + Math.random() * 0.4) * scale);
+    flash.material.color.set(f.color || 0xffcc66);
+    if (f.shape === 'wide') flash.scale.set(s * 1.6 * j, s * 0.7 * j, 1);
+    else if (f.shape === 'long') flash.scale.set(s * 0.85 * j, s * 1.6 * j, 1);
+    else if (f.shape === 'blast') flash.scale.setScalar(s * 1.3 * j);
+    else flash.scale.setScalar(s * j);
     flashLight.position.copy(tip).addScaledVector(dir, 0.4);
-    flashLight.intensity = 3 * scale;
-    // Muzzle smoke lingers ~2s (v18.2.3): grows and fades slowly.
-    const s = smokes[smIdx]; smIdx = (smIdx + 1) % smokes.length;
-    s.sprite.position.copy(tip);
-    s.vx = dir.x * 0.6; s.vy = 0.4; s.vz = dir.z * 0.6;
-    s.life = 2.0; s.maxLife = 2.0; s.size = 0.5; s.grow = 0.6; s.baseOp = 0.3;
-    s.sprite.visible = true; s.sprite.material.opacity = 0.3; s.sprite.scale.set(0.5, 0.5, 1);
+    flashLight.color.set(f.color || 0xffcc66);
+    flashLight.distance = f.shape === 'blast' ? 10 + s * 2 : f.shape === 'long' ? 8 + s * 2 : 6 + s;
+    flashLightPeak = f.shape === 'blast' ? 5 * s : f.shape === 'long' ? 4.5 * s : (f.shape === 'small' || f.shape === 'puff') ? 2 * s : 3 * s;
+    flashLight.intensity = f.shape === 'puff' ? 0 : flashLightPeak;
+    const sm = smokes[smIdx]; smIdx = (smIdx + 1) % smokes.length;
+    sm.sprite.position.copy(tip);
+    sm.vx = dir.x * 0.6; sm.vy = 0.4; sm.vz = dir.z * 0.6;
+    sm.life = f.shape === 'puff' ? 0.6 : 2.0; sm.maxLife = sm.life;
+    sm.size = f.shape === 'blast' ? 0.8 : f.shape === 'puff' ? 0.25 : 0.5;
+    sm.grow = f.shape === 'blast' ? 0.9 : 0.6;
+    sm.baseOp = f.shape === 'puff' ? 0.15 : 0.3;
+    sm.sprite.visible = true; sm.sprite.material.opacity = sm.baseOp; sm.sprite.scale.set(sm.size, sm.size, 1);
   }
   function tracer(from, to, sniper) {
     const t = tracers[trIdx]; trIdx = (trIdx + 1) % tracers.length;
@@ -218,12 +211,9 @@ export function createEffects(scene, S, audio) {
     pos[0] = from.x; pos[1] = from.y; pos[2] = from.z;
     pos[3] = to.x; pos[4] = to.y; pos[5] = to.z;
     t.line.geometry.attributes.position.needsUpdate = true;
-    // sniper = cyan, anything else = yellow; a color value/string (e.g. enemy
-    // red 0xff2222) is used as-is.
     const col = typeof sniper === 'number' || typeof sniper === 'string' ? sniper : (sniper ? 0x55ddff : 0xffdd55);
     t.line.material.color.set(col);
     t.line.visible = true; t.line.material.opacity = 0.85; t.life = 0.13;
-    // Tube: midpoint + length + orientation from the same endpoints.
     const dx = to.x - from.x, dy = to.y - from.y, dz = to.z - from.z;
     const len = Math.hypot(dx, dy, dz) || 0.001;
     t.tube.position.set((from.x + to.x) / 2, (from.y + to.y) / 2, (from.z + to.z) / 2);
@@ -274,7 +264,6 @@ export function createEffects(scene, S, audio) {
         -dir.x, -dir.y, -dir.z, 0x0a0a0a, 1, 10);
     }
   }
-  // ---- Explosion HD: fireball + point light + fire particles (pool) ----
   const fireball = new THREE.Mesh(new THREE.SphereGeometry(0.5, 12, 10),
     new THREE.MeshBasicMaterial({ color: 0xff7a1a, transparent: true, opacity: 0 }));
   fireball.visible = false; scene.add(fireball);
@@ -282,7 +271,6 @@ export function createEffects(scene, S, audio) {
   scene.add(boomLight);
   let fireballT = 0, fireballMax = 1;
   function explosion(point, big) {
-    // 20 fire particles (30 when big), reused from the shared pool.
     const n = big ? 30 : 20;
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2, r = 1 + Math.random() * 3;
@@ -291,14 +279,12 @@ export function createEffects(scene, S, audio) {
         [0xffcc22, 0xff7a1a, 0xff3300, 0xffdd55][i % 4],
         0.5 + Math.random() * 0.5, 4, 1.2 + Math.random() * 0.9, false);
     }
-    // Fireball: grows then fades over ~0.5s.
     fireball.position.set(point.x, point.y + 0.4, point.z);
     fireball.scale.setScalar(big ? 2.4 : 1.5);
     fireball.visible = true; fireball.material.opacity = 0.95;
     fireballT = 0.5; fireballMax = big ? 2.4 : 1.5;
     boomLight.position.set(point.x, point.y + 1, point.z);
     boomLight.intensity = big ? 12 : 8;
-    // 3 smoke puffs rising from the blast.
     for (let i = 0; i < 3; i++) {
       const s = smokes[smIdx]; smIdx = (smIdx + 1) % smokes.length;
       s.sprite.position.set(point.x + (Math.random() - 0.5), point.y + 0.5, point.z + (Math.random() - 0.5));
@@ -309,7 +295,6 @@ export function createEffects(scene, S, audio) {
     shakeT = Math.max(shakeT, big ? 0.6 : 0.4);
     if (audio.explosion) audio.explosion(point.x, point.y, point.z);
   }
-  // ---- Water splash: blue-white droplets + an expanding ripple ring ----
   const ripples = [];
   for (let i = 0; i < 3; i++) {
     const m = new THREE.Mesh(new THREE.RingGeometry(0.28, 0.36, 24),
@@ -329,7 +314,6 @@ export function createEffects(scene, S, audio) {
     r.mesh.scale.setScalar(0.5); r.life = 0.8; r.mesh.visible = true; r.mesh.material.opacity = 0.8;
     if (audio.splash) audio.splash(point.x, point.y, point.z);
   }
-  // ---- Glass shatter: clear-white shards bursting outward ----
   function glass(point) {
     for (let i = 0; i < 12; i++) {
       spawn(point.x, point.y, point.z,
@@ -338,11 +322,9 @@ export function createEffects(scene, S, audio) {
     }
     if (audio.glass) audio.glass(point.x, point.y, point.z);
   }
-  // ---- Blood trail drop (low HP while running): small stain, 8s ----
   function trailDrop(x, z) {
     decal(x + (Math.random() - 0.5) * 0.3, 0.025, z + (Math.random() - 0.5) * 0.3, 0, 1, 0, 0x770000, 0.35 + Math.random() * 0.25, 8);
   }
-  // ---- Dust at the feet: desert walking (3) / slide (6) ----
   function footDust(x, z) {
     for (let i = 0; i < 3; i++) {
       spawn(x + (Math.random() - 0.5) * 0.4, 0.08, z + (Math.random() - 0.5) * 0.4,
@@ -357,7 +339,6 @@ export function createEffects(scene, S, audio) {
         0xb8a070, 0.5 + Math.random() * 0.4, 2, 1.3);
     }
   }
-  // ---- Footprint in the sand (Ember Market): dark print, 10s ----
   function footprint(x, z, yaw) {
     const d = decals[dIdx]; dIdx = (dIdx + 1) % decals.length;
     d.mesh.position.set(x, 0.025, z);
@@ -366,7 +347,6 @@ export function createEffects(scene, S, audio) {
     d.mesh.scale.set(0.5, 1, 1);
     d.life = 10; d.mesh.visible = true; d.mesh.material.opacity = 0.55;
   }
-  // ---- One smoke puff (car smoking, explosions) ----
   function smokePuff(x, y, z) {
     const s = smokes[smIdx]; smIdx = (smIdx + 1) % smokes.length;
     s.sprite.position.set(x, y, z);
@@ -374,8 +354,6 @@ export function createEffects(scene, S, audio) {
     s.life = 1.4; s.maxLife = 1.4; s.size = 1.2; s.grow = 1.0; s.baseOp = 0.4;
     s.sprite.visible = true; s.sprite.material.opacity = 0.4; s.sprite.scale.set(1.2, 1.2, 1);
   }
-  // ---- Tire track (v18.9.11): dark rectangle decal behind a driven
-  // vehicle, 10s life, from the decal pool ----
   function tireTrack(x, z, yaw) {
     const d = decals[dIdx]; dIdx = (dIdx + 1) % decals.length;
     d.mesh.position.set(x, 0.022, z);
@@ -384,7 +362,6 @@ export function createEffects(scene, S, audio) {
     d.mesh.scale.set(0.35, 1.4, 1);
     d.life = 10; d.mesh.visible = true; d.mesh.material.opacity = 0.5;
   }
-  // ---- Water drip (wet player): one blue droplet falling from the gun ----
   function drip(x, y, z) {
     spawn(x, y, z, (Math.random() - 0.5) * 0.2, -0.5, (Math.random() - 0.5) * 0.2, 0x7fb8ff, 0.7, 9, 0.7);
   }
@@ -436,8 +413,6 @@ export function createEffects(scene, S, audio) {
         s.mesh.position.y = 0.04;
         if (!s.bounced) {
           s.bounced = true; s.vy = Math.abs(s.vy) * 0.3; s.vx *= 0.5; s.vz *= 0.5;
-          // Shell bounce pitch follows the floor (v18.2.4): wood 800 Hz,
-          // metal/concrete 2500 Hz, sand almost silent.
           if (audio.shellTing) {
             const surf = S.surface || 'concrete';
             if (surf !== 'sand') audio.shellTing(surf === 'wood' ? 800 : 2500);
@@ -457,11 +432,11 @@ export function createEffects(scene, S, audio) {
     }
     if (flashT > 0) {
       flashT -= dt;
-      flash.material.opacity = Math.max(0, flashT / 0.06);
-      flashLight.intensity = Math.max(0, flashT / 0.06) * 4;
+      const fk = Math.max(0, flashT / (flashDur || 0.08));
+      flash.material.opacity = fk;
+      flashLight.intensity = fk * flashLightPeak;
       if (flashT <= 0) { flash.visible = false; flashLight.intensity = 0; }
     }
-    // Explosion fireball grows then fades; its light decays with it.
     if (fireballT > 0) {
       fireballT -= dt;
       const f = Math.max(0, fireballT / 0.5);
@@ -476,7 +451,6 @@ export function createEffects(scene, S, audio) {
       if (c.life <= 0) { c.parent.remove(c.mesh); clothBlood.splice(i, 1); }
       else if (c.life < 1) c.mesh.material.opacity = 0.95 * c.life;
     }
-    // Water ripples grow and fade.
     for (const r of ripples) {
       if (r.life <= 0) continue;
       r.life -= dt;
@@ -491,16 +465,9 @@ export function createEffects(scene, S, audio) {
     muzzle, tracer, shell, impact, explosion, step,
     glass, trailDrop, footDust, slideDust, footprint, smokePuff, splash, drip, tireTrack,
     shakeAmp() { return Math.max(0, shakeT) * 0.12; },
-    // v27.0: explicit screen shake (quake / nearby blast).
     shake(t) { shakeT = Math.max(shakeT, t || 0.4); },
-    // v27.0: haptic helper — navigator.vibrate, guarded (desktop: no-op).
     vibrate(ms) { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} },
-    // v27.0: slow-mo — sets the shared time scale; main.js frame
-    // multiplies dt by S.timeScale while S.timeScaleT > 0.
     slowMotion(factor, dur) { S.timeScale = factor; S.timeScaleT = dur || 1; },
-    // v27.0.1: ONE effect dispatcher — every named effect routes to the
-    // system that already exists; the small new ones are cheap overlays
-    // driven by S fields (main.js frame applies the CSS classes).
     playEffect(name, pos) {
       const p = pos || { x: 0, y: 1, z: 0 };
       if (name === 'explosion') explosion(p, true);
@@ -517,7 +484,6 @@ export function createEffects(scene, S, audio) {
       else if (name === 'glass') glass(p);
       return name;
     },
-    // Active counts, for the scripted self-test only.
     debugCounts() {
       return {
         particles: particles.filter(p => p.life > 0).length,
@@ -525,6 +491,9 @@ export function createEffects(scene, S, audio) {
         pools: pools.filter(p => p.life > 0).length,
         tracers: tracers.filter(t => t.life > 0).length,
       };
+    },
+    lastFlash() {
+      return { visible: flash.visible, color: flash.material.color.getHex(), scaleX: flash.scale.x, scaleY: flash.scale.y, dur: flashDur, left: Math.max(0, flashT), light: flashLight.intensity, lightColor: flashLight.color.getHex(), lightDist: flashLight.distance };
     },
   };
 }
