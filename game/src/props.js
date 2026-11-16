@@ -685,6 +685,39 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
       solid(x + pxw - (rot ? d * 0.4 : 0.5), z + pxd - (rot ? 0.5 : d * 0.4),
         x + pxw + (rot ? d * 0.4 : 0.5), z + pxd + (rot ? 0.5 : d * 0.4), 0, 2.5);
     }
+    // Walkable deck (v27.2): before this the bridge was scenery you could
+    // never stand on — a deck at y=2.75 with no floor slab and no way up.
+    // The deck top is a real floor at y=3, reached by a step ramp at each
+    // end (5 m run, 3 m rise, 4 m wide). Levels/stairs are registered here
+    // so props.clear() removes them on the next map build, like the houses.
+    const deckY = 3;
+    const toWorld = (lx, lz) => {
+      const c = Math.cos(rot), s = Math.sin(rot);
+      return { x: x + lx * c + lz * s, z: z - lx * s + lz * c };
+    };
+    const c1 = toWorld(-w / 2 + 0.2, -d / 2 + 0.2), c2 = toWorld(w / 2 - 0.2, d / 2 - 0.2);
+    const lv = { x0: Math.min(c1.x, c2.x), z0: Math.min(c1.z, c2.z), x1: Math.max(c1.x, c2.x), z1: Math.max(c1.z, c2.z), y: deckY };
+    levels.push(lv); propLevels.push(lv);
+    for (const sgn of [-1, 1]) {
+      // Ramp ends in local coords: high end at the deck edge, low end 5 m out.
+      const la = sgn * (w / 2), lb = sgn * (w / 2 + 5);
+      const wa = toWorld(la, 0), wb = toWorld(lb, 0);
+      const alongX = Math.abs(wa.x - wb.x) > Math.abs(wa.z - wb.z);
+      const st = {
+        x0: Math.min(wa.x, wb.x) - (alongX ? 0 : 2), z0: Math.min(wa.z, wb.z) - (alongX ? 2 : 0),
+        x1: Math.max(wa.x, wb.x) + (alongX ? 0 : 2), z1: Math.max(wa.z, wb.z) + (alongX ? 2 : 0),
+        ax: wb.x, az: wb.z, bx: wa.x, bz: wa.z, y0: 0, y1: deckY,
+      };
+      stairs.push(st); propStairs.push(st);
+      // Visual steps (local coords, in the bridge group): 6 boxes, each
+      // 5/6 m long, rising 0.5 m per step — same pattern as house stairs.
+      for (let i = 0; i < 6; i++) {
+        const h = deckY * (i + 1) / 6;
+        const lx = lb + (la - lb) * (i + 0.5) / 6;
+        const step = box(5 / 6, h, 4, 0x4a5058);
+        step.position.set(lx, h / 2, 0); g.add(step);
+      }
+    }
     return g;
   }
   function addStreetlight(x, z) {

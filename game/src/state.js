@@ -99,7 +99,7 @@ export const STREAK_DEFS = [
 ];
 
 export const MODE_DEFS = {
-  snd: { name: 'Search & Destroy', desc: 'Plant the charge at Furnace or Crane Yard, defend it until it blows — or clear every hostile.', timer: 100, target: 3 },
+  snd: { name: 'Search & Destroy', desc: 'Plant the charge at a bomb site, defend it until it blows — or clear every hostile.', timer: 100, target: 3 },
   tdm: { name: 'Team Deathmatch', desc: 'First to 15 kills wins. Bots respawn; so do you.', timer: 300, target: 15 },
   dom: { name: 'Domination', desc: 'Hold zones A / B / C. Each held zone scores 1 point per second. First to 100 wins.', timer: 300, target: 100 },
   br: { name: 'Battle Royale Mini', desc: 'The zone shrinks. Stay inside it and be the last one standing.', timer: 180, target: 5 },

@@ -1,7 +1,7 @@
 // Scripted self-test of the v2 systems. Runs only under ?shot=test.
 // The game context (state, systems, helpers) is passed in from main.js.
 import { EMOTE_DEFS, WHEEL_PRESETS, FINISHER_DEFS, OPERATOR_DEFS } from './state.js';
-import { MAP_IDS } from './maps.js';
+import { MAP_IDS, MAP_DEFS } from './maps.js';
 import { getDaily, dailyEmoteXp } from './daily.js';
 import { createBotModel, BOT_SKINS, BOT_WEAPONS, CHAR_OPERATORS, CHAR_SKINS, killerInfo } from './characters.js';
 import { WEATHER_DEFS, MAP_WEATHER, MAP_WEATHER_FULL } from './weather.js';
@@ -541,6 +541,65 @@ export function runSelfTest(ctx) {
     check('No arc when the round is over',
       game.startGrenadeAim() === false && game.aimState().aiming === false);
     S.phase = 'playing';
+    // 39. Map variety (v27.2): every map has its own site positions and
+    // names, holder spawns + site rings are walkable, and both bridges
+    // can be walked across (deck y=3 via the step ramps).
+    S.mode = 'tdm';
+    const seenSites = new Set();
+    for (const id of MAP_IDS) {
+      world.buildMap(id);
+      const def = MAP_DEFS[id];
+      check(`Map ${id} has per-map sites`, !!def.sites && !!def.sites.A && !!def.sites.B && !!def.sites.C);
+      for (const k of ['A', 'B', 'C']) {
+        const s = world.sites[k], d = def.sites[k];
+        check(`Map ${id} site ${k} = ${d.name}`, s.name === d.name && s.x === d.x && s.z === d.z);
+        check(`Map ${id} site ${k} in bounds`, s.x > -39 && s.x < 39 && s.z > -27 && s.z < 27);
+        // Ring walkable: at least 5 of 8 sample points at 0.6r are clear
+        // (house walls may clip a corner of a ring; the rest stays open).
+        let clear = 0;
+        for (let a = 0; a < 8; a++) {
+          const px = s.x + Math.cos(a * Math.PI / 4) * s.r * 0.6, pz = s.z + Math.sin(a * Math.PI / 4) * s.r * 0.6;
+          if (!world.isColliding(px, pz, 0.35, 0)) clear += 1;
+        }
+        check(`Map ${id} site ${k} ring walkable`, clear >= 5);
+        seenSites.add(`${k}:${s.name}@${s.x},${s.z}`);
+      }
+      const hA = world.sites.A, hB = world.sites.B;
+      check(`Map ${id} holder A spawn clear`, !world.isColliding(hA.x + 3, hA.z + 3, 0.35, 0));
+      check(`Map ${id} holder B spawn clear`, !world.isColliding(hB.x - 3, hB.z + 3, 0.35, 0));
+      if (id !== 'foundry') {
+        check(`Map ${id} site A name is not Furnace`, world.sites.A.name !== 'Furnace');
+        check(`Map ${id} site B name is not Crane Yard`, world.sites.B.name !== 'Crane Yard');
+      }
+    }
+    check('Site positions differ across maps', seenSites.size === 21);
+    // Bridges: deck floor at y=3, ramp mid-height ~1.5, and a real walk
+    // across the deck (sprint + W, same step pattern as §18).
+    const walkBridge = (mapId, sx, sz, yaw, steps) => {
+      world.buildMap(mapId);
+      game.startRound();
+      S.bots.forEach((b, i) => { b.x = 24; b.z = 24 - i * 2; b.state = 'hold'; });
+      bots.syncMeshes();
+      const p = S.player;
+      p.x = sx; p.z = sz; p.yaw = yaw; p.y = 0; p.vx = 0; p.vz = 0; p.onGround = true;
+      p.hp = 9999; S.spawnProtT = 0; S.stamina = 100; S.windT = 0;
+      let maxY = 0;
+      for (let i = 0; i < steps; i++) {
+        player.step(FIXED_STEP, new Set(['ShiftLeft', 'KeyW']), false);
+        if (p.y > maxY) maxY = p.y;
+      }
+      return { p, maxY };
+    };
+    check('Iron bridge deck groundY is 3', (() => { world.buildMap('iron'); return Math.abs(world.groundY(0, 0, 3) - 3) < 0.01; })());
+    check('Iron bridge west ramp mid-height ~1.5', (() => { world.buildMap('iron'); return Math.abs(world.groundY(-20.5, 0, 1.5) - 1.5) < 0.05; })());
+    check('Ruin bridge deck groundY is 3', (() => { world.buildMap('ruin'); return Math.abs(world.groundY(24, 0, 3) - 3) < 0.01; })());
+    check('Ruin bridge north ramp mid-height ~1.5', (() => { world.buildMap('ruin'); return Math.abs(world.groundY(24, -12.5, 1.5) - 1.5) < 0.05; })());
+    const wb1 = walkBridge('iron', -24, 0, -Math.PI / 2, 240);
+    check('Player walks up the Iron bridge onto the deck', wb1.maxY > 2.5 && wb1.p.x > -10);
+    const wb2 = walkBridge('ruin', 24, 20, 0, 240);
+    check('Player walks up the Ruin bridge onto the deck', wb2.maxY > 2.5 && wb2.p.z < 5);
+    world.buildMap('foundry');
+    game.startRound();
   } catch (e) {
     checks.push({ name: 'exception: ' + (e && e.message) + ' @ ' + (e && e.stack ? String(e.stack).split('\n').slice(0, 4).join(' | ') : '?'), ok: false });
   }

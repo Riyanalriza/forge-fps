@@ -1,7 +1,8 @@
 // Map layouts — all original names and original geometry. The layout shapes
 // take inspiration from classic FPS maps but every map here is built from
-// scratch with its own name, props and lanes. Sites A/B/C and the yard size
-// (80x56) are shared so every mode works on every map.
+// scratch with its own name, props and lanes. Sites A/B/C keep the same
+// roles (and the yard size 80x56) so every mode works on every map, but
+// each map now has its own site positions and names.
 
 const DEFAULT_SPAWNS = {
   player: { x: 0, z: 24, yaw: 0 },
@@ -28,6 +29,11 @@ export const MAP_DEFS = {
   foundry: {
     id: 'foundry', name: 'Foundry Yard', emoji: '🏭',
     desc: 'Industrial yard — furnace, containers, crane. The original map.',
+    sites: {
+      A: { name: 'Furnace', x: -27, z: -19, color: 0xf0a830 },
+      B: { name: 'Crane Yard', x: 27, z: -19, color: 0x37c8d8 },
+      C: { name: 'Mid Yard', x: 0, z: 6, color: 0x7ddc7d },
+    },
     ground: 0xffffff, fog: 0x2e241a,
     waypoints: [
       { x: -30, z: -8 }, { x: -30, z: 8 }, { x: -12, z: 14 }, { x: 0, z: 6 },
@@ -105,12 +111,18 @@ export const MAP_DEFS = {
   ember: {
     id: 'ember', name: 'Ember Market', emoji: '🏜️',
     desc: 'Desert market town — sandstone houses, stalls, palms.',
+    sites: {
+      A: { name: 'Spice Row', x: -24, z: -21, color: 0xf0a830 },
+      B: { name: 'Tent Row', x: 22, z: -20, color: 0x37c8d8 },
+      C: { name: 'Oasis Court', x: 2, z: 12, color: 0x7ddc7d },
+    },
     ground: 0xd8b98a, fog: 0x8a6a4a,
     waypoints: [
       { x: -30, z: -2 }, { x: -30, z: 6 }, { x: -12, z: 14 }, { x: 0, z: 6 },
       { x: 12, z: 14 }, { x: 30, z: 6 }, { x: 30, z: -2 }, { x: 14, z: -8 },
       { x: -14, z: -8 }, { x: 0, z: -12 }, { x: -20, z: 20 }, { x: 20, z: 20 },
       { x: 0, z: 20 }, { x: -6, z: -20 }, { x: 6, z: -20 },
+      { x: -24, z: -21 }, { x: 22, z: -20 }, { x: 2, z: 12 },
     ],
     spawns: NORTH_HOUSE_SPAWNS,
     build(api) {
@@ -124,14 +136,14 @@ export const MAP_DEFS = {
         api.addBox(x, z, 2.4, 1, 1.2, 0x7a5c38);
         api.addCrate(x + 2, z + 1, 1.2);
       }
-      api.addContainer(-20, 2, 6, 2.5, 0x8a2a2a);
-      api.addContainer(20, -10, 2.5, 6, 0x5a7a3a);
-      api.addContainer(10, 12, 6, 2.5, 0x2e6f6a);
-      api.addContainer(-14, 20, 6, 2.5, 0x2a5a8a);
-      scatterCrates(api, [[-12, 8], [12, 6], [0, 14], [-4, -12], [24, 12], [-24, -2]]);
+      api.addContainer(-20, 2, 6, 2.5, 0xb89a6a);
+      api.addContainer(20, -10, 2.5, 6, 0x8a6a3a);
+      api.addContainer(10, 12, 6, 2.5, 0xa85a2a);
+      api.addContainer(-14, 20, 6, 2.5, 0x7a5a3a);
+      scatterCrates(api, [[-12, 8], [12, 6], [0, 17], [-4, -12], [24, 12], [-24, -2]]);
       scatterBarrels(api, [[-16, 4], [16, -6], [26, 2], [-30, 2], [8, 18], [-6, 18]]);
-      api.addSandbag(-23, -14); api.addSandbag(23, -14);
-      api.addSandbag(-2, 10); api.addSandbag(2, 10);
+      api.addSandbag(-18, -17); api.addSandbag(15, -17);
+      api.addSandbag(-6, 16); api.addSandbag(6, 16);
       api.addTree(-36, 0); api.addTree(36, 0); api.addTree(-36, 24);
       api.addTree(36, 24); api.addTree(-20, 22); api.addTree(20, 22);
       api.addTower(34, -24, 12);
@@ -162,12 +174,18 @@ export const MAP_DEFS = {
   twin: {
     id: 'twin', name: 'Twin Court', emoji: '🏠',
     desc: 'Two houses face each other across a yellow bus.',
+    sites: {
+      A: { name: 'Garden Gate', x: -24, z: -17, color: 0xf0a830 },
+      B: { name: 'Driveway', x: 24, z: -20, color: 0x37c8d8 },
+      C: { name: 'Bus Stop', x: 0, z: 10, color: 0x7ddc7d },
+    },
     ground: 0xe8dcc8, fog: 0x8a7a6a,
     waypoints: [
       { x: -30, z: -8 }, { x: -30, z: 8 }, { x: -12, z: 14 }, { x: 0, z: 6 },
       { x: 12, z: 14 }, { x: 30, z: 8 }, { x: 30, z: -8 }, { x: 14, z: -8 },
       { x: -14, z: -8 }, { x: 0, z: -14 }, { x: -24, z: 20 }, { x: 24, z: 20 },
       { x: 0, z: 20 }, { x: -24, z: -20 }, { x: 24, z: -20 },
+      { x: -24, z: -17 }, { x: 24, z: -20 }, { x: 0, z: 10 },
     ],
     spawns: DEFAULT_SPAWNS,
     build(api) {
@@ -176,12 +194,12 @@ export const MAP_DEFS = {
       api.addBus(0, 2, 0, 0xe8b800);
       api.addCar(-8, 12, 0, 0x7a2a2a); api.addCar(8, -8, Math.PI / 2, 0x2a4a7a);
       api.addCar(0, -14, Math.PI / 2, 0x8a8a2a);
-      api.addContainer(-20, 2, 6, 2.5, 0x8a2a2a);
-      api.addContainer(20, -10, 2.5, 6, 0x5a7a3a);
-      scatterCrates(api, [[-12, 8], [12, 6], [0, 14], [-4, -12], [24, 12], [-24, -2], [-16, -8], [16, 8]]);
+      api.addContainer(-20, 2, 6, 2.5, 0x7a8ab8);
+      api.addContainer(20, -10, 2.5, 6, 0xb8a87a);
+      scatterCrates(api, [[-12, 8], [12, 6], [-2, 15], [-4, -12], [24, 12], [-24, -2], [-16, -8], [16, 8]]);
       scatterBarrels(api, [[-16, 4], [16, -6], [26, 2], [-30, 2], [8, 18], [-6, 18]]);
-      api.addSandbag(-23, -14); api.addSandbag(23, -14);
-      api.addSandbag(-2, 10); api.addSandbag(2, 10);
+      api.addSandbag(-17, -14); api.addSandbag(20, -16);
+      api.addSandbag(-8, 14); api.addSandbag(10, 12);
       api.addTree(-36, 0); api.addTree(36, 0); api.addTree(-36, 24); api.addTree(36, 24);
       api.addTree(-36, -24); api.addTree(36, -24);
       api.addTower(34, 22, 12);
@@ -208,12 +226,18 @@ export const MAP_DEFS = {
   iron: {
     id: 'iron', name: 'Iron Crossing', emoji: '🌉',
     desc: 'City streets under a highway overpass.',
+    sites: {
+      A: { name: 'Neon Alley', x: -25, z: -19, color: 0xf0a830 },
+      B: { name: 'Plaza', x: 25, z: -17, color: 0x37c8d8 },
+      C: { name: 'Crosswalk', x: 0, z: 9, color: 0x7ddc7d },
+    },
     ground: 0xb8b8c0, fog: 0x6a6a7a,
     waypoints: [
       { x: -30, z: -8 }, { x: -14, z: -8 }, { x: 0, z: -8 }, { x: 14, z: -8 }, { x: 30, z: -8 },
       { x: -30, z: 8 }, { x: -14, z: 8 }, { x: 0, z: 8 }, { x: 14, z: 8 }, { x: 30, z: 8 },
       { x: 0, z: -16 }, { x: 0, z: 16 }, { x: -20, z: 20 }, { x: 20, z: 20 },
       { x: -8, z: -22 }, { x: 8, z: -22 },
+      { x: -25, z: -19 }, { x: 25, z: -17 }, { x: 0, z: 9 },
     ],
     spawns: NORTH_HOUSE_SPAWNS,
     build(api) {
@@ -227,13 +251,14 @@ export const MAP_DEFS = {
       api.addCar(-10, -6, 0, 0x7a2a2a); api.addCar(10, -6, 0, 0x2a4a7a);
       api.addCar(-10, 6, 0.3, 0x2e2e2e); api.addCar(10, 6, -0.4, 0x3a3a3a); // 2 wrecked
       api.addBus(18, 8, 0, 0x2a6a8a);
-      api.addContainer(-20, 2, 6, 2.5, 0x8a2a2a);
-      api.addContainer(20, -10, 2.5, 6, 0x5a7a3a);
-      api.addContainer(-34, -20, 6, 2.5, 0x2a5a8a);
-      api.addContainer(34, 20, 6, 2.5, 0x8a2a2a);
+      api.addContainer(-20, 6, 6, 2.5, 0x3a5a7a);
+      api.addContainer(20, -10, 2.5, 6, 0x6a6a72);
+      api.addContainer(-34, -20, 6, 2.5, 0x8a3a3a);
+      api.addContainer(34, 20, 6, 2.5, 0x2e6f6a);
       scatterCrates(api, [[-12, 10], [12, 10], [0, 14], [-4, -12], [24, 12], [-24, -2]]);
       scatterBarrels(api, [[-16, 4], [16, -6], [26, 2], [-30, 2], [8, 18], [-6, 18]]);
-      api.addSandbag(-23, -14); api.addSandbag(23, -14);
+      api.addSandbag(-21, -15); api.addSandbag(21, -13);
+      api.addSandbag(-10, 12); api.addSandbag(10, 6);
       api.addTree(-36, 0); api.addTree(36, 0); api.addTree(-20, 22); api.addTree(20, 22);
       api.addTower(-36, -22, 12);
       // v17.1 city details: 2 billboards, rubble, road lines, rooftop AC.
@@ -262,16 +287,22 @@ export const MAP_DEFS = {
   cargo: {
     id: 'cargo', name: 'Cargo Works', emoji: '📦',
     desc: 'Dense container yard — tight lanes, stacked boxes.',
+    sites: {
+      A: { name: 'Stack Row', x: -21, z: -12, color: 0xf0a830 },
+      B: { name: 'Forklift Bay', x: 21, z: -12, color: 0x37c8d8 },
+      C: { name: 'Crate Maze', x: 0, z: 14, color: 0x7ddc7d },
+    },
     ground: 0xb0a890, fog: 0x7a6a5a,
     waypoints: [
       { x: -21, z: -12 }, { x: -7, z: -12 }, { x: 7, z: -12 }, { x: 21, z: -12 },
       { x: -21, z: 0 }, { x: -7, z: 0 }, { x: 7, z: 0 }, { x: 21, z: 0 },
       { x: -21, z: 12 }, { x: -7, z: 12 }, { x: 7, z: 12 }, { x: 21, z: 12 },
       { x: -21, z: 21 }, { x: 21, z: 21 }, { x: 0, z: 22 },
+      { x: 0, z: 14 },
     ],
     spawns: DEFAULT_SPAWNS,
     build(api) {
-      const cols = [0x8a2a2a, 0x2a5a8a, 0x5a7a3a, 0x2e6f6a];
+      const cols = [0x7a3a2a, 0x3a6a8a, 0x6a7a2a, 0x8a6a2a];
       let ci = 0;
       for (const rz of [-18, -6, 6, 18]) {
         for (const rx of [-28, -14, 0, 14, 28]) {
@@ -287,10 +318,10 @@ export const MAP_DEFS = {
         }
       }
       api.addHouse({ x: 34, z: 20, rot: 180, floors: 1, color: 0x6a6a72, roof: 0x3a3a42 });
-      scatterCrates(api, [[-21, -12], [7, -12], [-7, 0], [21, 0], [-21, 12], [7, 12], [-7, 21], [21, 21]]);
-      scatterBarrels(api, [[-7, -12], [21, -12], [-21, 0], [7, 0], [-7, 12], [21, 12], [3, 22], [-21, 21]]);
-      api.addSandbag(-2, 10); api.addSandbag(2, 10);
-      api.addSandbag(-23, -14); api.addSandbag(23, -14);
+      scatterCrates(api, [[-21, 2], [7, -12], [-7, 0], [21, 0], [-21, 12], [7, 12], [-7, 21], [21, 21]]);
+      scatterBarrels(api, [[-7, -12], [21, 2], [-21, 0], [7, 0], [-7, 12], [21, 12], [3, 22], [-21, 21]]);
+      api.addSandbag(-7, -16); api.addSandbag(7, -16);
+      api.addSandbag(-7, 16); api.addSandbag(7, 16);
       api.addTower(0, -24, 12);
       api.addCar(34, -20, Math.PI / 2, 0x7a2a2a);
       api.addTree(-36, 24); api.addTree(36, -24);
@@ -315,12 +346,18 @@ export const MAP_DEFS = {
   harvest: {
     id: 'harvest', name: 'Harvest Town', emoji: '🌾',
     desc: 'Village, rice fields, a big barn and a water tower.',
+    sites: {
+      A: { name: 'Barn Gate', x: -22, z: -18, color: 0xf0a830 },
+      B: { name: 'Mill Row', x: 22, z: -21, color: 0x37c8d8 },
+      C: { name: 'Field Cross', x: 0, z: 12, color: 0x7ddc7d },
+    },
     ground: 0xcfd8b0, fog: 0x7a8a6a,
     waypoints: [
       { x: -30, z: -2 }, { x: -30, z: 6 }, { x: -8, z: 14 }, { x: 0, z: 6 },
       { x: 12, z: 14 }, { x: 30, z: 6 }, { x: 30, z: -2 }, { x: 14, z: -8 },
       { x: -14, z: -8 }, { x: 0, z: -12 }, { x: -24, z: 20 }, { x: 20, z: 20 },
       { x: 0, z: 20 }, { x: -6, z: -20 }, { x: 6, z: -20 },
+      { x: -22, z: -18 }, { x: 22, z: -21 }, { x: 0, z: 12 },
     ],
     spawns: NORTH_HOUSE_SPAWNS,
     build(api) {
@@ -346,8 +383,10 @@ export const MAP_DEFS = {
       api.addTower(34, -22, 14);
       api.addCar(10, 18, 0, 0x3a5a2a);
       api.addCar(-12, 18, 0, 0x8a8a2a); // was (0,22): sat 2m in front of the (0,24) spawn and walled off the view
-      scatterCrates(api, [[-12, 8], [12, 6], [0, 14], [-4, -12], [24, 12], [-24, -2]]);
+      scatterCrates(api, [[-12, 8], [12, 6], [0, 17], [-4, -12], [24, 12], [-24, -2]]);
       scatterBarrels(api, [[-16, 4], [16, -6], [26, 2], [-30, 2], [8, 18], [-6, 18]]);
+      api.addSandbag(-18, -13); api.addSandbag(20, -16);
+      api.addSandbag(-10, 16); api.addSandbag(10, 14);
       // v17.1 garden details: pool, swing, mailboxes, TV.
       api.addPool(0, 0, 6, 4);
       api.addSwing(24, 0, 0);
@@ -360,7 +399,7 @@ export const MAP_DEFS = {
       // v22.3/v22.4 village props: bushes, plant pots, wood pile, cart, suitcase, power pole.
       api.addBush(-18, 18); api.addBush(18, 18); api.addBush(-30, -22);
       api.addPlantPot(-26, 8); api.addPlantPot(26, 8);
-      api.addWoodPile(-22, -18); api.addCart(0, 8); api.addSuitcase(-6, 2);
+      api.addWoodPile(-22, -18); api.addCart(3, 8); api.addSuitcase(-6, 2);
       // v27.0 ambient: horse + cow + chicken, merchant + cook, crops, fruit.
       api.addAnimal('horse', 6, 16); api.addAnimal('cow', -4, 18); api.addAnimal('chicken', 16, 20);
       api.addNPC('merchant', 4, 4); api.addNPC('cook', -14, 20);
@@ -373,12 +412,18 @@ export const MAP_DEFS = {
   ruin: {
     id: 'ruin', name: 'Ruin City', emoji: '🚁',
     desc: 'A downed helicopter in a ruined city — rubble everywhere.',
+    sites: {
+      A: { name: 'Wreck Yard', x: -24, z: -24, color: 0xf0a830 },
+      B: { name: 'Crater Row', x: 24, z: -24, color: 0x37c8d8 },
+      C: { name: 'Heli Pad', x: 0, z: 10, color: 0x7ddc7d },
+    },
     ground: 0x9a9a9a, fog: 0x5a5a5a,
     waypoints: [
       { x: -30, z: -8 }, { x: -30, z: 8 }, { x: -12, z: 14 }, { x: 0, z: 6 },
       { x: 12, z: 14 }, { x: 30, z: 8 }, { x: 30, z: -8 }, { x: 14, z: -8 },
       { x: -14, z: -8 }, { x: 0, z: -12 }, { x: -20, z: 20 }, { x: 20, z: 20 },
       { x: 0, z: 20 }, { x: -6, z: -20 }, { x: 6, z: -20 },
+      { x: -24, z: -24 }, { x: 24, z: -24 }, { x: 0, z: 10 },
     ],
     spawns: NORTH_HOUSE_SPAWNS,
     build(api) {
@@ -397,10 +442,10 @@ export const MAP_DEFS = {
       api.addContainer(34, -20, 6, 2.5, 0x3a3a3a);
       // (Gameplay pass 2026-11-15: no container at (0,18) — it sat 6m in
       // front of the (0,24) spawn and walled off the view, same as cargo.)
-      scatterCrates(api, [[-12, 8], [12, 6], [0, 14], [-4, -12], [24, 12], [-24, -2]]);
+      scatterCrates(api, [[-12, 8], [12, 6], [0, 17], [-4, -12], [20, 17], [-24, -2]]);
       scatterBarrels(api, [[-16, 4], [16, -6], [26, 2], [-30, 2], [8, 18], [-6, 18]]);
-      api.addSandbag(-23, -14); api.addSandbag(23, -14);
-      api.addSandbag(-2, 10); api.addSandbag(2, 10);
+      api.addSandbag(-20, -14); api.addSandbag(20, -17);
+      api.addSandbag(-8, 14); api.addSandbag(8, 8);
       api.addTower(34, 20, 8);
       // v17.1 ruin details: bridge, waving flag, TV.
       api.addBridge(24, 0, 20, 5, Math.PI / 2);
@@ -413,7 +458,7 @@ export const MAP_DEFS = {
       // v22.3/v22.4 ruin props: power poles, rocks, wood pile, trash can, road sign, parked cars, motor.
       api.addPowerPole(-18, -18); api.addPowerPole(18, 18);
       api.addRock(-32, -10); api.addRock(32, 10);
-      api.addWoodPile(24, 16); api.addTrashCan(-4, 4); api.addRoadSign(10, -14);
+      api.addWoodPile(28, 16); api.addTrashCan(-4, 4); api.addRoadSign(10, -14);
       api.addParkedCar(-20, -2, 0.3, 0x3a3a3a); api.addParkedCar(20, 2, -0.3, 0x2e2e2e);
       // v27.0 ambient: doctor, dog, firefly, cat in the ruins.
       api.addNPC('doctor', -8, 20); api.addAnimal('dog', 14, 20);

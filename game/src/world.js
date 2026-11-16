@@ -226,7 +226,11 @@ export function buildWorld(scene) {
   const trim = new THREE.Mesh(new THREE.BoxGeometry(W, 0.25, 1.1), mat(0xffffff, 0.6, hazardTex()));
   trim.position.set(0, 3.6, -28.5); scene.add(trim);
 
-  // Site rings (flat rings on the ground) + site posts — A, B and C (Domination)
+  // Site rings (flat rings on the ground) + site posts — A, B and C (Domination).
+  // Per-map sites (v27.2): the markers are created once here, then buildMap
+  // moves them to the current map's site positions — the post collider moves
+  // with its mesh, so plant/defuse/holder logic always matches the art.
+  const siteFx = {};
   for (const key of ['A', 'B', 'C']) {
     const s = SITES[key];
     const ring = new THREE.Mesh(new THREE.RingGeometry(s.r - 0.35, s.r, 40),
@@ -236,6 +240,7 @@ export function buildWorld(scene) {
       new THREE.MeshBasicMaterial({ color: s.color, transparent: true, opacity: 0.10 }));
     disc.rotation.x = -Math.PI / 2; disc.position.set(s.x, 0.02, s.z); scene.add(disc);
     const post = box(0.5, 3, 0.5, s.color); post.position.y = 1.5; add(post, s.x + s.r + 0.6, s.z, 0.5, 0.5, 3);
+    siteFx[key] = { ring, disc, post, col: colliders[colliders.length - 1] };
   }
 
   // BR shrinking-zone ring (hidden unless BR mode)
@@ -275,12 +280,28 @@ export function buildWorld(scene) {
     const def = MAP_DEFS[id] || MAP_DEFS.foundry;
     props.clear();
     mapId = def.id;
+    // Per-map sites: the shared SITES object takes this map's positions and
+    // names, so plant/defuse, holders, Domination, Control, the minimap and
+    // the radio callouts all follow the new sites with no other code change.
+    if (def.sites) for (const k of ['A', 'B', 'C']) Object.assign(SITES[k], def.sites[k]);
     def.build(props);
     props.addBirds(); // 5 birds circling overhead on every map (v18.15)
+    // Move the site markers (rings/discs/posts/glows) to this map's sites.
+    for (const key of ['A', 'B', 'C']) {
+      const s = SITES[key], fx = siteFx[key];
+      fx.ring.position.set(s.x, 0.03, s.z);
+      fx.disc.position.set(s.x, 0.02, s.z);
+      fx.post.position.set(s.x + s.r + 0.6, 1.5, s.z);
+      fx.col.x0 = s.x + s.r + 0.35; fx.col.x1 = s.x + s.r + 0.85;
+      fx.col.z0 = s.z - 0.25; fx.col.z1 = s.z + 0.25;
+    }
+    glowA.position.set(SITES.A.x, 3, SITES.A.z);
+    glowB.position.set(SITES.B.x, 3, SITES.B.z);
+    glowM.position.set(SITES.C.x, 2, SITES.C.z);
     // Bomb-site signs on the north wall (reference-style "SITE A" boards,
     // flush to the wall so they need no collider).
-    props.addSiteSign(-27, -27.9, 0, 'SITE A', SITES.A.name.toUpperCase());
-    props.addSiteSign(27, -27.9, 0, 'SITE B', SITES.B.name.toUpperCase());
+    props.addSiteSign(SITES.A.x, -27.9, 0, 'SITE A', SITES.A.name.toUpperCase());
+    props.addSiteSign(SITES.B.x, -27.9, 0, 'SITE B', SITES.B.name.toUpperCase());
     placeDestructibles(); // red barrels + breakable table + broken lamp (v18)
     waypoints.length = 0;
     waypoints.push(...def.waypoints);
@@ -313,7 +334,7 @@ export function buildWorld(scene) {
       if (clearSpot(x, z, 1.0)) { props.addAmmoBox(x, z); if (props.ammoBoxes.length >= 2) break; }
     }
     // Loot crates (BR, v20.0.2): 10 yellow crates, E to open for random loot.
-    const crateSpots = [[-12, -18], [12, -18], [-24, 0], [24, 0], [-12, 18], [12, 18], [0, -22], [0, 22], [-30, -10], [30, 10]];
+    const crateSpots = [[-12, -18], [12, -18], [-24, -6], [30, 0], [-12, 18], [12, 18], [0, -22], [0, 22], [-30, -10], [30, 10]];
     let crates = 0;
     for (const [x, z] of crateSpots) {
       if (crates >= 10) break;

@@ -187,7 +187,7 @@ export function createHud(S) {
       if (S.mode === 'tdm') text = `First to ${def.target} kills — YOU ${S.kills} : ${S.botKills} BOT`;
       else if (S.mode === 'dom') text = `A:${S.dom.A.owner || '-'} B:${S.dom.B.owner || '-'} C:${S.dom.C.owner || '-'} — ${Math.floor(S.dom.points.you)} / ${Math.floor(S.dom.points.bot)} pts`;
       else if (S.mode === 'br') text = `Zone radius ${Math.round(S.br.radius)}m — stay inside! ${S.bots.filter(b => b.alive).length} bots left`;
-      else if (S.mode === 'snd') text = S.bomb.state === 'planted' ? `CHARGE PLANTED — fuse ${Math.ceil(S.bomb.fuse)}s` : 'Plant the charge at Furnace or Crane Yard';
+      else if (S.mode === 'snd') text = S.bomb.state === 'planted' ? `CHARGE PLANTED — fuse ${Math.ceil(S.bomb.fuse)}s` : 'Plant the charge at a bomb site';
       el.objectiveText.textContent = text;
     }
     // Killstreak bar
