@@ -30,35 +30,33 @@ export const MAP_DEFS = {
     id: 'frost', name: 'Frostworks Yard', emoji: '❄️',
     desc: 'Snow-covered industrial plant — pipes, containers, cranes.',
     sites: {
-      A: { name: 'Boiler House', x: -16, z: -16, color: 0xf0a830 },
-      B: { name: 'Crane Dock', x: 26, z: 0, color: 0x37c8d8 },
-      C: { name: 'Frost Gate', x: 10, z: 14, color: 0x7ddc7d },
+      A: { name: 'Boiler House', x: -22, z: -19, color: 0xf0a830 },
+      B: { name: 'Crane Dock', x: 24, z: -20, color: 0x37c8d8 },
+      C: { name: 'Frost Gate', x: 0, z: 0, color: 0x7ddc7d },
     },
     ground: 0xe8eef2, groundTex: 'snow', fog: 0x9ab0c0,
-    // Diagonal ring: south spawn -> C -> west lane -> A -> north lane ->
-    // B under the crane -> annex -> C. No waypoint sits inside a solid.
+    // Corridor map (v29): three north-south lanes (west / mid / east)
+    // joined by two east-west cross lanes — the reference layout, not an
+    // open yard. Mid lane is the hero corridor: grate floor, overhead
+    // pipes, steam, long sightline from spawn to the north end wall.
     waypoints: [
-      { x: 0, z: 20 }, { x: -2, z: 12 }, { x: -21, z: 12 }, { x: -23, z: 0 },
-      { x: -20, z: -8 }, { x: -20, z: -14 }, { x: -10, z: -12 }, { x: 2, z: -14 },
-      { x: 13, z: -11.5 }, { x: 21, z: -7 }, { x: 24, z: -6 }, { x: 26, z: 0 },
-      { x: 18, z: 8 }, { x: 18, z: 12 }, { x: 10, z: 14 }, { x: 2, z: 18 },
+      { x: 0, z: 22 }, { x: 0, z: 12 }, { x: 0, z: 2 }, { x: 0, z: -8 },
+      { x: 0, z: -18 }, { x: -8, z: -16 }, { x: -22, z: -16 }, { x: -22, z: -6 },
+      { x: -22, z: 4 }, { x: -22, z: 14 }, { x: -22, z: 20 }, { x: -12, z: 16 },
+      { x: 0, z: 16 }, { x: 12, z: 16 }, { x: 22, z: 16 }, { x: 22, z: 6 },
+      { x: 22, z: -4 }, { x: 22, z: -14 }, { x: 22, z: -20 }, { x: 12, z: -16 },
+      { x: 0, z: -16 },
     ],
     spawns: {
       player: { x: 0, z: 24, yaw: 0 },
       bots: [
-        { x: -16, z: -24 }, { x: -6, z: -25 }, { x: 4, z: -25 }, { x: 14, z: -24 }, { x: 0, z: -20 },
+        { x: -22, z: -22 }, { x: 0, z: -22 }, { x: 22, z: -22 }, { x: -22, z: -18 }, { x: 22, z: -18 },
       ],
     },
     build(api) {
-      // Frostworks, rebuilt (v28): a diagonal plant, NOT foundry's mirror.
-      // The hall runs north-south down the WEST side, a smaller boiler
-      // annex sits south-east, the crane stands vertical on the east, and
-      // the lanes run diagonal SW-NE. Foundry keeps its symmetric central
-      // hall; frost has no building in the middle at all.
       // West plant hall: long vertical hall, snow roof, furnace glow on
-      // its east face, two chimneys on the roof at its north end.
-      // Corrugated steel panel walls (reference look) + wall pipes +
-      // lit windows along the east face.
+      // its east face — that face IS the west lane's west wall (z -18..12).
+      // Corrugated panel walls + wall pipes + lit windows on the east face.
       api.addPanelWall(-30, -3, 10, 30, 7, 0x4a5258, { cap: false });
       api.addBox(-30, -3, 11, 0.6, 31, 0xe8eef2, { y: 7.2 });
       api.addBox(-24.9, -2, 0.1, 2.2, 4, 0xff7a1a, { y: 0.3, solid: false, extra: { emissive: 0xff7a1a, emissiveIntensity: 1 } });
@@ -73,84 +71,112 @@ export const MAP_DEFS = {
       api.addCylinder(-36, 24, 1.1, 12, 0x2e3236);
       for (let i = 0; i < 3; i++) api.addBox(-23.5, -2, 0.44, 0.44, 26, 0x6a7a8a, { y: 1 + i * 1.1, solid: false });
       api.addBox(0, -20, 30, 0.44, 0.44, 0x6a7a8a, { y: 5, solid: false });
-      // East boiler annex (SE building) with furnace glow on its west face.
+      // East boiler annex (SE corner) with furnace glow on its west face.
       // Panel walls + a lit window + a high wall pipe on the west face.
-      api.addPanelWall(26, 12, 10, 9, 5, 0x5a4a3a, { cap: false });
-      api.addBox(26, 12, 11, 0.5, 10, 0xe8eef2, { y: 5 });
-      api.addBox(20.9, 12, 0.1, 1.8, 3, 0xff7a1a, { y: 0.3, solid: false, extra: { emissive: 0xff7a1a, emissiveIntensity: 1 } });
-      api.addGlowWindow(20.9, 10, -Math.PI / 2, 3);
-      api.addPipe(20.8, 12, 7, Math.PI / 2, 4.4);
-      // Crane at Site B, turned 90 deg vs foundry: legs north-south, beam
-      // along z, hook over the site.
-      api.addBox(26, -6, 0.8, 8, 0.8, 0xf0a830);
-      api.addBox(26, 6, 0.8, 8, 0.8, 0xf0a830);
-      api.addBox(26, 0, 0.8, 0.8, 12, 0xf0a830, { y: 8, solid: false });
-      api.addBox(26, 0, 1, 1.4, 1, 0x2e3236, { y: 6.5, solid: false });
+      api.addPanelWall(32, 20, 10, 9, 5, 0x5a4a3a, { cap: false });
+      api.addBox(32, 20, 11, 0.5, 10, 0xe8eef2, { y: 5 });
+      api.addBox(26.9, 20, 0.1, 1.8, 3, 0xff7a1a, { y: 0.3, solid: false, extra: { emissive: 0xff7a1a, emissiveIntensity: 1 } });
+      api.addGlowWindow(26.9, 18, -Math.PI / 2, 3);
+      api.addPipe(26.8, 20, 7, Math.PI / 2, 4.4);
+      // ---- Corridor walls (h=6): mid lane at x=±9, west lane east wall
+      // at x=-14, east lane west wall at x=+14. Gaps at the two cross
+      // lanes (z -19..-13 and 13..19) so every lane stays connected.
+      for (const wx of [-9, 9, -14, 14]) {
+        api.addPanelWall(wx, -21.5, 1, 5, 6, 0x8a929a);
+        api.addPanelWall(wx, 0, 1, 26, 6, 0x8a929a);
+        api.addPanelWall(wx, 21.5, 1, 5, 6, 0x8a929a);
+      }
+      // West lane west boundary beyond the hall: panel segments north and
+      // south of it. East lane east boundary: panel segments between the
+      // house (NE) and the annex (SE).
+      api.addPanelWall(-27, -21, 1, 6, 6, 0x8a929a);
+      api.addPanelWall(-27, 18, 1, 12, 6, 0x8a929a);
+      api.addPanelWall(30, -12, 1, 6, 6, 0x8a929a);
+      api.addPanelWall(30, -6, 1, 6, 6, 0x8a929a);
+      api.addPanelWall(30, 6, 1, 12, 6, 0x8a929a);
+      api.addPanelWall(30, 13.5, 1, 3, 6, 0x8a929a);
+      // North end walls: each lane ends at a wall with a giant site
+      // letter on its south face (reference: SITE A / B on the end wall).
+      api.addPanelWall(-24, -24, 8, 1, 6, 0x8a929a);
+      api.addWallLetter(-24, -23.4, 0, 'A', 'BOILER HOUSE', '#f0a830', 5);
+      api.addPanelWall(24, -24, 8, 1, 6, 0x8a929a);
+      api.addWallLetter(24, -23.4, 0, 'B', 'CRANE DOCK', '#37c8d8', 5);
+      api.addPanelWall(0, -24, 10, 1, 6, 0x8a929a);
+      api.addGlowWindow(2, -23.4, 0, 3.5);
+      // Site C letter on the mid lane's west wall, facing the lane.
+      api.addWallLetter(-8.4, 0, Math.PI / 2, 'C', 'FROST GATE', '#7ddc7d', 5);
+      // Crane at Site B (north end of the east lane): legs wide across
+      // the lane mouth, beam along x, hook over the site.
+      api.addBox(19, -20, 0.8, 8, 0.8, 0xf0a830);
+      api.addBox(29, -20, 0.8, 8, 0.8, 0xf0a830);
+      api.addBox(24, -20, 10, 0.8, 0.8, 0xf0a830, { y: 8, solid: false });
+      api.addBox(24, -20, 1, 1.4, 1, 0x2e3236, { y: 6.5, solid: false });
+      // Overhead pipes down the mid lane (the reference corridor) and
+      // the east lane: twin runs, visual only.
+      api.addPipe(-2, 0, 44, Math.PI / 2, 5.2);
+      api.addPipe(2, 0, 44, Math.PI / 2, 4.6);
+      api.addPipe(22, 0, 40, Math.PI / 2, 5);
       // Two enterable crew houses (doors + stairs + interiors, like Ember).
       api.addHouse({ x: 32, z: -16, rot: 270, floors: 2, color: 0x7a8a9a, roof: 0x2e3a44 });
-      api.addHouse({ x: -30, z: 20, rot: 0, floors: 2, color: 0x7a8a9a, roof: 0x2e3a44 });
-      // Containers: a diagonal spine SW-NE + clusters, clear of the houses
-      // and of the vehicle spots (car -12,22 / heli 12,-22 / moto -24,22 /
-      // tank -14,-22).
-      api.addContainer(-16, 10, 6, 2.5, 0x8a2a2a);
-      api.addContainer(-10, 5, 2.5, 6, 0x2a5a8a);
-      api.addContainer(-4, 0, 6, 2.5, 0x5a7a3a);
-      api.addContainer(2, -5, 2.5, 6, 0x8a2a2a);
-      api.addContainer(8, -10, 6, 2.5, 0x2a5a8a);
-      api.addContainer(17, -14, 2.5, 6, 0x8a2a2a);
-      api.addContainer(-30, -22, 6, 2.5, 0x2a5a8a);
+      api.addHouse({ x: -32, z: 20, rot: 0, floors: 2, color: 0x7a8a9a, roof: 0x2e3a44 });
+      // Grate floors down the lanes (reference walkway): mid lane full
+      // length in 8m tiles, west/east lanes two tiles each.
+      for (const gz of [-18, -6, 6, 18]) api.addGrate(0, gz, 10, 8);
+      api.addGrate(-22, -12, 8, 8); api.addGrate(-22, 12, 8, 8);
+      api.addGrate(22, -12, 8, 8); api.addGrate(22, 12, 8, 8);
+      // Steam vents in the lanes (white steam, see props.js).
+      api.addSteamVent(0, -10, 0.4);
+      api.addSteamVent(0, 4, 0.4);
+      api.addSteamVent(0, 14, 0.4);
+      api.addSteamVent(-22, -2, 0.4);
+      api.addSteamVent(22, 10, 0.4);
+      // Hazard barriers flanking the mid lane's south entrance.
+      api.addHazardBarrier(-7, 20, 0);
+      api.addHazardBarrier(7, 20, 0);
+      // Containers: tucked into the strips between lanes + yard corners,
+      // never in a lane or a cross lane. Snow piled on top.
+      api.addContainer(-11.5, -6, 2.5, 6, 0x8a2a2a);
+      api.addContainer(-11.5, 6, 2.5, 6, 0x2a5a8a);
+      api.addContainer(11.5, -6, 2.5, 6, 0x5a7a3a);
+      api.addContainer(11.5, 6, 2.5, 6, 0x2a5a8a);
       api.addContainer(34, 8, 2.5, 6, 0x8a2a2a);
       api.addContainer(14, 20, 6, 2.5, 0x2a5a8a, { stack: true, stackColor: 0x5a7a3a });
-      api.addContainer(34, -10, 2.5, 6, 0x2a5a8a);
-      // Snow piled on the diagonal spine containers (and the stacked one).
-      for (const [x, z, w, d, top] of [[-16, 10, 6, 2.5, 2.73], [-10, 5, 2.5, 6, 2.73], [-4, 0, 6, 2.5, 2.73], [2, -5, 2.5, 6, 2.73], [8, -10, 6, 2.5, 2.73], [17, -14, 2.5, 6, 2.73], [14, 20, 6, 2.5, 5.23]])
+      api.addContainer(36, -8, 2.5, 6, 0x2a5a8a);
+      api.addContainer(-8, -24, 6, 2.5, 0x5a7a3a);
+      for (const [x, z, w, d, top] of [[-11.5, -6, 2.5, 6, 2.73], [-11.5, 6, 2.5, 6, 2.73], [11.5, -6, 2.5, 6, 2.73], [11.5, 6, 2.5, 6, 2.73], [34, 8, 2.5, 6, 2.73], [14, 20, 6, 2.5, 5.23], [36, -8, 2.5, 6, 2.73], [-8, -24, 6, 2.5, 2.73]])
         api.addBox(x, z, w - 0.2, 0.08, d - 0.2, 0xeef2f6, { y: top, solid: false });
-      // Steel gate walls flanking the diagonal lane (panel, not brick),
-      // taller now so the giant painted site letters fit on them.
-      api.addPanelWall(-12, 2, 7, 1, 4.5, 0x8a929a);
-      api.addWallLetter(-12, 2.56, 0, 'A', 'BOILER HOUSE', '#f0a830', 3.8);
-      api.addPanelWall(8, -4, 7, 1, 4.5, 0x8a929a);
-      api.addWallLetter(8, -3.44, 0, 'B', 'CRANE DOCK', '#37c8d8', 3.8);
-      // Dark steel grate walkways on the snow (reference floor) + steam.
-      api.addGrate(0, 16, 8, 6);
-      api.addGrate(2, 0, 10, 8);
-      api.addSteamVent(-22, -8, 0.4);
-      api.addSteamVent(22, 10, 0.4);
-      api.addSteamVent(14, 10, 0.4);
-      api.addSteamVent(-14, -14, 0.4);
-      api.addHazardBarrier(-8.5, 2, Math.PI / 2);
-      api.addHazardBarrier(4.5, -4, Math.PI / 2);
-      // Crates, grid-aligned (no overlaps): pairs 1.8m apart, plus a
-      // two-high stack at each site corner. FW-7 = Frostworks stencil.
-      scatterCrates(api, [[-12, 14], [-10.2, 14], [14, 8], [15.8, 8], [2, 14], [-24, -20], [20, -16], [30, -6], [-18, 18], [18, -18], [-6, -22]]);
-      api.addCrate(-14, -20, 1.6, 'FW-7');
-      api.addCrate(-14, -20, 1.6, 'FW-7', 1.16);
-      api.addCrate(30, 4, 1.6, 'FW-7');
-      api.addCrate(30, 4, 1.6, 'FW-7', 1.16);
-      scatterBarrels(api, [[-18, -8], [-17, -7], [16, -4], [34, 14], [-32, 14], [10, 20], [-8, 20], [36, -6]]);
-      api.addSandbag(-17, -11); api.addSandbag(-15, -11);
-      api.addSandbag(22, -3); api.addSandbag(18, 2);
-      api.addSandbag(6, 11); api.addSandbag(8, 11);
+      // Crates as low cover inside the lanes, offset from the lane
+      // centreline so the waypoint line stays clear. FW-7 stacks at the
+      // two north sites.
+      scatterCrates(api, [[2.5, 6], [-2.5, -6], [2.5, 18], [-19.5, -6], [-24.5, 8], [19.5, -6], [24.5, 8], [-2.5, -20], [2.5, -20]]);
+      api.addCrate(-34, -22, 1.6, 'FW-7');
+      api.addCrate(-34, -22, 1.6, 'FW-7', 1.16);
+      api.addCrate(25, -22, 1.6, 'FW-7');
+      api.addCrate(25, -22, 1.6, 'FW-7', 1.16);
+      scatterBarrels(api, [[-8, 20], [-7, 19], [8, -18], [26, -14], [-26, -14], [10, 20], [-10, 20], [30, 0]]);
+      api.addSandbag(-24, -14); api.addSandbag(-20, -14);
+      api.addSandbag(20, -14); api.addSandbag(24, -14);
+      api.addSandbag(-2, 4); api.addSandbag(2, 4);
       api.addTree(-36, 14); api.addTree(36, 14);
-      api.addCar(-20, 20, 0, 0x5a6a7a); api.addCar(24, 18, 0, 0x7a2a2a);
+      api.addCar(-20, 24, 0, 0x5a6a7a); api.addCar(20, 24, 0, 0x7a2a2a);
       // Frostworks details: TV, flag, statue, billboard, bushes, planters.
-      api.addTV(36, 22, 0);
-      api.addFlag(0, -24, 0x2a5a8a);
+      api.addTV(36, -2, 0);
+      api.addFlag(12, -24, 0x2a5a8a);
       api.addStatue(36, 0);
       api.addBillboard(-36, -20, Math.PI / 2, 0x2a5a8a);
-      api.addBush(-14, 22); api.addBush(28, -22); api.addBush(-12, -24);
+      api.addBush(-11, 22); api.addBush(28, -22); api.addBush(-12, -24);
       api.addPlanter(-4.5, 20); api.addPlanter(4.5, 20);
-      api.addPowerPole(-36, -14); api.addWoodPile(34, 18);
-      api.addTrashCan(-22, -20); api.addTrashCan(26, 20);
+      api.addPowerPole(-36, -14); api.addWoodPile(34, -6);
+      api.addTrashCan(-16, -22); api.addTrashCan(26, 20);
       // Ambient: dog, mechanic, fridge/stove/safe/wardrobe.
       api.addAnimal('dog', -16, 22); api.addNPC('mechanic', 18, 18);
-      api.addFridge(10, 16); api.addStove(12, 16); api.addSafe(-10, 20); api.addWardrobe(34, 12);
+      api.addFridge(-11.5, 18); api.addStove(11.5, 18); api.addSafe(-10, 20); api.addWardrobe(34, 12);
       // GLB props: Kenney industrial set + skyscraper backdrop.
       api.addGLB('models/kenney/buildings/industrial/factory.glb', -36, -22, { scale: 6 });
-      api.addGLB('models/kenney/buildings/industrial/chimney.glb', -20, 23, { scale: 5 });
-      api.addGLB('models/kenney/buildings/industrial/tank.glb', 30, 22, { scale: 5 });
+      api.addGLB('models/kenney/buildings/industrial/chimney.glb', 8, -24, { scale: 5 });
+      api.addGLB('models/kenney/buildings/industrial/tank.glb', 36, 10, { scale: 5 });
       api.addGLB('models/kenney/buildings/industrial/watertower.glb', 34, -22, { scale: 5 });
-      api.addGLB('models/kenney/props/factory/conveyor.glb', 14, -16, { scale: 4 });
+      api.addGLB('models/kenney/props/factory/conveyor.glb', 34, 2, { scale: 4 });
       api.addGLB('models/kenney/buildings/skyscraper.glb', -8, 24, { scale: 8 });
       lights(api);
     },

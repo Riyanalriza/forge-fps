@@ -173,7 +173,7 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
         p.sprite.position.y = v.baseY + k * 2.2;
         p.sprite.position.x = v.x + Math.sin(time * 0.8 + p.phase * 6.3) * 0.35 * k;
         p.sprite.scale.setScalar(0.7 + k * 2.0);
-        p.sprite.material.opacity = 0.65 * (1 - k) * (0.4 + 0.6 * Math.min(1, k * 4));
+        p.sprite.material.opacity = 0.85 * (1 - k) * (0.4 + 0.6 * Math.min(1, k * 4));
       }
     }
     for (const b of decorButterflies) {
@@ -454,7 +454,7 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
     _steamTex = ptex(128, (g, s) => {
       const gr = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
       gr.addColorStop(0, 'rgba(255,255,255,0.9)');
-      gr.addColorStop(0.5, 'rgba(255,255,255,0.4)');
+      gr.addColorStop(0.5, 'rgba(255,255,255,0.65)');
       gr.addColorStop(1, 'rgba(255,255,255,0)');
       g.fillStyle = gr; g.fillRect(0, 0, s, s);
     }, 1, 1);
@@ -795,7 +795,7 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
     const tex = steamTexture();
     const sprites = [];
     for (let i = 0; i < n; i++) {
-      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: 0xf2f6fa, transparent: true, opacity: 0, depthWrite: false }));
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: 0xffffff, transparent: true, opacity: 0, depthWrite: false }));
       sp.position.set(x, y, z);
       sp.renderOrder = 4;
       group.add(sp);

@@ -1748,46 +1748,38 @@ function runShot(name) {
     S.card = 'dragon';
     S.perks = ['lightweight', 'quickfix'];
     S.operator = 'tempest';
-    S.loadout.primary = WEAPONS_DB.findIndex(w => w.id === 'by15');
+    // Clean corridor shot: M4 GLB viewmodel, no staged shot — the lane,
+    // grate, pipes, steam and bots stay visible (was a B12 flash + tracer
+    // that washed the whole frame yellow).
+    S.loadout.primary = WEAPONS_DB.findIndex(w => w.id === 'm4');
     S.player.weaponIdx = S.loadout.primary;
     weapon.applyMythic();
     buildMap('frost');
     S.noCountdown = true;
     game.startRound();
     weather.applyWeather('snow'); S.weatherManual = true;
-    const spots = [[0, 17, 100], [4, 12, 40], [-5, 14, 100]];
+    const spots = [[0, 16, 100], [3, 8, 40], [-3, 10, 100]];
     spots.forEach(([x, z, hp], i) => {
       const b = S.bots[i]; b.x = x; b.z = z; b.hp = hp; b.state = 'combat';
     });
     bots.syncMeshes();
     S.streak = 3; S.streaksReady = ['uav']; S.uavT = 20;
     S.bots.forEach(b => { b.state = 'hold'; b.blindT = 2; });
-    aimAt(9, 1.5, 10);
-    game.throwGrenade('smoke', camera);
     settle(75);
     S.bots.forEach(b => { b.state = 'combat'; b.blindT = 0; });
     p.hp = 100;
     settle(10);
-    aimAt(S.bots[0].x + 2.5, 0.8, S.bots[0].z);
+    aimAt(0, 1.5, -12);
     const b0 = S.bots[0];
     bots.damage(b0, 60);
-    game.startGrenadeAim();
     shotFx = {
       radio: `Contact at ${nearestSiteName(b0.x, b0.z)}, rotating`,
-      killfeed: ['YOU — B12 Breacher @ BOT-1 — HIT', '🔥 KILLSTREAK READY: 🛰️ UAV — click it!'],
+      killfeed: ['YOU — M4 Carbine @ BOT-1 — HIT', '🔥 KILLSTREAK READY: 🛰️ UAV — click it!'],
       comms: ['BOT-2: flanking!'],
       mythic: 'dragon',
       hitmarker: true,
       dmgDir: -135,
     };
-    settle(2);
-    const camPos = new THREE.Vector3(); camera.getWorldPosition(camPos);
-    const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir);
-    const right = new THREE.Vector3().crossVectors(camDir, camera.up).normalize();
-    const tip = camPos.clone().addScaledVector(camDir, 0.7).addScaledVector(right, 0.18);
-    tip.y -= 0.12;
-    effects.muzzle(tip, camDir, camPos, 0.6, { color: 0xffcc55, scale: 1.9, dur: 0.1, shape: 'wide' });
-    effects.tracer(tip, new THREE.Vector3(b0.x, 1.4, b0.z), false);
     S.msgT = 0;
     hud.update(world);
   } else if (name === 'buy') {

@@ -396,30 +396,38 @@ export function buildWorld(scene) {
     const clearSpot = (x, z, r) =>
       !isColliding(x, z, r, 0) && Math.hypot(x - sp.x, z - sp.z) > 4;
     const barrelSpots = [[-8, 20], [8, 20], [-20, 0], [20, 0], [0, 14], [0, -14], [-14, -14], [14, -14], [-24, 8], [24, 8], [-6, -20], [6, -20]];
+    // Frost (v29 corridor map): the generic spots fall ON the lanes —
+    // table (-4,16) on the south cross, ammo (-10,-16) on the north
+    // cross, loot (0,-22) on the mid-lane sightline + a bot spawn — so
+    // frost uses its own spots in the inter-lane strips / yard corners.
+    // Every other map keeps the generic lists unchanged.
+    const frostD = mapId === 'frost';
     let placed = 0;
     for (const [x, z] of barrelSpots) {
       if (placed >= 2) break;
       if (clearSpot(x, z, 1.0)) { props.addRedBarrel(x, z); placed += 1; }
     }
-    for (const [x, z] of [[-4, 16], [4, 16], [-16, -8], [16, -8], [0, 22], [-24, -12], [24, -12]]) {
+    for (const [x, z] of (frostD ? [[-11.5, 0], [11.5, 0], [-20, -22], [20, -22], [-16, -24], [32, 10]] : [[-4, 16], [4, 16], [-16, -8], [16, -8], [0, 22], [-24, -12], [24, -12]])) {
       if (clearSpot(x, z, 1.2)) { props.addDestructible(x, z, 'table'); break; }
     }
     for (const [x, z] of [[-30, -24], [30, -24], [-30, 24], [30, 24]]) {
       if (clearSpot(x, z, 0.6)) { props.addBrokenLight(x, z); break; }
     }
     // Ammo boxes (v19.0.9): 2 green boxes, +60 reserve when approached.
-    for (const [x, z] of [[-10, -16], [10, 16], [-18, 10], [18, -10]]) {
+    for (const [x, z] of (frostD ? [[-11.5, -10], [11.5, -10], [-11.5, 10], [11.5, 10], [-20, -22], [20, -22]] : [[-10, -16], [10, 16], [-18, 10], [18, -10]])) {
       if (clearSpot(x, z, 1.0)) { props.addAmmoBox(x, z); if (props.ammoBoxes.length >= 2) break; }
     }
     // Loot crates (BR, v20.0.2): 10 yellow crates, E to open for random loot.
-    const crateSpots = [[-12, -18], [12, -18], [-24, -6], [30, 0], [-12, 18], [12, 18], [0, -22], [0, 22], [-30, -10], [30, 10]];
+    const crateSpots = frostD
+      ? [[-11.5, -10], [11.5, -10], [-11.5, 10], [11.5, 10], [-20, -22], [20, -22], [-16, -24], [34, -22], [-37, 0], [32, 10]]
+      : [[-12, -18], [12, -18], [-24, -6], [30, 0], [-12, 18], [12, 18], [0, -22], [0, 22], [-30, -10], [30, 10]];
     let crates = 0;
     for (const [x, z] of crateSpots) {
       if (crates >= 10) break;
       if (clearSpot(x, z, 1.2)) { props.addLootCrate ? props.addLootCrate(x, z) : null; crates += 1; }
     }
     // Gas tanks + generators + lifts + escalators + mud (v19.2/v20.0).
-    for (const [x, z] of [[-6, -20], [6, 20]]) if (clearSpot(x, z, 0.8)) props.addGasTank(x, z);
+    for (const [x, z] of (frostD ? [[-14, -22], [20, 22]] : [[-6, -20], [6, 20]])) if (clearSpot(x, z, 0.8)) props.addGasTank(x, z);
     for (const [x, z] of [[-26, 22], [26, -22]]) if (clearSpot(x, z, 1.0)) props.addGenerator(x, z);
     if (mapId === 'iron') { props.addEscalator(0, 18, 0); props.addLift(-24, -12); }
     if (mapId === 'ruin') { props.addLift(-22, -14); }

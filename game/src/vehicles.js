@@ -36,7 +36,7 @@ const SPOTS = {
   cargo: { car: [0, -18], heli: [-30, -20], moto: [30, 20], tank: [-20, 22] },
   harvest: { car: [-24, -14], heli: [24, 14], moto: [0, -22], tank: [20, -20] },
   ruin: { car: [26, 18], heli: [-26, -18], moto: [0, 20], tank: [-24, 20] },
-  frost: { car: [-12, 22], heli: [12, -22], moto: [-24, 22], tank: [-14, -22] },
+  frost: { car: [-12, 22], heli: [12, -22], moto: [-24, 22], tank: [12, 24] },
 };
 // Fallback ring spots for the extra vehicle types (boat, jetski, bike,
 // drone, truck, bus, police, ambulance, firetruck).

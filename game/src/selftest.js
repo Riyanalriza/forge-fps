@@ -1062,70 +1062,87 @@ export function runSelfTest(ctx) {
     // Round-over wide shot: end the round and check the viewpoint parks high.
     game.endRound(true, '§50 TEST');
     check('§50 round-over parks the camera high', S.player.y >= 20 && S.player.pitch < -0.5);
-    // ---- §51: frost layout redesign — Frostworks must NOT be foundry
-    // with snow (2026-11-16). Sites, waypoints and the big masses differ.
+    // ---- §54: frost corridor layout — three N-S lanes + two cross lanes
+    // (2026-11-16). Frostworks must read as corridors like the reference,
+    // not the old open yard with a diagonal spine.
     world.buildMap('frost'); vehicles.place('frost'); game.startRound();
     S.mode = 'tdm'; S.difficulty = 'normal';
     S.player.hp = 9999; S.spawnProtT = 0; S.hideT = 999;
-    const fr51 = MAP_DEFS.frost, fo51 = MAP_DEFS.foundry;
-    const siteDist51 = k => Math.hypot(fr51.sites[k].x - fo51.sites[k].x, fr51.sites[k].z - fo51.sites[k].z);
-    check('§51 frost sites moved (A/B/C all >10m from foundry)', ['A', 'B', 'C'].every(k => siteDist51(k) > 10));
-    check('§51 frost site names kept (Boiler House / Crane Dock / Frost Gate)',
-      fr51.sites.A.name === 'Boiler House' && fr51.sites.B.name === 'Crane Dock' && fr51.sites.C.name === 'Frost Gate');
-    check('§51 frost waypoints differ from foundry (not a copy)',
-      JSON.stringify(fr51.waypoints) !== JSON.stringify(fo51.waypoints) && fr51.waypoints.length >= 12);
-    // The old foundry hall spot (0,-2) is open ground now; the new west
-    // hall, the annex and the crane legs are solid where they stand.
-    check('§51 no central hall: old foundry hall spot (0,-2) is open', !world.isColliding(0, -2, 0.35, 0));
-    check('§51 new west hall is solid', world.isColliding(-30, -3, 0.35, 0));
-    check('§51 new annex is solid', world.isColliding(26, 12, 0.35, 0));
-    check('§51 crane legs stand at (26,-6) and (26,6)', world.isColliding(26, -6, 0.35, 0) && world.isColliding(26, 6, 0.35, 0));
-    check('§51 site B sits open under the crane beam', !world.isColliding(26, 0, 0.35, 0));
-    // Every site + spawn stands on open ground.
-    const open51 = (x, z) => !world.isColliding(x, z, 0.35, 0);
-    check('§51 all frost sites are open ground', ['A', 'B', 'C'].every(k => open51(world.sites[k].x, world.sites[k].z)));
-    check('§51 frost spawns are open ground',
-      open51(fr51.spawns.player.x, fr51.spawns.player.z) && fr51.spawns.bots.every(s => open51(s.x, s.z)));
-    // Every waypoint is open, and every ring segment between consecutive
-    // waypoints is walkable (sampled every 0.5m, bot radius 0.4).
-    const wps51 = world.waypoints;
-    check(`§51 all ${wps51.length} frost waypoints are open`, wps51.every(w => open51(w.x, w.z)));
-    const segClear51 = (a, b) => {
+    const fr54 = MAP_DEFS.frost, fo54 = MAP_DEFS.foundry;
+    check('§54 frost site names kept (Boiler House / Crane Dock / Frost Gate)',
+      fr54.sites.A.name === 'Boiler House' && fr54.sites.B.name === 'Crane Dock' && fr54.sites.C.name === 'Frost Gate');
+    check('§54 frost sites sit at lane ends / mid-lane centre',
+      fr54.sites.A.x === -22 && fr54.sites.A.z === -19 && fr54.sites.B.x === 24 && fr54.sites.B.z === -20 && fr54.sites.C.x === 0 && fr54.sites.C.z === 0);
+    check('§54 frost waypoints differ from foundry (not a copy)',
+      JSON.stringify(fr54.waypoints) !== JSON.stringify(fo54.waypoints) && fr54.waypoints.length >= 12);
+    // Corridor walls: mid lane walls solid at x=±9, side-lane walls at
+    // x=±14, and the lane interiors open — a straight sightline down the
+    // mid lane from spawn (0,22) to the north end wall (0,-22).
+    check('§54 mid lane walls solid at (-9,0) and (9,0)',
+      world.isColliding(-9, 0, 0.35, 0) && world.isColliding(9, 0, 0.35, 0));
+    check('§54 side lane walls solid at (-14,0) and (14,0)',
+      world.isColliding(-14, 0, 0.35, 0) && world.isColliding(14, 0, 0.35, 0));
+    check('§54 mid lane interior is open (0,0) (0,12) (0,-12)',
+      !world.isColliding(0, 0, 0.35, 0) && !world.isColliding(0, 12, 0.35, 0) && !world.isColliding(0, -12, 0.35, 0));
+    const los54 = (a, b) => {
       const n = Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.5);
       for (let i = 0; i <= n; i++) {
         if (world.isColliding(a.x + (b.x - a.x) * i / n, a.z + (b.z - a.z) * i / n, 0.4, 0)) return false;
       }
       return true;
     };
-    let badSeg51 = -1;
-    for (let i = 0; i < wps51.length; i++) {
-      if (!segClear51(wps51[i], wps51[(i + 1) % wps51.length])) { badSeg51 = i; break; }
+    check('§54 mid lane sightline spawn->north end is clear', los54({ x: 0, z: 22 }, { x: 0, z: -22 }));
+    check('§54 west lane sightline is clear', los54({ x: -22, z: 20 }, { x: -22, z: -20 }));
+    check('§54 east lane sightline is clear', los54({ x: 22, z: 20 }, { x: 22, z: -20 }));
+    check('§54 cross lanes connect at z=-16 and z=16',
+      los54({ x: -22, z: -16 }, { x: 22, z: -16 }) && los54({ x: -22, z: 16 }, { x: 22, z: 16 }));
+    // North end walls close each lane; giant site letters stand on them.
+    check('§54 north end walls solid at (-24,-24) (0,-24) (24,-24)',
+      world.isColliding(-24, -24, 0.35, 0) && world.isColliding(0, -24, 0.35, 0) && world.isColliding(24, -24, 0.35, 0));
+    check('§54 crane legs stand wide at (19,-20) and (29,-20)',
+      world.isColliding(19, -20, 0.35, 0) && world.isColliding(29, -20, 0.35, 0));
+    check('§54 site B sits open under the crane beam', !world.isColliding(24, -20, 0.35, 0));
+    // Old open-yard layout is gone: no central hall, no diagonal spine.
+    check('§54 no central hall: old foundry hall spot (0,-2) is open', !world.isColliding(0, -2, 0.35, 0));
+    check('§54 no diagonal spine: old spine spots are open', !world.isColliding(-16, 10, 0.35, 0) && !world.isColliding(8, -10, 0.35, 0));
+    // Every site + spawn stands on open ground.
+    const open54 = (x, z) => !world.isColliding(x, z, 0.35, 0);
+    check('§54 all frost sites are open ground', ['A', 'B', 'C'].every(k => open54(world.sites[k].x, world.sites[k].z)));
+    check('§54 frost spawns are open ground',
+      open54(fr54.spawns.player.x, fr54.spawns.player.z) && fr54.spawns.bots.every(s => open54(s.x, s.z)));
+    // Every waypoint is open, and every ring segment between consecutive
+    // waypoints is walkable (sampled every 0.5m, bot radius 0.4).
+    const wps54 = world.waypoints;
+    check(`§54 all ${wps54.length} frost waypoints are open`, wps54.every(w => open54(w.x, w.z)));
+    let badSeg54 = -1;
+    for (let i = 0; i < wps54.length; i++) {
+      if (!los54(wps54[i], wps54[(i + 1) % wps54.length])) { badSeg54 = i; break; }
     }
-    check(`§51 waypoint ring is walkable (bad segment: ${badSeg51})`, badSeg51 === -1);
+    check(`§54 waypoint ring is walkable (bad segment: ${badSeg54})`, badSeg54 === -1);
     // Houses still enterable, vehicles placed on clear ground.
-    check('§51 frost still has enterable-house doors', world.doors.length > 0);
-    check('§51 frost vehicles sit on clear ground',
+    check('§54 frost still has enterable-house doors', world.doors.length > 0);
+    check('§54 frost vehicles sit on clear ground',
       vehicles.list.every(v => !world.isColliding(v.x, v.z, 1.2, 0)));
-    // A bot actually walks the new ring: park it at waypoint 0, point it
-    // at the far side, and watch it close the distance.
+    // A bot actually walks the mid lane: park it at waypoint 0, point it
+    // at waypoint 3 down the lane, and watch it close the distance.
     const wb = S.bots[0];
     wb.hp = 100; wb.state = 'patrol'; wb.hasSeen = false; wb.prone = false;
     wb.skillCd = 999; wb.grenadeCd = 999; wb.grenadesUsed = 1; wb.flankCd = 999;
-    wb.x = wps51[0].x; wb.z = wps51[0].z; wb.wpIdx = 6; wb.stuckT = 0;
+    wb.x = wps54[0].x; wb.z = wps54[0].z; wb.wpIdx = 3; wb.stuckT = 0;
     parkOthers(wb); bots.syncMeshes();
-    const d0 = Math.hypot(wb.x - wps51[6].x, wb.z - wps51[6].z);
-    settle(60 * 12); // west leg detour is longer; 12s still clears it
-    const d1 = Math.hypot(wb.x - wps51[6].x, wb.z - wps51[6].z);
-    check(`§51 bot walks the frost ring (dist ${d0.toFixed(1)} -> ${d1.toFixed(1)}m)`, d1 < d0 - 5);
+    const d0 = Math.hypot(wb.x - wps54[3].x, wb.z - wps54[3].z);
+    settle(60 * 12);
+    const d1 = Math.hypot(wb.x - wps54[3].x, wb.z - wps54[3].z);
+    check(`§54 bot walks the mid lane (dist ${d0.toFixed(1)} -> ${d1.toFixed(1)}m)`, d1 < d0 - 5);
     // ---- §52: radio callouts follow the active map (2026-11-16) ----
     // The staged play-shot radio used to say "Mid Yard" on frost, and the
     // phone booth said "Foundry Yard" on cargo. Both now use the active
     // map: the radio via nearestSiteName (reads shared SITES, rewritten
     // by buildMap), the booth via MAP_DEFS[S.mapId].name.
     world.buildMap('frost'); game.startRound();
-    check('§52 radio lookup on frost: near C is Frost Gate', nearestSiteName(10, 14) === 'Frost Gate');
-    check('§52 radio lookup on frost: near A is Boiler House', nearestSiteName(-16, -16) === 'Boiler House');
-    check('§52 radio lookup on frost: near B is Crane Dock', nearestSiteName(26, 0) === 'Crane Dock');
+    check('§52 radio lookup on frost: near C is Frost Gate', nearestSiteName(0, 0) === 'Frost Gate');
+    check('§52 radio lookup on frost: near A is Boiler House', nearestSiteName(-22, -19) === 'Boiler House');
+    check('§52 radio lookup on frost: near B is Crane Dock', nearestSiteName(24, -20) === 'Crane Dock');
     world.buildMap('foundry'); game.startRound();
     check('§52 radio lookup on foundry: near C is Mid Yard', nearestSiteName(0, 6) === 'Mid Yard');
     check('§52 radio lookup on foundry: near A is Furnace', nearestSiteName(-27, -19) === 'Furnace');
@@ -1147,10 +1164,10 @@ export function runSelfTest(ctx) {
     check('§53 frost has 4 steam vents', dc53.steams >= 4);
     check('§53 frost has wall pipes', dc53.pipes >= 3);
     check('§53 frost has lit windows', dc53.glowWindows >= 3);
-    check('§53 gate walls still solid at (-12,2) and (8,-4)',
-      world.isColliding(-12, 2, 0.35, 0) && world.isColliding(8, -4, 0.35, 0));
+    check('§53 corridor walls still solid at (-9,0) and (9,0)',
+      world.isColliding(-9, 0, 0.35, 0) && world.isColliding(9, 0, 0.35, 0));
     check('§53 steam vents and grates do not block the ground',
-      !world.isColliding(14, 10, 0.35, 0) && !world.isColliding(0, 16, 0.35, 0));
+      !world.isColliding(0, -10, 0.35, 0) && !world.isColliding(0, 16, 0.35, 0));
     // Dusk snow light: warm low sun + warm horizon in the snow def, and
     // the frost full set applies it.
     check('§53 snow weather horizon is warm dusk', WEATHER_DEFS.snow.sky.horizon === '#ff9a50');
