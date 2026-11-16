@@ -289,8 +289,8 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
   function brickTexture() {
     if (_brickTex) return _brickTex;
     _brickTex = ptex(256, (g, s) => {
-      g.fillStyle = '#a89a86'; g.fillRect(0, 0, s, s); // mortar
-      const shades = ['#8a3b28', '#96422e', '#7c3323', '#a34a33', '#8f4030', '#74301f', '#5f2a1c'];
+      g.fillStyle = '#b8aa96'; g.fillRect(0, 0, s, s); // mortar
+      const shades = ['#9c4a34', '#a8533c', '#8e4230', '#b25a40', '#a0503e', '#86402c', '#713a28'];
       const bw = 64, bh = 16;
       for (let row = 0; row < 16; row++) {
         const off = (row % 2) * (bw / 2);
@@ -299,9 +299,9 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
           g.fillStyle = shades[Math.floor(h * shades.length)];
           g.fillRect(cx * bw + off + 1, row * bh + 1, bw - 2, bh - 2);
           // per-brick tone: lighter top edge, darker bottom edge
-          g.fillStyle = h < 0.5 ? 'rgba(255,220,190,0.10)' : 'rgba(0,0,0,0.12)';
+          g.fillStyle = h < 0.5 ? 'rgba(255,220,190,0.16)' : 'rgba(0,0,0,0.12)';
           g.fillRect(cx * bw + off + 1, row * bh + 1, bw - 2, 5);
-          g.fillStyle = 'rgba(0,0,0,0.18)';
+          g.fillStyle = 'rgba(0,0,0,0.12)';
           g.fillRect(cx * bw + off + 1, row * bh + bh - 5, bw - 2, 4);
         }
       }
@@ -309,7 +309,7 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
       for (let i = 0; i < 7; i++) {
         const x = (i * 97 + 31) % 256, y = (i * 57 + 113) % 256, r = 20 + (i * 37) % 40;
         const gr = g.createRadialGradient(x, y, 0, x, y, r);
-        gr.addColorStop(0, 'rgba(30,20,12,0.28)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+        gr.addColorStop(0, 'rgba(30,20,12,0.20)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
         g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
       }
     }, 32, 1);

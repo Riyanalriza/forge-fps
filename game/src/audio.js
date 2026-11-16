@@ -7,14 +7,21 @@ export function createAudio() {
   let rotorNodes = null; // attack-heli rotor oscillators (one pair, started/stopped)
   let vehicleNodes = null; // vehicle engine hum (one pair, started/stopped)
   let lobbyNodes = null; // lobby pad (one pair, started/stopped)
-  let ambientSrc = null, ambientKind = null, ambientBirdTimer = null;
+  let ambientSrc = null, ambientKind = null, ambientBirdTimer = null, ambientGain = null;
   let gunVol = 1, voiceVol = 1, calloutsOn = true; // v17.3 separate volumes
   let muted = false; // v18.3: mute-all silences every sound
   let hapticOn = true; // v28.0.1: vibration master switch
   let mobile = false; // v18.4: phone speakers get a bass boost in shot()
   function stopAmbient() {
     if (ambientBirdTimer) { clearInterval(ambientBirdTimer); ambientBirdTimer = null; }
-    if (ambientSrc) { try { ambientSrc.stop(); } catch { /* ignore */ } ambientSrc = null; }
+    const s = ambientSrc, g = ambientGain; ambientSrc = null; ambientGain = null;
+    if (s) {
+      try {
+        const c = ac();
+        if (c && g) { g.gain.cancelScheduledValues(c.currentTime); g.gain.setValueAtTime(g.gain.value, c.currentTime); g.gain.linearRampToValueAtTime(0.0001, c.currentTime + 0.4); }
+        setTimeout(() => { try { s.stop(); } catch { /* ignore */ } }, 450);
+      } catch { try { s.stop(); } catch { /* ignore */ } }
+    }
     ambientKind = null;
   }
   function stopCinematic() {
@@ -35,7 +42,8 @@ export function createAudio() {
       const o = c.createOscillator(), g = c.createGain();
       o.type = type; o.frequency.setValueAtTime(freq, c.currentTime);
       if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(20, freq + slide), c.currentTime + dur);
-      g.gain.setValueAtTime(vol * gunVol, c.currentTime);
+      g.gain.setValueAtTime(0.0001, c.currentTime);
+      g.gain.linearRampToValueAtTime(vol * gunVol, c.currentTime + 0.008);
       g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + dur);
       o.connect(g).connect(c.destination);
       o.start(); o.stop(c.currentTime + dur);
@@ -51,7 +59,7 @@ export function createAudio() {
       for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
       const src = c.createBufferSource(); src.buffer = buf;
       const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = low;
-      const g = c.createGain(); g.gain.value = vol * gunVol;
+      const g = c.createGain(); g.gain.setValueAtTime(0.0001, c.currentTime); g.gain.linearRampToValueAtTime(vol * gunVol, c.currentTime + 0.02);
       src.connect(f).connect(g).connect(c.destination); src.start();
     } catch { /* ignore */ }
   }
@@ -160,9 +168,9 @@ export function createAudio() {
         for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
         const src = c.createBufferSource(); src.buffer = buf; src.loop = true;
         const f = c.createBiquadFilter(); f.type = d.type; f.frequency.value = d.freq;
-        const g = c.createGain(); g.gain.value = d.vol;
+        const g = c.createGain(); g.gain.setValueAtTime(0.0001, c.currentTime); g.gain.linearRampToValueAtTime(d.vol, c.currentTime + 1.5);
         src.connect(f).connect(g).connect(c.destination); src.start();
-        ambientSrc = src; ambientKind = kind;
+        ambientSrc = src; ambientGain = g; ambientKind = kind;
         if (kind === 'birds') {
           ambientBirdTimer = setInterval(() => {
             const f0 = 2200 + Math.random() * 1200;

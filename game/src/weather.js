@@ -7,9 +7,9 @@ export const WEATHER_DEFS = {
   // Dusk (reference-style): warm orange sky, low sun, thin haze — the
   // dossier's default look. Kept readable: fog far 70m, sun 2.6.
   sunset: { name: 'Sore', icon: '🌇', sky: { top: '#33182e', mid: '#8a3a26', horizon: '#ff7a30', glow: 'rgba(255,110,50,0.95)', stars: false }, bg: 0xff8a35, fog: [18, 70], sun: { color: 0xff6a2a, int: 2.6, pos: [-50, 8, 10] }, hemi: { sky: 0xffa070, ground: 0x4a2a1a, int: 1.35 }, clouds: 10, rain: 0, snow: 0, dust: 0, stars: false, lights: false, lightning: null },
-  night: { name: 'Malam', icon: '🌙', sky: { top: '#020208', mid: '#0a0a20', horizon: '#1a1a3a', glow: 'rgba(200,200,255,0.25)', stars: true }, bg: 0x050510, fog: [20, 70], sun: { color: 0x9fb8ff, int: 1.0, pos: [30, 50, -20] }, hemi: { sky: 0x2a3a6a, ground: 0x0a0a14, int: 0.9 }, clouds: 4, rain: 0, snow: 0, dust: 0, stars: true, lights: true, lightning: null },
+  night: { name: 'Malam', icon: '🌙', sky: { top: '#020208', mid: '#0a0a20', horizon: '#1a1a3a', glow: 'rgba(200,200,255,0.25)', stars: true }, bg: 0x050510, fog: [20, 70], sun: { color: 0x9fb8ff, int: 1.2, pos: [30, 50, -20] }, hemi: { sky: 0x2a3a6a, ground: 0x0a0a14, int: 1.1 }, clouds: 4, rain: 0, snow: 0, dust: 0, stars: true, lights: true, lightning: null },
   rain: { name: 'Hujan', icon: '🌧️', sky: { top: '#1a2530', mid: '#2a3a4a', horizon: '#4a5a6a', glow: 'rgba(150,170,190,0.3)', stars: false }, bg: 0x3a4a5a, fog: [20, 70], sun: { color: 0xaab8c8, int: 1.0, pos: [-20, 50, 10] }, hemi: { sky: 0x6a7a8a, ground: 0x2a2a2a, int: 0.9 }, clouds: 12, rain: 500, snow: 0, dust: 0, stars: false, lights: false, lightning: 'rare' },
-  storm: { name: 'Badai', icon: '⛈️', sky: { top: '#0a0e14', mid: '#141a22', horizon: '#2a3038', glow: 'rgba(180,190,210,0.35)', stars: false }, bg: 0x1a2028, fog: [15, 55], sun: { color: 0x8a9ab0, int: 1.2, pos: [-20, 40, 10] }, hemi: { sky: 0x3a4a5a, ground: 0x141414, int: 1.0 }, clouds: 14, rain: 500, snow: 0, dust: 0, stars: false, lights: false, lightning: 'storm' },
+  storm: { name: 'Badai', icon: '⛈️', sky: { top: '#0a0e14', mid: '#141a22', horizon: '#2a3038', glow: 'rgba(180,190,210,0.35)', stars: false }, bg: 0x1a2028, fog: [15, 55], sun: { color: 0x8a9ab0, int: 1.5, pos: [-20, 40, 10] }, hemi: { sky: 0x3a4a5a, ground: 0x141414, int: 1.3 }, clouds: 14, rain: 500, snow: 0, dust: 0, stars: false, lights: false, lightning: 'storm' },
   sand: { name: 'Badai Pasir', icon: '🏜️', sky: { top: '#8a6a2a', mid: '#c8a050', horizon: '#e8c878', glow: 'rgba(255,220,140,0.5)', stars: false }, bg: 0xd8b25a, fog: [6, 30], sun: { color: 0xffd880, int: 1.6, pos: [-30, 40, 20] }, hemi: { sky: 0xe8c878, ground: 0x8a6a3a, int: 1.1 }, clouds: 6, rain: 0, snow: 0, dust: 200, stars: false, lights: false, lightning: null },
   snow: { name: 'Salju', icon: '❄️', sky: { top: '#5a6a7a', mid: '#8a9ab0', horizon: '#c8d8e8', glow: 'rgba(255,255,255,0.5)', stars: false }, bg: 0xb8c8d8, fog: [20, 75], sun: { color: 0xe8f0ff, int: 1.4, pos: [-20, 50, 10] }, hemi: { sky: 0xc8d8e8, ground: 0x6a7a8a, int: 1.2 }, clouds: 10, rain: 0, snow: 300, dust: 0, stars: false, lights: false, lightning: null },
   fog: { name: 'Kabut Tebal', icon: '🌫️', sky: { top: '#6a7a7a', mid: '#8a9a8a', horizon: '#a8b8b0', glow: 'rgba(200,210,200,0.3)', stars: false }, bg: 0x9aa8a8, fog: [4, 25], sun: { color: 0xc8d0c8, int: 0.8, pos: [-20, 40, 10] }, hemi: { sky: 0x9aa8a8, ground: 0x5a6a5a, int: 0.9 }, clouds: 3, rain: 0, snow: 0, dust: 0, stars: false, lights: false, lightning: null },
@@ -31,7 +31,7 @@ export const MAP_WEATHER_FULL = {
   iron: { weather: 'sunset', fog: [18, 60], sunInt: 1.2, wind: 1, ambient: 'city', bolt: null, puddles: false, fogBalls: false, sky: { top: '#3a3a42', mid: '#5a5a62', horizon: '#8a8a92', glow: 'rgba(180,180,190,0.3)', stars: false } },
   cargo: { weather: 'rain', fog: [25, 80], sunInt: 1.0, wind: 1, ambient: 'rain-light', bolt: null, puddles: true, fogBalls: false },
   harvest: { weather: 'fog', fog: [4, 25], sunInt: 0.8, wind: 0.5, ambient: 'birds', bolt: null, puddles: false, fogBalls: true },
-  ruin: { weather: 'storm', fog: [15, 55], sunInt: 1.6, wind: 2, ambient: 'rain-heavy', bolt: [2, 4], puddles: true, fogBalls: false },
+  ruin: { weather: 'storm', fog: [15, 55], sunInt: 2.0, wind: 2, ambient: 'rain-heavy', bolt: [2, 4], puddles: true, fogBalls: false },
   foundry: { weather: 'clear', fog: [30, 95], sunInt: 2.8, wind: 1, ambient: 'city', bolt: null, puddles: false, fogBalls: false },
 };
 // Ambient sound per weather type (used when no per-map ambient is set).
@@ -165,7 +165,7 @@ export function createWeather(scene, S, world, audio) {
 
   let boltT = 8; // seconds to the next lightning bolt
   let flash = 0;
-  let baseSunInt = 2.4;
+  let baseSunInt = 2.4, sunTarget = 2.4, hemiTarget = 1.5, fogNT = 18, fogFT = 70;
   let boltRange = null; // [min, max] seconds between bolts (ruin map: faster)
 
   // Sun path (v18.6.1): one sun, driven by the day-night cycle when it is
@@ -185,20 +185,20 @@ export function createWeather(scene, S, world, audio) {
     scene.fog.color.setHex(def.bg);
     // Graphics quality (v18.6.10): Low pulls the fog in close, Ultra pushes it out.
     const fogF = S.fogFactor || 1;
-    scene.fog.near = ((over && over.fog) ? over.fog[0] : def.fog[0]) * fogF;
-    scene.fog.far = ((over && over.fog) ? over.fog[1] : def.fog[1]) * fogF;
+    fogNT = ((over && over.fog) ? over.fog[0] : def.fog[0]) * fogF;
+    fogFT = ((over && over.fog) ? over.fog[1] : def.fog[1]) * fogF;
     world.setSky((over && over.sky) ? over.sky : def.sky);
     world.sun.color.setHex(def.sun.color);
     // Brightness slider (v18.3.2) × Ultra sun boost (v18.6.10).
     const bright = (S.settings && S.settings.graphics && S.settings.graphics.brightness) || 1;
     const qSun = S.qualitySun || 1;
-    world.sun.intensity = ((over && over.sunInt != null) ? over.sunInt : def.sun.int) * bright * qSun;
+    sunTarget = ((over && over.sunInt != null) ? over.sunInt : def.sun.int) * bright * qSun;
     world.sun.position.set(...def.sun.pos);
-    baseSunInt = world.sun.intensity;
+    baseSunInt = sunTarget;
     sunBase = { x: def.sun.pos[0] * 1.6, y: Math.max(12, def.sun.pos[1]), z: def.sun.pos[2] * 1.6 };
     world.hemi.color.setHex(def.hemi.sky);
     world.hemi.groundColor.setHex(def.hemi.ground);
-    world.hemi.intensity = def.hemi.int;
+    hemiTarget = def.hemi.int;
     sunMesh.visible = id !== 'night'; sunHalo.visible = id !== 'night';
     sunMesh.material.color.setHex(id === 'sunset' ? 0xff5a2a : id === 'dawn' ? 0xffb080 : 0xffdf80);
     sunHalo.material.color.setHex(id === 'sunset' ? 0xff5a2a : id === 'dawn' ? 0xffb080 : 0xffdf80);
@@ -334,11 +334,17 @@ export function createWeather(scene, S, world, audio) {
     }
     if (flash > 0) {
       flash = Math.max(0, flash - dt * 2.5);
-      world.sun.intensity += (baseSunInt - world.sun.intensity) * Math.min(1, dt * 4);
       if (flashEl) flashEl.style.opacity = String(flash * 0.55);
     } else if (flashEl && flashEl.style.opacity !== '0') {
       flashEl.style.opacity = '0';
     }
+    // Smooth light/fog transitions: ease toward the weather targets
+    // instead of snapping (cycle phase changes, manual switches).
+    const k = Math.min(1, dt * 1.5);
+    world.sun.intensity += (sunTarget - world.sun.intensity) * k;
+    world.hemi.intensity += (hemiTarget - world.hemi.intensity) * k;
+    scene.fog.near += (fogNT - scene.fog.near) * k;
+    scene.fog.far += (fogFT - scene.fog.far) * k;
   }
   // Day-night cycle: 10 minutes — Day 3m -> Sunset 2m -> Night 3m -> Dawn 2m.
   // The cycle only drives clear/sunset/night/dawn; a manually picked

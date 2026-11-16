@@ -112,7 +112,7 @@ export function createEffects(scene, S, audio) {
     const tex = new THREE.CanvasTexture(c);
     return tex;
   }
-  const flash = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5),
+  const flash = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.4),
     new THREE.MeshBasicMaterial({ map: makeFlashTexture(), color: 0xffffff, transparent: true, opacity: 0, depthWrite: false }));
   flash.visible = false; scene.add(flash);
   const flashLight = new THREE.PointLight(0xffaa33, 0, 6);
@@ -202,7 +202,7 @@ export function createEffects(scene, S, audio) {
     flash.lookAt(camPos);
     flash.visible = true; flashT = 0.08;
     flash.material.opacity = 1;
-    flash.scale.setScalar((1.1 + Math.random() * 0.6) * scale);
+    flash.scale.setScalar((0.8 + Math.random() * 0.4) * scale);
     flashLight.position.copy(tip).addScaledVector(dir, 0.4);
     flashLight.intensity = 3 * scale;
     // Muzzle smoke lingers ~2s (v18.2.3): grows and fades slowly.
