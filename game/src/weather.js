@@ -19,20 +19,23 @@ export const WEATHER_IDS = Object.keys(WEATHER_DEFS);
 // Default weather per map (original map ids, not the COD names).
 // v17.2: ruin = heavy rain + lightning, cargo = drizzle, harvest = foggy
 // morning (the older fog/clear defaults for those maps are superseded).
-export const MAP_WEATHER = { ember: 'sand', ruin: 'storm', iron: 'sunset', foundry: 'clear', twin: 'clear', cargo: 'rain', harvest: 'fog' };
+export const MAP_WEATHER = { ember: 'sand', ruin: 'storm', iron: 'sunset', foundry: 'sunset', twin: 'clear', cargo: 'rain', harvest: 'fog' };
 // Full per-map weather parameters (v17.2): each map has its own sky + fog
 // density + sun intensity + particle behaviour + wind + ambient sound.
 // The base `weather` must match MAP_WEATHER above; the extras only apply
 // while that map weather is in effect (cycle / random / manual override the
 // base weather, and then the extras do not apply).
+// Per-map light (v28): each map gets its own sun color/angle, hemisphere,
+// sky, fog color and cloud tint on top of its weather — foundry stays the
+// plain sunset def (the dusk reference); ruin keeps its storm-night identity.
 export const MAP_WEATHER_FULL = {
-  ember: { weather: 'sand', fog: [6, 30], sunInt: 1.6, wind: 3, ambient: 'sand', bolt: null, puddles: false, fogBalls: false },
-  twin: { weather: 'clear', fog: [30, 95], sunInt: 3.2, wind: 1, ambient: 'birds', bolt: null, puddles: false, fogBalls: false },
-  iron: { weather: 'sunset', fog: [18, 60], sunInt: 1.2, wind: 1, ambient: 'city', bolt: null, puddles: false, fogBalls: false, sky: { top: '#3a3a42', mid: '#5a5a62', horizon: '#8a8a92', glow: 'rgba(180,180,190,0.3)', stars: false } },
-  cargo: { weather: 'rain', fog: [25, 80], sunInt: 1.0, wind: 1, ambient: 'rain-light', bolt: null, puddles: true, fogBalls: false },
-  harvest: { weather: 'fog', fog: [4, 25], sunInt: 0.8, wind: 0.5, ambient: 'birds', bolt: null, puddles: false, fogBalls: true },
-  ruin: { weather: 'storm', fog: [15, 55], sunInt: 2.0, wind: 2, ambient: 'rain-heavy', bolt: [2, 4], puddles: true, fogBalls: false },
-  foundry: { weather: 'clear', fog: [30, 95], sunInt: 2.8, wind: 1, ambient: 'city', bolt: null, puddles: false, fogBalls: false },
+  ember: { weather: 'sand', fog: [6, 30], sunInt: 1.9, wind: 3, ambient: 'sand', bolt: null, puddles: false, fogBalls: false, sky: { top: '#7a5a22', mid: '#c89848', horizon: '#f0d078', glow: 'rgba(255,220,140,0.6)', stars: false }, sunC: 0xffc860, sunP: [-30, 40, 20], hemi: [0xe8c878, 0x8a6a3a, 1.25], bg: 0xd8b25a, cloud: 0xffe8c0 },
+  twin: { weather: 'clear', fog: [30, 95], sunInt: 3.2, wind: 1, ambient: 'birds', bolt: null, puddles: false, fogBalls: false, sky: { top: '#4a86c8', mid: '#8ab8e8', horizon: '#ffe8c0', glow: 'rgba(255,235,180,0.8)', stars: false }, sunC: 0xfff0c0, sunP: [-25, 65, 15], hemi: [0xcfe0ff, 0x9a8a6a, 1.7], bg: 0x9fd0f0, cloud: 0xffffff },
+  iron: { weather: 'sunset', fog: [18, 60], sunInt: 1.2, wind: 1, ambient: 'city', bolt: null, puddles: false, fogBalls: false, sky: { top: '#3a3a42', mid: '#5a5a62', horizon: '#8a8a92', glow: 'rgba(180,180,190,0.3)', stars: false }, sunC: 0xff8a5a, sunP: [-40, 14, 20], hemi: [0x8a8a9a, 0x3a3a44, 1.0], bg: 0x6a6a72, cloud: 0x6a6a72 },
+  cargo: { weather: 'rain', fog: [25, 80], sunInt: 1.0, wind: 1, ambient: 'rain-light', bolt: null, puddles: true, fogBalls: false, sky: { top: '#232c36', mid: '#3a4753', horizon: '#5a6a72', glow: 'rgba(170,190,205,0.3)', stars: false }, sunC: 0xb8c4d0, sunP: [-20, 55, 10], hemi: [0x7a8a9a, 0x3a3a3a, 1.0], bg: 0x4a5a68, cloud: 0x5a6a78 },
+  harvest: { weather: 'fog', fog: [4, 25], sunInt: 0.8, wind: 0.5, ambient: 'birds', bolt: null, puddles: false, fogBalls: true, sky: { top: '#7a8a6a', mid: '#b8c898', horizon: '#ffe0a0', glow: 'rgba(255,220,150,0.7)', stars: false }, sunC: 0xffd890, sunP: [45, 12, 10], hemi: [0xffe0a8, 0x5a6a4a, 1.1], bg: 0xa8b89a, cloud: 0xf0e8d0 },
+  ruin: { weather: 'storm', fog: [15, 55], sunInt: 2.0, wind: 2, ambient: 'rain-heavy', bolt: [2, 4], puddles: true, fogBalls: false, sunC: 0x9fb8ff, sunP: [-20, 40, 10], hemi: [0x3a4a6a, 0x12121a, 1.3], bg: 0x1a2028, cloud: 0x2a323e },
+  foundry: { weather: 'sunset', fog: [18, 70], sunInt: 2.6, wind: 1, ambient: 'city', bolt: null, puddles: false, fogBalls: false },
 };
 // Ambient sound per weather type (used when no per-map ambient is set).
 const WEATHER_AMBIENT = { clear: 'birds', sunset: 'city', night: 'city', rain: 'rain-light', storm: 'rain-heavy', sand: 'sand', snow: 'wind', fog: 'wind', dawn: 'birds' };
@@ -181,24 +184,27 @@ export function createWeather(scene, S, world, audio) {
       rainbowDelay = 10; rainbowT = 0;
     }
     S.weather = id;
-    scene.background = new THREE.Color(def.bg);
-    scene.fog.color.setHex(def.bg);
+    const bg = (over && over.bg != null) ? over.bg : def.bg;
+    scene.background = new THREE.Color(bg);
+    scene.fog.color.setHex(bg);
     // Graphics quality (v18.6.10): Low pulls the fog in close, Ultra pushes it out.
     const fogF = S.fogFactor || 1;
     fogNT = ((over && over.fog) ? over.fog[0] : def.fog[0]) * fogF;
     fogFT = ((over && over.fog) ? over.fog[1] : def.fog[1]) * fogF;
     world.setSky((over && over.sky) ? over.sky : def.sky);
-    world.sun.color.setHex(def.sun.color);
+    world.sun.color.setHex((over && over.sunC != null) ? over.sunC : def.sun.color);
     // Brightness slider (v18.3.2) × Ultra sun boost (v18.6.10).
     const bright = (S.settings && S.settings.graphics && S.settings.graphics.brightness) || 1;
     const qSun = S.qualitySun || 1;
     sunTarget = ((over && over.sunInt != null) ? over.sunInt : def.sun.int) * bright * qSun;
-    world.sun.position.set(...def.sun.pos);
+    const sp = (over && over.sunP) ? over.sunP : def.sun.pos;
+    world.sun.position.set(...sp);
     baseSunInt = sunTarget;
-    sunBase = { x: def.sun.pos[0] * 1.6, y: Math.max(12, def.sun.pos[1]), z: def.sun.pos[2] * 1.6 };
-    world.hemi.color.setHex(def.hemi.sky);
-    world.hemi.groundColor.setHex(def.hemi.ground);
-    hemiTarget = def.hemi.int;
+    sunBase = { x: sp[0] * 1.6, y: Math.max(12, sp[1]), z: sp[2] * 1.6 };
+    const hm = (over && over.hemi) ? over.hemi : [def.hemi.sky, def.hemi.ground, def.hemi.int];
+    world.hemi.color.setHex(hm[0]);
+    world.hemi.groundColor.setHex(hm[1]);
+    hemiTarget = hm[2];
     sunMesh.visible = id !== 'night'; sunHalo.visible = id !== 'night';
     sunMesh.material.color.setHex(id === 'sunset' ? 0xff5a2a : id === 'dawn' ? 0xffb080 : 0xffdf80);
     sunHalo.material.color.setHex(id === 'sunset' ? 0xff5a2a : id === 'dawn' ? 0xffb080 : 0xffdf80);
@@ -206,7 +212,7 @@ export function createWeather(scene, S, world, audio) {
     moonMesh.visible = id === 'night';
     const nClouds = def.clouds;
     clouds.forEach((c, i) => { c.visible = i < nClouds; }); // clusters share cloudMat
-    cloudMat.color.setHex(id === 'night' ? 0x2a2a3a : id === 'storm' || id === 'rain' ? 0x3a4550 : id === 'dawn' ? 0xffc8d0 : (over && over.sky) ? 0x6a6a72 : 0xffffff);
+    cloudMat.color.setHex((over && over.cloud != null) ? over.cloud : id === 'night' ? 0x2a2a3a : id === 'storm' || id === 'rain' ? 0x3a4550 : id === 'dawn' ? 0xffc8d0 : (over && over.sky) ? 0x6a6a72 : 0xffffff);
     cloudMat.opacity = id === 'storm' || id === 'rain' ? 0.95 : 0.8;
     stars.visible = !!def.stars;
     rain.visible = def.rain > 0;
