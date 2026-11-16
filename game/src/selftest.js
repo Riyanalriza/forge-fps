@@ -1061,6 +1061,62 @@ export function runSelfTest(ctx) {
     // Round-over wide shot: end the round and check the viewpoint parks high.
     game.endRound(true, '§50 TEST');
     check('§50 round-over parks the camera high', S.player.y >= 20 && S.player.pitch < -0.5);
+    // ---- §51: frost layout redesign — Frostworks must NOT be foundry
+    // with snow (2026-11-16). Sites, waypoints and the big masses differ.
+    world.buildMap('frost'); vehicles.place('frost'); game.startRound();
+    S.mode = 'tdm'; S.difficulty = 'normal';
+    S.player.hp = 9999; S.spawnProtT = 0; S.hideT = 999;
+    const fr51 = MAP_DEFS.frost, fo51 = MAP_DEFS.foundry;
+    const siteDist51 = k => Math.hypot(fr51.sites[k].x - fo51.sites[k].x, fr51.sites[k].z - fo51.sites[k].z);
+    check('§51 frost sites moved (A/B/C all >10m from foundry)', ['A', 'B', 'C'].every(k => siteDist51(k) > 10));
+    check('§51 frost site names kept (Boiler House / Crane Dock / Frost Gate)',
+      fr51.sites.A.name === 'Boiler House' && fr51.sites.B.name === 'Crane Dock' && fr51.sites.C.name === 'Frost Gate');
+    check('§51 frost waypoints differ from foundry (not a copy)',
+      JSON.stringify(fr51.waypoints) !== JSON.stringify(fo51.waypoints) && fr51.waypoints.length >= 12);
+    // The old foundry hall spot (0,-2) is open ground now; the new west
+    // hall, the annex and the crane legs are solid where they stand.
+    check('§51 no central hall: old foundry hall spot (0,-2) is open', !world.isColliding(0, -2, 0.35, 0));
+    check('§51 new west hall is solid', world.isColliding(-30, -3, 0.35, 0));
+    check('§51 new annex is solid', world.isColliding(26, 12, 0.35, 0));
+    check('§51 crane legs stand at (26,-6) and (26,6)', world.isColliding(26, -6, 0.35, 0) && world.isColliding(26, 6, 0.35, 0));
+    check('§51 site B sits open under the crane beam', !world.isColliding(26, 0, 0.35, 0));
+    // Every site + spawn stands on open ground.
+    const open51 = (x, z) => !world.isColliding(x, z, 0.35, 0);
+    check('§51 all frost sites are open ground', ['A', 'B', 'C'].every(k => open51(world.sites[k].x, world.sites[k].z)));
+    check('§51 frost spawns are open ground',
+      open51(fr51.spawns.player.x, fr51.spawns.player.z) && fr51.spawns.bots.every(s => open51(s.x, s.z)));
+    // Every waypoint is open, and every ring segment between consecutive
+    // waypoints is walkable (sampled every 0.5m, bot radius 0.4).
+    const wps51 = world.waypoints;
+    check(`§51 all ${wps51.length} frost waypoints are open`, wps51.every(w => open51(w.x, w.z)));
+    const segClear51 = (a, b) => {
+      const n = Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.5);
+      for (let i = 0; i <= n; i++) {
+        if (world.isColliding(a.x + (b.x - a.x) * i / n, a.z + (b.z - a.z) * i / n, 0.4, 0)) return false;
+      }
+      return true;
+    };
+    let badSeg51 = -1;
+    for (let i = 0; i < wps51.length; i++) {
+      if (!segClear51(wps51[i], wps51[(i + 1) % wps51.length])) { badSeg51 = i; break; }
+    }
+    check(`§51 waypoint ring is walkable (bad segment: ${badSeg51})`, badSeg51 === -1);
+    // Houses still enterable, vehicles placed on clear ground.
+    check('§51 frost still has enterable-house doors', world.doors.length > 0);
+    check('§51 frost vehicles sit on clear ground',
+      vehicles.list.every(v => !world.isColliding(v.x, v.z, 1.2, 0)));
+    // A bot actually walks the new ring: park it at waypoint 0, point it
+    // at the far side, and watch it close the distance.
+    const wb = S.bots[0];
+    wb.hp = 100; wb.state = 'patrol'; wb.hasSeen = false; wb.prone = false;
+    wb.skillCd = 999; wb.grenadeCd = 999; wb.grenadesUsed = 1; wb.flankCd = 999;
+    wb.x = wps51[0].x; wb.z = wps51[0].z; wb.wpIdx = 6; wb.stuckT = 0;
+    parkOthers(wb); bots.syncMeshes();
+    const d0 = Math.hypot(wb.x - wps51[6].x, wb.z - wps51[6].z);
+    settle(60 * 12); // west leg detour is longer; 12s still clears it
+    const d1 = Math.hypot(wb.x - wps51[6].x, wb.z - wps51[6].z);
+    check(`§51 bot walks the frost ring (dist ${d0.toFixed(1)} -> ${d1.toFixed(1)}m)`, d1 < d0 - 5);
+    S.hideT = 0;
     world.buildMap('foundry');
     game.startRound();
     world.buildMap('foundry');
