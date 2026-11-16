@@ -763,10 +763,53 @@ export function createFirstPersonHands(S) {
     return t;
   })();
   const sleeveM = new THREE.MeshStandardMaterial({ color: 0xffffff, map: sleeveTex, roughness: 0.85, emissive: 0x0a2e1c, emissiveIntensity: 0.25 });
-  const gunM = new THREE.MeshStandardMaterial({ color: 0x23272b, roughness: 0.45, metalness: 0.65 }); // dark gunmetal, not washed white
-  const barrelM = new THREE.MeshStandardMaterial({ color: 0x16181c, roughness: 0.35, metalness: 0.8 });
+  // Realistic-textures pass: brushed gunmetal + wood grain, white-base so
+  // buildGun's dark colour (0x2b2f33) and applyCamo tints still hold.
+  const brushedTex = (() => {
+    const c = document.createElement('canvas'); c.width = 128; c.height = 128;
+    const g = c.getContext('2d');
+    g.fillStyle = '#ececef'; g.fillRect(0, 0, 128, 128);
+    for (let y = 0; y < 128; y += 2) { // fine horizontal brush streaks
+      g.fillStyle = (y / 2) % 2 ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)';
+      g.fillRect(0, y, 128, 1);
+    }
+    for (let i = 0; i < 6; i++) { // wear scratches (fixed positions)
+      g.strokeStyle = 'rgba(255,255,255,0.14)'; g.lineWidth = 1;
+      const y = 12 + i * 19;
+      g.beginPath(); g.moveTo(8 + i * 6, y); g.lineTo(90 + i * 4, y + 3); g.stroke();
+    }
+    for (let i = 0; i < 120; i++) { // speckle
+      g.fillStyle = 'rgba(0,0,0,0.07)';
+      g.fillRect((i * 37) % 128, (i * 53) % 128, 1.5, 1.5);
+    }
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    return t;
+  })();
+  const woodTex = (() => {
+    const c = document.createElement('canvas'); c.width = 128; c.height = 128;
+    const g = c.getContext('2d');
+    g.fillStyle = '#f5efe6'; g.fillRect(0, 0, 128, 128);
+    for (let p = 0; p < 4; p++) { // grain bands
+      const y = p * 32;
+      g.strokeStyle = 'rgba(90,60,30,0.30)'; g.lineWidth = 1.5;
+      for (let k = 0; k < 2; k++) {
+        const gy = y + 8 + k * 12;
+        g.beginPath(); g.moveTo(0, gy);
+        g.bezierCurveTo(40, gy + 3, 90, gy - 3, 128, gy + 2); g.stroke();
+      }
+      g.fillStyle = 'rgba(60,40,18,0.25)'; g.fillRect(0, y, 128, 2); // plank seam
+    }
+    g.strokeStyle = 'rgba(70,45,20,0.45)'; g.lineWidth = 2; // one knot
+    g.beginPath(); g.ellipse(96, 64, 7, 5, 0, 0, 7); g.stroke();
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    return t;
+  })();
+  const gunM = new THREE.MeshStandardMaterial({ color: 0x23272b, roughness: 0.45, metalness: 0.65, map: brushedTex }); // dark gunmetal, not washed white
+  const barrelM = new THREE.MeshStandardMaterial({ color: 0x16181c, roughness: 0.35, metalness: 0.8, map: brushedTex });
   const gripM = new THREE.MeshStandardMaterial({ color: 0x14161a, roughness: 0.95 });
-  const woodM = new THREE.MeshStandardMaterial({ color: 0x6b4a2a, roughness: 0.8 });
+  const woodM = new THREE.MeshStandardMaterial({ color: 0x6b4a2a, roughness: 0.8, map: woodTex });
   const bladeM = new THREE.MeshStandardMaterial({ color: 0xd8dce2, roughness: 0.25, metalness: 0.9 });
   const accentM = new THREE.MeshStandardMaterial({ color: 0xffb020, roughness: 0.5, metalness: 0.3 });
   // HANDS REWORK (2026-11-16, reference: hand clearly gripping the gun):
@@ -820,6 +863,8 @@ export function createFirstPersonHands(S) {
   const hands = {
     group, gun, parts: { handL, handR, armL, armR, gun, gripL, handsGroup, procHands },
     kickT: 0, weaponId: null,
+    // Realistic-textures pass: viewmodel materials carry a canvas map.
+    gunTex: { gun: !!gunM.map, barrel: !!barrelM.map, wood: !!woodM.map },
     buildGun(w, mythicDef) {
       while (gun.children.length) gun.remove(gun.children[0]);
       // GRAPHICS FIX (2026-11-15): the body stays dark gunmetal — the mythic

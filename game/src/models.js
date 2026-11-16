@@ -32,8 +32,14 @@ export const WEAPON_GLB = {
 // Pistol-grip point in gun-group space (matches the procedural gripAt z -0.02).
 const GRIP_POINT = { x: 0, y: -0.08, z: -0.02 };
 // Re-posed laggy arms, placed so the right pocket sits on the pistol grip.
-// Pockets after rot.y=PI: R (0.0495,0.030,0.024), L (0.075,0.1055,-0.276).
-const ARMS_POS = { x: -0.055, y: -0.11, z: -0.044 };
+// Pockets (file space, rotation.y=0 so file == game space): R (-0.0507,
+// 0.0609,-0.33), L (-0.0507,0.0609,-0.66). v3 re-pose (2026-11-16): fingers
+// REALLY curled (tight R 0.07/0.08 around the grip/forend); v1 bent the
+// forearm instead and left the fingers flat, and v2's R=0.145 loop hung
+// 0.12 off the grip. Mounting is rotation.y=0 (NOT PI): file fingers point
+// -Z = forward along the gun, elbows +Z = toward the camera. PI flipped
+// both the fingers (toward the camera) and left/right.
+const ARMS_POS = { x: 0.0507, y: -0.1409, z: 0.31 };
 const ARMS_URL = 'models/arms/rigged-laggy-arms-grip.glb';
 
 let armsObj = null, armsState = 'idle';
@@ -90,7 +96,7 @@ export function ensureViewmodelAssets() {
       armsState = 'loading';
       jobs.push(loadGLB(ARMS_URL).then((g) => {
         armsObj = g.scene;
-        armsObj.rotation.y = Math.PI;
+        armsObj.rotation.y = 0; // v3 re-pose: file fingers already point -Z (forward); PI flipped them toward the camera + swapped left/right
         armsObj.position.set(ARMS_POS.x, ARMS_POS.y, ARMS_POS.z);
         noCamoDeep(armsObj);
         armsState = 'ready';
@@ -129,6 +135,50 @@ export function attachViewmodel(hands, weaponId) {
   gun.userData.mag = null;
 }
 export function viewmodelReady() { return armsState === 'ready' && [...weaponState.values()].every((s) => s.state === 'ready'); }
+// Arms-mount report for the self-test (§45): proves the v3 re-pose from the
+// LOADED geometry, not from constants. Per hand mesh: mean position and the
+// mean position of the cream-UV verts (u>0.75 = fingertips), both in
+// handsGroup space (armsObj local matrix applied). A curled hand displaces
+// its fingertips toward the palm: right hand -X (inward), left hand +Y
+// (up). A flat hand (v1/original) has ~0 displacement on both axes.
+// The hand whose local bbox centre z is more negative is the LEFT hand
+// (forward, on the forend); the other is the RIGHT hand (on the grip).
+export function armsMountReport() {
+  if (armsState !== 'ready' || !armsObj) return null;
+  armsObj.updateMatrixWorld(true);
+  const m = armsObj.matrix; // local: rotation.y + ARMS_POS, vs handsGroup
+  const hands = [];
+  armsObj.traverse((o) => {
+    if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.position) return;
+    const pos = o.geometry.attributes.position;
+    const uv = o.geometry.attributes.uv;
+    const n = pos.count;
+    let sx = 0, sy = 0, sz = 0, cx = 0, cy = 0, cz = 0, cn = 0;
+    let mnx = Infinity, mxx = -Infinity, mnz = Infinity, mxz = -Infinity;
+    for (let i = 0; i < n; i++) {
+      const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+      // apply armsObj local matrix (rotation + ARMS_POS) by hand
+      const wx = m.elements[0] * x + m.elements[4] * y + m.elements[8] * z + m.elements[12];
+      const wy = m.elements[1] * x + m.elements[5] * y + m.elements[9] * z + m.elements[13];
+      const wz = m.elements[2] * x + m.elements[6] * y + m.elements[10] * z + m.elements[14];
+      sx += wx; sy += wy; sz += wz;
+      if (wx < mnx) mnx = wx; if (wx > mxx) mxx = wx;
+      if (wz < mnz) mnz = wz; if (wz > mxz) mxz = wz;
+      if (uv && uv.getX(i) > 0.75) { cx += wx; cy += wy; cz += wz; cn++; }
+    }
+    hands.push({ mean: [sx / n, sy / n, sz / n], cream: cn ? [cx / cn, cy / cn, cz / cn] : null,
+      creamN: cn, zC: (mnz + mxz) / 2, xC: (mnx + mxx) / 2 });
+  });
+  if (hands.length < 2) return null;
+  hands.sort((a, b) => a.zC - b.zC); // most negative z first = LEFT (forward)
+  const [L, R] = hands;
+  return {
+    ready: true, rotY: armsObj.rotation.y,
+    pos: [armsObj.position.x, armsObj.position.y, armsObj.position.z],
+    left: { zC: L.zC, creamDX: L.cream ? L.cream[0] - L.mean[0] : 0, creamDY: L.cream ? L.cream[1] - L.mean[1] : 0 },
+    right: { zC: R.zC, creamDX: R.cream ? R.cream[0] - R.mean[0] : 0, creamDY: R.cream ? R.cream[1] - R.mean[1] : 0 },
+  };
+}
 export function viewmodelStates() {
   const w = {};
   for (const [id, s] of weaponState) w[id] = s.state;

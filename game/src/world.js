@@ -123,6 +123,40 @@ function concreteTex(rng) {
     }
   }, 16, 12);
 }
+function sandTex() { // Ember Market: dune ripples + sand speckle, no slab joints
+  return canvasTex(256, (g, s) => {
+    g.fillStyle = '#f7f2e6'; g.fillRect(0, 0, s, s);
+    for (let i = 0; i < 8; i++) { // dune ripple bands
+      g.strokeStyle = 'rgba(120,95,55,0.14)'; g.lineWidth = 5;
+      const y = 20 + i * 30;
+      g.beginPath(); g.moveTo(0, y);
+      g.bezierCurveTo(80, y + 8, 170, y - 8, s, y + 4); g.stroke();
+    }
+    for (let i = 0; i < 700; i++) { // sand speckle (index-hash only)
+      const h = (((i * 2654435761) >>> 0) % 1000) / 1000;
+      g.fillStyle = h < 0.5 ? 'rgba(140,110,60,0.20)' : 'rgba(255,250,230,0.25)';
+      g.fillRect((i * 53) % s, (i * 91) % s, 2, 2);
+    }
+  }, 16, 12);
+}
+function grassTex() { // Harvest Town: green speckle + grass blades, no joints
+  return canvasTex(256, (g, s) => {
+    g.fillStyle = '#f2f5e8'; g.fillRect(0, 0, s, s);
+    for (let i = 0; i < 500; i++) { // grass blades (index-hash only)
+      const h = (((i * 2654435761) >>> 0) % 1000) / 1000;
+      g.strokeStyle = h < 0.4 ? 'rgba(60,120,40,0.35)' : h < 0.7 ? 'rgba(90,150,55,0.30)' : 'rgba(40,90,30,0.30)';
+      g.lineWidth = 1.5;
+      const x = (i * 53) % s, y = (i * 91) % s;
+      g.beginPath(); g.moveTo(x, y); g.lineTo(x + (h < 0.5 ? 2 : -2), y - 6 - (i % 5)); g.stroke();
+    }
+    for (let i = 0; i < 8; i++) { // worn dirt patches
+      const x = (i * 97 + 31) % 256, y = (i * 57 + 113) % 256, r = 18 + (i * 37) % 30;
+      const gr = g.createRadialGradient(x, y, 0, x, y, r);
+      gr.addColorStop(0, 'rgba(120,95,55,0.14)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+    }
+  }, 16, 12);
+}
 function hazardTex() {
   return canvasTex(128, (g, s) => {
     g.fillStyle = '#f0a830'; g.fillRect(0, 0, s, s);
@@ -202,8 +236,16 @@ export function buildWorld(scene) {
   );
   scene.add(sky);
 
-  // Ground — procedural concrete (tint changes per map)
-  const groundMat = mat(0xffffff, 0.95, concreteTex(rng));
+  // Ground — procedural textures per map kind (concrete / sand / grass).
+  const groundTexes = { concrete: concreteTex(rng), sand: sandTex(), grass: grassTex() };
+  const groundMat = mat(0xffffff, 0.95, groundTexes.concrete);
+  let groundKind = 'concrete';
+  function setGroundKind(kind) {
+    if (!groundTexes[kind]) kind = 'concrete';
+    groundKind = kind;
+    groundMat.map = groundTexes[kind];
+    groundMat.needsUpdate = true;
+  }
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(W + 24, D + 24), groundMat);
   ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
   // Dust patches
@@ -308,6 +350,7 @@ export function buildWorld(scene) {
     spawns.player = { ...def.spawns.player };
     spawns.bots = def.spawns.bots.map(s => ({ ...s }));
     setGroundTint(def.ground);
+    setGroundKind(def.groundTex || 'concrete');
     setFogTint(def.fog);
     return def;
   }
@@ -427,7 +470,8 @@ export function buildWorld(scene) {
   return {
     colliders, shootables, sites: SITES, spawns, waypoints, bounds: BOUNDS, brRing,
     doors, levels, stairs, buildMap, isColliding, groundY, obstacleAt, toggleDoor, stepDoors,
-    setGroundTint, setFogTint, setSky, setSkyColor, setGroundColor,
+    setGroundTint, setGroundKind, get groundKind() { return groundKind; },
+    setFogTint, setSky, setSkyColor, setGroundColor,
     skyMat: sky.material, sun, hemi,
     // v24.1 color system (delegates to props registries).
     recolor(kind, hex) { props.recolor(kind, hex); },
@@ -447,6 +491,8 @@ export function buildWorld(scene) {
     interactables: props.interactables,
     glbPlacements: props.glbPlacements,
     setHouseLights(on) { props.setHouseLights(on); },
+    // Realistic-textures pass: which prop kinds carry a canvas map.
+    textureReport() { return props.textureReport(); },
     // Nearest interactable (vending / ATM / phone / suitcase / cart) within 2m.
     nearestInteractable(x, z, type) {
       for (const it of props.interactables) {

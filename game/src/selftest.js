@@ -10,7 +10,7 @@ import { loadColorChoices, saveColorChoices } from './palette.js';
 import { FLAGS, setFlag } from './state.js';
 import { dmgAngle } from './hud.js';
 import { fxFor } from './weaponfx.js';
-import { viewmodelReady, soldierReady, WEAPON_GLB } from './models.js';
+import { viewmodelReady, soldierReady, WEAPON_GLB, armsMountReport } from './models.js';
 
 export function runSelfTest(ctx) {
   const { S, game, bots, hud, mythicFx, world, weapon, player, doEmote, settle, FIXED_STEP, createDragon3D, createVoidPortal3D, weather, zombies, vehicles, economy, effects, audio, input } = ctx;
@@ -632,6 +632,46 @@ export function runSelfTest(ctx) {
     effects.step(0.2);
     check('Flash is gone after its duration',
       effects.lastFlash().visible === false && effects.lastFlash().light === 0);
+    // ---- §44: Realistic textures (procedural canvas maps, white-base) ----
+    // Aggregate the prop texture report across all maps — each kind only
+    // needs to prove itself on one map that actually places it.
+    const texAll = {};
+    for (const m of ['foundry', 'cargo', 'ember', 'harvest', 'twin', 'iron', 'ruin']) {
+      world.buildMap(m);
+      Object.assign(texAll, world.textureReport());
+    }
+    check('Containers carry a corrugated canvas map', texAll.container === true);
+    check('House walls carry a plaster canvas map', texAll['house-wall'] === true);
+    check('Barn walls carry a plank canvas map', texAll['barn-wall'] === true);
+    check('Roofs carry a tile canvas map', texAll.roof === true);
+    check('Barrels carry a ring canvas map', texAll.barrel === true);
+    check('Sandbags carry a weave canvas map', texAll.sandbag === true);
+    world.buildMap('ember');
+    check('Ember ground is sand texture', world.groundKind === 'sand');
+    world.buildMap('harvest');
+    check('Harvest ground is grass texture', world.groundKind === 'grass');
+    world.buildMap('foundry');
+    check('Foundry ground is concrete texture', world.groundKind === 'concrete');
+    check('Viewmodel gunmetal carries a brushed canvas map',
+      !!(weapon.hands.gunTex && weapon.hands.gunTex.gun));
+    check('Viewmodel barrel carries a brushed canvas map',
+      !!(weapon.hands.gunTex && weapon.hands.gunTex.barrel));
+    check('Viewmodel wood pump carries a grain canvas map',
+      !!(weapon.hands.gunTex && weapon.hands.gunTex.wood));
+    // ---- §45: Viewmodel arms grip (v3 re-pose, 2026-11-16) ----
+    // v1 bent the forearm and left the fingers flat + mounted rotation.y=PI
+    // (fingers toward the camera, left/right swapped). v3 curls the fingers
+    // (tight R 0.07/0.08) and mounts rotation.y=0. Thresholds verified
+    // against the real files: flat v1/original has |creamDX|,|creamDY| < 0.02,
+    // curled v3 has right creamDX -0.043 and left creamDY +0.045.
+    const amr = armsMountReport();
+    check('Arms mount report available (arms loaded)', !!amr);
+    check('Arms mounted rotation.y = 0 (not PI)', !!amr && Math.abs(amr.rotY) < 0.001);
+    check('Arms position is ARMS_POS (0.0507,-0.1409,0.31)', !!amr &&
+      Math.abs(amr.pos[0] - 0.0507) < 0.001 && Math.abs(amr.pos[1] + 0.1409) < 0.001 && Math.abs(amr.pos[2] - 0.31) < 0.001);
+    check('Left hand sits forward of the right hand (forend vs grip)', !!amr && (amr.left.zC < amr.right.zC - 0.2));
+    check('Right fingertips curl inward (-X, toward the grip)', !!amr && amr.right.creamDX < -0.03);
+    check('Left fingertips curl upward (+Y, around the forend)', !!amr && amr.left.creamDY > 0.03);
     world.buildMap('foundry');
     game.startRound();
   } catch (e) {

@@ -123,7 +123,7 @@ export const MAP_DEFS = {
       B: { name: 'Tent Row', x: 22, z: -20, color: 0x37c8d8 },
       C: { name: 'Oasis Court', x: 2, z: 12, color: 0x7ddc7d },
     },
-    ground: 0xd8b98a, fog: 0x8a6a4a,
+    ground: 0xd8b98a, groundTex: 'sand', fog: 0x8a6a4a,
     waypoints: [
       { x: -30, z: -2 }, { x: -30, z: 6 }, { x: -12, z: 14 }, { x: 0, z: 6 },
       { x: 12, z: 14 }, { x: 30, z: 6 }, { x: 30, z: -2 }, { x: 14, z: -8 },
@@ -387,7 +387,7 @@ export const MAP_DEFS = {
       B: { name: 'Mill Row', x: 22, z: -21, color: 0x37c8d8 },
       C: { name: 'Field Cross', x: 0, z: 12, color: 0x7ddc7d },
     },
-    ground: 0xcfd8b0, fog: 0x7a8a6a,
+    ground: 0xcfd8b0, groundTex: 'grass', fog: 0x7a8a6a,
     waypoints: [
       { x: -30, z: -2 }, { x: -30, z: 6 }, { x: -8, z: 14 }, { x: 0, z: 6 },
       { x: 12, z: 14 }, { x: 30, z: 6 }, { x: 30, z: -2 }, { x: 14, z: -8 },

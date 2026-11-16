@@ -387,6 +387,140 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
     }, 4, 1);
     return _hazardTex;
   }
+  // ---- Realistic-textures pass (2026-11-16): white-base maps, so the
+  // material's own colour tints them and recolor()/season still work.
+  // All patterns are index-hash only — NEVER rng(), the deterministic
+  // gameplay sequence is untouched.
+  let _corrTintTex = null;
+  function corrugatedTintTexture() { // container steel: ridges + faint rust
+    if (_corrTintTex) return _corrTintTex;
+    _corrTintTex = ptex(256, (g, s) => {
+      g.fillStyle = '#f0ede8'; g.fillRect(0, 0, s, s);
+      for (let x = 0; x < s; x += 16) {
+        g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(x, 0, 5, s);
+        g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(x + 9, 0, 6, s);
+      }
+      for (let i = 0; i < 10; i++) { // faint rust streaks down the ridges
+        const x = (i * 67 + 13) % 256, w = 3 + (i * 11) % 8, len = 60 + (i * 41) % 140;
+        g.fillStyle = 'rgba(120,60,20,0.12)';
+        g.fillRect(x, (i * 53) % 100, w, len);
+      }
+    }, 2, 1);
+    return _corrTintTex;
+  }
+  let _plasterTex = null;
+  function plasterTexture() { // house walls: stucco noise + faint courses
+    if (_plasterTex) return _plasterTex;
+    _plasterTex = ptex(256, (g, s) => {
+      g.fillStyle = '#f2ede6'; g.fillRect(0, 0, s, s);
+      for (let i = 0; i < 900; i++) { // stucco speckle
+        const h = _hash(i * 7 + 1);
+        g.fillStyle = h < 0.5 ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.06)';
+        g.fillRect((i * 53) % s, (i * 91) % s, 2, 2);
+      }
+      g.strokeStyle = 'rgba(0,0,0,0.06)'; g.lineWidth = 2; // faint courses
+      for (let y = 32; y < s; y += 64) { g.beginPath(); g.moveTo(0, y); g.lineTo(s, y); g.stroke(); }
+      for (let i = 0; i < 5; i++) { // wear blotches
+        const x = (i * 97 + 31) % 256, y = (i * 57 + 113) % 256, r = 24 + (i * 37) % 40;
+        const gr = g.createRadialGradient(x, y, 0, x, y, r);
+        gr.addColorStop(0, 'rgba(40,30,18,0.08)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+        g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+      }
+    }, 2, 1);
+    return _plasterTex;
+  }
+  let _roofTex = null;
+  function roofTexture() { // roof tiles: staggered rows + joints
+    if (_roofTex) return _roofTex;
+    _roofTex = ptex(256, (g, s) => {
+      g.fillStyle = '#e8e2d8'; g.fillRect(0, 0, s, s);
+      for (let row = 0; row < 8; row++) {
+        const y = row * 32, off = (row % 2) * 16;
+        for (let cx = -1; cx < 9; cx++) {
+          const h = _hash(row * 11 + cx * 7 + 2);
+          g.fillStyle = h < 0.5 ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.05)';
+          g.fillRect(cx * 32 + off + 1, y + 1, 30, 30);
+        }
+        g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(0, y, s, 3);
+        g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(0, y + 3, s, 2);
+      }
+    }, 3, 2);
+    return _roofTex;
+  }
+  let _barrelTex = null;
+  function barrelTexture() { // drum rings + rust speckle
+    if (_barrelTex) return _barrelTex;
+    _barrelTex = ptex(128, (g, s) => {
+      g.fillStyle = '#f5f2ee'; g.fillRect(0, 0, s, s);
+      for (const y of [30, 94]) { // rolled rings
+        g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(0, y, s, 9);
+        g.fillStyle = 'rgba(255,255,255,0.25)'; g.fillRect(0, y + 9, s, 3);
+      }
+      g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(0, 0, s, 4); g.fillRect(0, s - 4, s, 4);
+      for (let i = 0; i < 40; i++) { // rust speckle
+        g.fillStyle = 'rgba(120,60,20,0.22)';
+        g.fillRect((i * 37) % s, (i * 53) % s, 2 + (i % 3), 2);
+      }
+    }, 1, 1);
+    return _barrelTex;
+  }
+  let _weaveTex = null;
+  function weaveTexture() { // sandbag canvas: crosshatch weave
+    if (_weaveTex) return _weaveTex;
+    _weaveTex = ptex(128, (g, s) => {
+      g.fillStyle = '#efe9dc'; g.fillRect(0, 0, s, s);
+      for (let x = 0; x < s; x += 4) {
+        g.fillStyle = 'rgba(0,0,0,0.06)'; g.fillRect(x, 0, 1, s);
+        g.fillStyle = 'rgba(255,255,255,0.06)'; g.fillRect(x + 2, 0, 1, s);
+      }
+      for (let y = 0; y < s; y += 4) {
+        g.fillStyle = 'rgba(0,0,0,0.05)'; g.fillRect(0, y, s, 1);
+        g.fillStyle = 'rgba(255,255,255,0.05)'; g.fillRect(0, y + 2, s, 1);
+      }
+      for (let i = 0; i < 12; i++) { // seam stitch dashes
+        g.fillStyle = 'rgba(60,45,25,0.25)';
+        g.fillRect(8 + (i * 9) % 110, 6, 5, 2);
+      }
+    }, 2, 1);
+    return _weaveTex;
+  }
+  let _plankTex = null;
+  function plankTexture() { // barn wood: vertical boards + grain + nails
+    if (_plankTex) return _plankTex;
+    _plankTex = ptex(256, (g, s) => {
+      g.fillStyle = '#f0e8dc'; g.fillRect(0, 0, s, s);
+      for (let b = 0; b < 8; b++) {
+        const x = b * 32, h = _hash(b * 13 + 4);
+        g.fillStyle = h < 0.5 ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)';
+        g.fillRect(x + 1, 0, 30, s);
+        g.fillStyle = 'rgba(40,25,10,0.55)'; g.fillRect(x, 0, 2, s); // board gap
+        g.strokeStyle = 'rgba(90,60,25,0.30)'; g.lineWidth = 1.5; // grain
+        for (let k = 0; k < 2; k++) {
+          const gx = x + 8 + ((b * 5 + k * 17) % 18);
+          g.beginPath(); g.moveTo(gx, 0);
+          g.bezierCurveTo(gx + 3, 80, gx - 3, 170, gx + 2, s); g.stroke();
+        }
+        g.fillStyle = 'rgba(30,20,10,0.6)';
+        g.beginPath(); g.arc(x + 16, 20, 2.5, 0, 7); g.arc(x + 16, s - 20, 2.5, 0, 7); g.fill();
+      }
+    }, 2, 1);
+    return _plankTex;
+  }
+  let _strawTex = null;
+  function strawTexture() { // hay bales: fine horizontal straw strands
+    if (_strawTex) return _strawTex;
+    _strawTex = ptex(128, (g, s) => {
+      g.fillStyle = '#f2ead2'; g.fillRect(0, 0, s, s);
+      for (let i = 0; i < 260; i++) {
+        const h = _hash(i * 3 + 8);
+        g.strokeStyle = h < 0.5 ? 'rgba(150,110,40,0.35)' : 'rgba(200,160,70,0.30)';
+        g.lineWidth = 1;
+        const y = (i * 37) % s, x = (i * 53) % (s - 20);
+        g.beginPath(); g.moveTo(x, y); g.lineTo(x + 14 + (i % 8), y + (h < 0.5 ? 2 : -2)); g.stroke();
+      }
+    }, 1, 1);
+    return _strawTex;
+  }
   function box(w, h, d, color, extra = {}) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color, 0.9, extra));
     m.castShadow = true; m.receiveShadow = true;
@@ -448,7 +582,7 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
   }
   function addContainer(x, z, w, d, color, o = {}) {
     const rot = o.rot || 0;
-    const m = box(w, 2.6, d, color);
+    const m = box(w, 2.6, d, color, { map: corrugatedTintTexture() });
     m.position.set(x, 1.3, z); m.rotation.y = rot;
     group.add(m); shootable(m, 'metal');
     m.userData.propType = 'container'; // v22.3.12: Ting + dent; RPG/C4 blows it up
@@ -466,7 +600,7 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
       group.add(seam);
     }
     if (o.stack) {
-      const top = box(w, 2.6, d, o.stackColor ?? 0x8a6f4a);
+      const top = box(w, 2.6, d, o.stackColor ?? 0x8a6f4a, { map: corrugatedTintTexture() });
       top.position.set(x, 3.9, z); top.rotation.y = rot;
       group.add(top); shootable(top, 'metal'); tagColor(top, 'container');
       solid(x - hw, z - hd, x + hw, z + hd, 2.6, 5.2);
@@ -542,9 +676,10 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
     return g;
   }
   function addBarrel(x, z, color = 0x8a4a22) {
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 1.15, 12), mat(color, 0.7));
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 1.15, 12), mat(color, 0.7, { map: barrelTexture() }));
     m.position.set(x, 0.58, z); m.castShadow = true; m.receiveShadow = true;
     group.add(m); shootable(m, 'metal');
+    m.userData.propType = 'barrel';
     m.userData.collider = solid(x - 0.55, z - 0.55, x + 0.55, z + 0.55, 0, 1.15);
     return m;
   }
@@ -557,9 +692,10 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
     return m;
   }
   function addSandbag(x, z, rot = 0) {
-    const m = box(1.8, 0.5, 0.6, 0x6b5f4d);
+    const m = box(1.8, 0.5, 0.6, 0x6b5f4d, { map: weaveTexture() });
     m.position.set(x, 0.25, z); m.rotation.y = rot;
     group.add(m); shootable(m, 'ground');
+    m.userData.propType = 'sandbag';
     const hw = rot ? 0.3 : 0.9, hd = rot ? 0.9 : 0.3;
     solid(x - hw, z - hd, x + hw, z + hd, 0, 0.5);
     return m;
@@ -1472,14 +1608,16 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
     // House footprint (world-space rect) — for isIndoors() (reverb, wet checks).
     houseRects.push(mapRect(-w / 2, -d / 2, w / 2, d / 2));
     function segX(cx, yBase, z, ww, hh, y0, y1) {
-      const m = box(ww, hh, T, color);
+      const m = box(ww, hh, T, color, { map: plasterTexture() });
       m.position.set(cx, yBase + hh / 2, z); g.add(m); shootable(m); tagColor(m, 'building');
+      m.userData.propType = 'house-wall';
       const r = mapRect(cx - ww / 2, z - T / 2, cx + ww / 2, z + T / 2);
       solid(r.x0, r.z0, r.x1, r.z1, y0, y1);
     }
     function segZ(cz, yBase, x, ww, hh, y0, y1) {
-      const m = box(T, hh, ww, color);
+      const m = box(T, hh, ww, color, { map: plasterTexture() });
       m.position.set(x, yBase + hh / 2, cz); g.add(m); shootable(m); tagColor(m, 'building');
+      m.userData.propType = 'house-wall';
       const r = mapRect(x - T / 2, cz - ww / 2, x + T / 2, cz + ww / 2);
       solid(r.x0, r.z0, r.x1, r.z1, y0, y1);
     }
@@ -1520,19 +1658,19 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
       return pane;
     }
     function windowX(cx, yBase, z, ww) {
-      const sill = box(ww, 1.2, T, color); sill.position.set(cx, yBase + 0.6, z); g.add(sill); shootable(sill); tagColor(sill, 'building');
+      const sill = box(ww, 1.2, T, color, { map: plasterTexture() }); sill.position.set(cx, yBase + 0.6, z); g.add(sill); shootable(sill); tagColor(sill, 'building');
       const r1 = mapRect(cx - ww / 2, z - T / 2, cx + ww / 2, z + T / 2);
       solid(r1.x0, r1.z0, r1.x1, r1.z1, yBase, yBase + 1.2);
-      const hd = box(ww, FH - 2.8, T, color); hd.position.set(cx, yBase + 2.8 + (FH - 2.8) / 2, z); g.add(hd); shootable(hd); tagColor(hd, 'building');
+      const hd = box(ww, FH - 2.8, T, color, { map: plasterTexture() }); hd.position.set(cx, yBase + 2.8 + (FH - 2.8) / 2, z); g.add(hd); shootable(hd); tagColor(hd, 'building');
       const r2 = mapRect(cx - ww / 2, z - T / 2, cx + ww / 2, z + T / 2);
       solid(r2.x0, r2.z0, r2.x1, r2.z1, yBase + 2.8, yBase + FH);
       windowGlass(cx, yBase, z, ww, true);
     }
     function windowZ(cz, yBase, x, ww) {
-      const sill = box(T, 1.2, ww, color); sill.position.set(x, yBase + 0.6, cz); g.add(sill); shootable(sill); tagColor(sill, 'building');
+      const sill = box(T, 1.2, ww, color, { map: plasterTexture() }); sill.position.set(x, yBase + 0.6, cz); g.add(sill); shootable(sill); tagColor(sill, 'building');
       const r1 = mapRect(x - T / 2, cz - ww / 2, x + T / 2, cz + ww / 2);
       solid(r1.x0, r1.z0, r1.x1, r1.z1, yBase, yBase + 1.2);
-      const hd = box(T, FH - 2.8, ww, color); hd.position.set(x, yBase + 2.8 + (FH - 2.8) / 2, cz); g.add(hd); shootable(hd); tagColor(hd, 'building');
+      const hd = box(T, FH - 2.8, ww, color, { map: plasterTexture() }); hd.position.set(x, yBase + 2.8 + (FH - 2.8) / 2, cz); g.add(hd); shootable(hd); tagColor(hd, 'building');
       const r2 = mapRect(x - T / 2, cz - ww / 2, x + T / 2, cz + ww / 2);
       solid(r2.x0, r2.z0, r2.x1, r2.z1, yBase + 2.8, yBase + FH);
       windowGlass(x, yBase, cz, ww, false);
@@ -1690,13 +1828,15 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
     }
     // Roof: slab + two sloped panels meeting at a ridge.
     const roofY = floors * FH;
-    const roofSlab = box(w + 0.8, 0.35, d + 0.8, roofC);
+    const roofSlab = box(w + 0.8, 0.35, d + 0.8, roofC, { map: roofTexture() });
     roofSlab.position.set(0, roofY + 0.17, 0); g.add(roofSlab);
     tagColor(roofSlab, 'roof');
+    roofSlab.userData.propType = 'roof';
     for (const s of [-1, 1]) {
-      const panel = box(w + 0.8, 0.12, d / 2 + 0.5, roofC);
+      const panel = box(w + 0.8, 0.12, d / 2 + 0.5, roofC, { map: roofTexture() });
       panel.position.set(0, roofY + 0.7, s * d / 4);
       tagColor(panel, 'roof');
+      panel.userData.propType = 'roof';
       panel.rotation.x = -s * 0.35;
       g.add(panel);
     }
@@ -1808,8 +1948,9 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
       return { x0: hx + Math.min(...xs), z0: hz + Math.min(...zs), x1: hx + Math.max(...xs), z1: hz + Math.max(...zs) };
     };
     const wall = (lx, lz, ww, hh, dd) => {
-      const m = box(ww, hh, dd, color);
+      const m = box(ww, hh, dd, color, { map: plankTexture() });
       m.position.set(lx, hh / 2, lz); g.add(m); shootable(m, 'wood');
+      m.userData.propType = 'barn-wall';
       const r = mapRect(lx - ww / 2, lz - dd / 2, lx + ww / 2, lz + dd / 2);
       solid(r.x0, r.z0, r.x1, r.z1, 0, hh);
     };
@@ -1821,23 +1962,25 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
     wall(-(2.4 / 2 + segW / 2), d / 2, segW, FH, T);
     wall(2.4 / 2 + segW / 2, d / 2, segW, FH, T);
     // lintel above the doorway
-    const lint = box(2.4, FH - 3, T, color);
+    const lint = box(2.4, FH - 3, T, color, { map: plankTexture() });
     lint.position.set(0, 3 + (FH - 3) / 2, d / 2); g.add(lint); shootable(lint, 'wood');
     const lr = mapRect(-1.2, d / 2 - T / 2, 1.2, d / 2 + T / 2);
     solid(lr.x0, lr.z0, lr.x1, lr.z1, 3, FH);
     // Roof: high gable
-    const roof = box(w + 0.8, 0.35, d + 0.8, 0x4a2a1a);
+    const roof = box(w + 0.8, 0.35, d + 0.8, 0x4a2a1a, { map: roofTexture() });
     roof.position.set(0, FH + 0.17, 0); g.add(roof);
     tagColor(roof, 'roof');
+    roof.userData.propType = 'roof';
     for (const s of [-1, 1]) {
-      const panel = box(w + 0.8, 0.12, d / 2 + 0.6, 0x4a2a1a);
+      const panel = box(w + 0.8, 0.12, d / 2 + 0.6, 0x4a2a1a, { map: roofTexture() });
       panel.position.set(0, FH + 0.9, s * d / 4);
       panel.rotation.x = -s * 0.4;
+      panel.userData.propType = 'roof';
       g.add(panel);
     }
     // Hay bales inside
     for (const [bx, bz] of [[-3.5, -2.5], [-3.5, -1.2], [3.5, -2.5], [3.5, 2.5]]) {
-      const bale = box(1.4, 0.9, 0.9, 0xc8a84a);
+      const bale = box(1.4, 0.9, 0.9, 0xc8a84a, { map: strawTexture() });
       bale.position.set(bx, 0.45, bz); g.add(bale); shootable(bale, 'wood');
       const r = mapRect(bx - 0.7, bz - 0.45, bx + 0.7, bz + 0.45);
       solid(r.x0, r.z0, r.x1, r.z1, 0, 0.9);
@@ -2220,5 +2363,15 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
     glbPlacements,
     // Low graphics turns the per-house PointLights off (emissive bulbs stay).
     setHouseLights(on) { for (const h of decorHouseLights) h.light.visible = !!on; },
+    // Realistic-textures pass: which prop kinds carry a canvas map (self-test).
+    textureReport() {
+      const out = {};
+      group.traverse((o) => {
+        if (!o.isMesh || !o.userData.propType || out[o.userData.propType]) return;
+        const m = o.material;
+        out[o.userData.propType] = !!(m && m.map && m.map.isCanvasTexture);
+      });
+      return out;
+    },
   };
 }
