@@ -151,6 +151,7 @@ const weapon = createWeapon(scene, camera, S, audio, effects, {
 });
 const bots = createBots(scene, world, S, rng, {
   effects, audio,
+  onBotTactic: (text) => hud.chatLog(text), // v27.1 bot tactic callouts
   // v19.1.7: bot suicide (fall / own grenade) goes to the killfeed.
   onZoneDeath: (b) => hud.killfeedHtml(`<span style="color:#ff9a3d">☠️ SUICIDE! ${b.name} mati sendiri</span>`),
   // v23.0.5 Tracker: a bot that shoots at you is marked on the minimap.
@@ -1933,7 +1934,7 @@ function runShot(name) {
     shotFx = {
       radio: 'Contact at Mid Yard, rotating',
       killfeed: ['YOU — B12 Breacher @ BOT-1 — HIT', '🔥 KILLSTREAK READY: 🛰️ UAV — click it!'],
-      comms: ['BOT-2: go go, executing B'],
+      comms: ['BOT-2: flanking!'],
       mythic: 'dragon',
       hitmarker: true,
     };

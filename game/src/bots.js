@@ -1,6 +1,7 @@
-// Bots: 5 opponents. patrol / hold / combat / react / defuse. Seeded RNG. No wall-vision (LOS check).
+// Bots: 5 opponents. patrol / hold / combat / react / defuse / flank. Seeded RNG. No wall-vision (LOS check).
 // v2: Phantom shortens bot vision, Dead Silence shortens bot hearing, TDM respawn,
 // Domination zone capture, Battle Royale zone damage.
+// v27.1 tactics: flanking, grenades, operator skills, tactical retreat.
 import * as THREE from 'three';
 import { PALETTE } from './palette.js';
 import { losClear } from './world.js';
@@ -8,6 +9,18 @@ import { createBotModel, BOT_SKINS, BOT_WEAPONS, CHAR_OPERATOR_IDS, CHAR_SKIN_ID
 import { DIFFICULTY_DEFS } from './state.js'; // v25.0.5 difficulty table
 
 const _v = new THREE.Vector3();
+
+// Bot tactics (v27.1): one operator skill per bot (rotating), and a
+// per-difficulty gate — Easy bots never flank, throw, or use skills (they
+// still retreat to survive, as before). Grenades are capped at 1 per bot
+// per round so they flush you out instead of spamming you.
+const BOT_SKILLS = ['tak5', 'bull', 'gravity', 'sparrow', 'tak5'];
+const TACTICS = {
+  easy: { flank: false, flankCd: 999, grenadeCd: 999, grenadesPerRound: 0, skill: false, skillCd: 999 },
+  normal: { flank: true, flankCd: 14, grenadeCd: 26, grenadesPerRound: 1, skill: true, skillCd: 50 },
+  hard: { flank: true, flankCd: 9, grenadeCd: 19, grenadesPerRound: 1, skill: true, skillCd: 38 },
+  veteran: { flank: true, flankCd: 6, grenadeCd: 13, grenadesPerRound: 1, skill: true, skillCd: 28 },
+};
 
 export function createBots(scene, world, S, rng, deps = {}) {
   const group = new THREE.Group(); scene.add(group);
@@ -66,7 +79,14 @@ export function createBots(scene, world, S, rng, deps = {}) {
         corpseT: 0, allyHit: false, allyHitT: 0,
         flinchT: 0, adsT: 0, lean: 0, swimming: false, // v18.8 animation flags
         streak: 0, dripT: 0, ammoTaken: false, // v19.0/v19.1: corpse ammo, bot streak
-        fleeT: 0, fleeing: false, // v22.0.8: low HP bot flees to cover
+        // v27.1 tactics: operator skill + cooldowns, grenade budget, flank,
+        // duel timer, camper tracking, tactical retreat, charge/slam state.
+        skill: BOT_SKILLS[i % BOT_SKILLS.length], skillCd: 8 + i * 3,
+        grenadeCd: 6 + i * 3, grenadesUsed: 0,
+        flankCd: 6 + i * 2, flankT: 0, flankTx: 0, flankTz: 0, flankedOnce: false,
+        combatT: 0, playerStillT: 0, lastPx: sp.x, lastPz: sp.z,
+        retreating: false, retreatT: 0, retreatTx: 0, retreatTz: 0, retreatCd: 0,
+        chargeT: 0, chargeHit: false, slamT: 0,
         knocked: false, knockT: 0, reviveT: 0, flies: null, // v22.0.8: BR bot knock/revive
       };
       // Holders guard the sites; patrollers roam mid.
@@ -85,7 +105,10 @@ export function createBots(scene, world, S, rng, deps = {}) {
     bot.corpseT = 0; bot.backwards = false; bot.crouch = false; bot.reloadT = 0;
     bot.shotsFired = 0; bot.allyHit = false; bot.hopT = 0;
     bot.streak = 0; bot.knocked = false; bot.knockT = 0; bot.reviveT = 0;
-    bot.fleeing = false; bot.fleeT = 0; bot.ammoTaken = false;
+    bot.retreating = false; bot.retreatT = 0; bot.retreatCd = 0; bot.ammoTaken = false;
+    bot.skillCd = 12; bot.grenadeCd = 8; bot.grenadesUsed = 0;
+    bot.flankCd = 8; bot.flankT = 0; bot.combatT = 0; bot.playerStillT = 0;
+    bot.chargeT = 0; bot.chargeHit = false; bot.slamT = 0;
     if (bot.flies) { for (const f of bot.flies) group.remove(f); bot.flies = null; }
     bot.mesh.group.visible = true;
     bot.mesh.group.rotation.z = 0; // stand back up after the death fall
@@ -165,6 +188,79 @@ export function createBots(scene, world, S, rng, deps = {}) {
     if (moved) { b.yaw = Math.atan2(-dx, -dz); b.stuckT = 0; }
     else b.stuckT = (b.stuckT || 0) + dt;
     return false;
+  }
+  function tactics() { return TACTICS[S.difficulty] || TACTICS.normal; }
+  function botName(b) { return `BOT-${b.id + 1}`; }
+  function tacticSay(b, text) { if (deps.onBotTactic) deps.onBotTactic(`${botName(b)}: ${text}`); }
+  // Ballistic lob that lands at (tx, tz): ~1s arc, small spread so it is
+  // not laser-accurate. Pushes straight into the shared flying-grenade
+  // list, so the normal step/detonate path (sounds + smoke + blast) applies.
+  // Charges the bot's one-grenade-per-round budget unless free (a skill).
+  function throwBotGrenade(b, kind, tx, tz, free) {
+    const dx = tx - b.x, dz = tz - b.z, d = Math.hypot(dx, dz);
+    const t = Math.max(0.7, Math.min(1.3, d / 12 || 1));
+    const sx = (rng() - 0.5) * 3, sz = (rng() - 0.5) * 3;
+    S.grenades.flying.push({
+      kind, x: b.x, y: 1.5, z: b.z,
+      vx: (dx + sx) / t, vy: (0 - 1.5 + 4.9 * t * t) / t, vz: (dz + sz) / t,
+      fromBot: b.id,
+    });
+    if (!free) { b.grenadesUsed += 1; b.grenadeCd = tactics().grenadeCd; }
+  }
+  // Pick a waypoint behind the player (not in front of where they face) —
+  // the flank route. Falls back to the farthest waypoint from the player.
+  function pickFlankTarget(b) {
+    const p = S.player;
+    const fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw);
+    let best = null, bestD = -1;
+    for (const wp of world.waypoints) {
+      const dx = wp.x - p.x, dz = wp.z - p.z, dd = Math.hypot(dx, dz);
+      if (dd < 1 || (dx * fx + dz * fz) / dd > 0.2) continue; // in front of the player
+      if (dd > bestD) { bestD = dd; best = wp; }
+    }
+    if (!best) {
+      for (const wp of world.waypoints) {
+        const dd = Math.hypot(wp.x - p.x, wp.z - p.z);
+        if (dd > bestD) { bestD = dd; best = wp; }
+      }
+    }
+    return best;
+  }
+  function startFlank(b) {
+    const wp = pickFlankTarget(b);
+    if (!wp) return;
+    b.state = 'flank'; b.flankTx = wp.x; b.flankTz = wp.z; b.flankT = 8;
+    b.flankCd = tactics().flankCd; b.flankedOnce = true; b.combatT = 0;
+    tacticSay(b, 'flanking!');
+  }
+  // Operator skill (v27.1): each bot has one of the game's own skills.
+  // Tak-5 heals a hurt bot; Bull charges at you; Gravity slams you up
+  // close; Sparrow lobs an explosive arrow (a free HE grenade).
+  function tryBotSkill(b, d, seen) {
+    const tc = tactics();
+    if (!tc.skill || (b.skillCd || 0) > 0) return;
+    const p = S.player;
+    if (b.skill === 'tak5') {
+      if (b.hp >= 40) return;
+      const maxHp = Math.round(100 * ((DIFFICULTY_DEFS[S.difficulty] || DIFFICULTY_DEFS.normal).hp));
+      b.hp = Math.min(maxHp, b.hp + 50);
+      b.skillCd = tc.skillCd;
+      if (fx && fx.playEffect) fx.playEffect('buff', { x: b.x, y: 1, z: b.z });
+      tacticSay(b, '💚 Tak-5 — healed!');
+    } else if (b.skill === 'bull') {
+      if (d < 12) return;
+      b.chargeT = 2.5; b.chargeHit = false; b.skillCd = tc.skillCd;
+      tacticSay(b, '🐂 Bull Charge!');
+    } else if (b.skill === 'gravity') {
+      if (!seen || d > 8) return;
+      b.slamT = 0.5; b.skillCd = tc.skillCd;
+      tacticSay(b, '💥 Gravity Spikes!');
+    } else if (b.skill === 'sparrow') {
+      if (!seen || d < 10 || d > 30) return;
+      throwBotGrenade(b, 'he', p.x, p.z, true);
+      b.skillCd = tc.skillCd;
+      tacticSay(b, '🏹 Sparrow!');
+    }
   }
   function step(dt, onPlayerHit, onAllyKill) {
     const p = S.player;
@@ -247,6 +343,17 @@ export function createBots(scene, world, S, rng, deps = {}) {
       b.adsT = Math.max(0, (b.adsT || 0) - dt);
       b.ads = b.adsT > 0;
       b.swimming = world.inPool(b.x, b.z);
+      // v27.1 tactic cooldowns tick down every frame.
+      b.flankCd = Math.max(0, (b.flankCd || 0) - dt);
+      b.grenadeCd = Math.max(0, (b.grenadeCd || 0) - dt);
+      b.skillCd = Math.max(0, (b.skillCd || 0) - dt);
+      b.retreatCd = Math.max(0, (b.retreatCd || 0) - dt);
+      b.chargeT = Math.max(0, (b.chargeT || 0) - dt);
+      // Camper tracking: how long the player has stood still (a bot that
+      // lost you behind cover flushes you out with a grenade).
+      if (Math.hypot(p.x - (b.lastPx ?? p.x), p.z - (b.lastPz ?? p.z)) < 0.5) b.playerStillT = (b.playerStillT || 0) + dt;
+      else b.playerStillT = 0;
+      b.lastPx = p.x; b.lastPz = p.z;
       // Cryo Bomb (v23.0.6): frozen bots stand still, cannot move or shoot.
       if ((b.frozenT || 0) > 0) { b.frozenT -= dt; continue; }
       // Revived ally (BR mode): follows you and shoots enemies. Enemies
@@ -277,6 +384,8 @@ export function createBots(scene, world, S, rng, deps = {}) {
         continue;
       }
       if (b.blindT > 0) b.blindT -= dt;
+      // Bull Charge: while charging the bot moves 80% faster.
+      const spdMul = (b.chargeT || 0) > 0 ? 1.8 : 1;
       const d = Math.hypot(p.x - b.x, p.z - b.z);
       const seen = canSee(b);
       // Difficulty reaction (v25.0.5): first sighting starts a reaction
@@ -303,12 +412,27 @@ export function createBots(scene, world, S, rng, deps = {}) {
         }
         if (best && bestD > 2) { b.state = 'capture'; b.capTarget = best; b.capKey = bestKey; }
       }
-      if (b.state === 'combat' && !seen && S.time - (b.lastCombatT || 0) > 2.5) b.state = 'react';
+      if (b.state === 'combat' && !seen && S.time - (b.lastCombatT || 0) > 2.5) {
+        // Lost you mid-duel: circle around instead of walking straight at
+        // your last known spot (v27.1 flanking, one bot at a time).
+        const tc = tactics();
+        if (tc.flank && (b.flankCd || 0) <= 0 && (b.combatT || 0) > 6
+            && !S.bots.some(o => o !== b && o.alive && o.state === 'flank')) {
+          startFlank(b);
+        } else b.state = 'react';
+      }
       if (seen) b.lastCombatT = S.time;
 
-      if (b.state === 'patrol') {
+      // Tactical retreat (v27.1): the bot is already moving to cover — it
+      // does not also walk its patrol/react route this tick.
+      if (b.retreating) {
+        b.retreatT -= dt;
+        b.hp = Math.min(50, b.hp + 10 * dt);
+        moveToward(b, b.retreatTx, b.retreatTz, dt, 3.8 * spdMul);
+        if (b.retreatT <= 0 || b.hp >= 50) { b.retreating = false; b.retreatCd = 6; }
+      } else if (b.state === 'patrol') {
         const wp = world.waypoints[b.wpIdx % world.waypoints.length];
-        if (moveToward(b, wp.x, wp.z, dt, 2.6)) b.wpIdx = (b.wpIdx + 1) % world.waypoints.length;
+        if (moveToward(b, wp.x, wp.z, dt, 2.6 * spdMul)) b.wpIdx = (b.wpIdx + 1) % world.waypoints.length;
         else if ((b.stuckT || 0) > 2) { b.wpIdx = (b.wpIdx + 1) % world.waypoints.length; b.stuckT = 0; }
       } else if (b.state === 'hold') {
         b.holdT += dt;
@@ -327,42 +451,79 @@ export function createBots(scene, world, S, rng, deps = {}) {
       } else if (b.state === 'react') {
         const tx = b.hasSeen ? b.lastSeenX : (S.lastShotPos ? S.lastShotPos.x : b.x);
         const tz = b.hasSeen ? b.lastSeenZ : (S.lastShotPos ? S.lastShotPos.z : b.z);
-        if (moveToward(b, tx, tz, dt, 3.4)) { b.state = 'hold'; b.hasSeen = false; }
+        // Flush out a camper: you ducked behind cover and stayed still, so
+        // a frag lands on your last known spot (v27.1, 1 per bot per round).
+        const tc = tactics();
+        if (b.hasSeen && (b.playerStillT || 0) > 3 && (b.grenadeCd || 0) <= 0
+            && b.grenadesUsed < tc.grenadesPerRound && tc.grenadesPerRound > 0) {
+          throwBotGrenade(b, 'he', b.lastSeenX, b.lastSeenZ, false);
+          tacticSay(b, '💥 frag out!');
+        }
+        tryBotSkill(b, d, false);
+        if (moveToward(b, tx, tz, dt, 3.4 * spdMul)) { b.state = 'hold'; b.hasSeen = false; }
         else if ((b.stuckT || 0) > 2) { b.state = 'patrol'; b.stuckT = 0; }
       } else if (b.state === 'capture') {
         const s = b.capTarget;
         if (!s || S.dom[b.capKey].owner === 'bot') { b.state = 'patrol'; }
-        else if (moveToward(b, s.x, s.z, dt, 3.0)) { /* stand in the zone, capturing */ }
+        else if (moveToward(b, s.x, s.z, dt, 3.0 * spdMul)) { /* stand in the zone, capturing */ }
         else if ((b.stuckT || 0) > 2) { b.state = 'patrol'; b.stuckT = 0; }
       } else if (b.state === 'defuse') {
-        if (moveToward(b, S.bomb.x, S.bomb.z, dt, 3.8)) {
+        tryBotSkill(b, d, false);
+        if (moveToward(b, S.bomb.x, S.bomb.z, dt, 3.8 * spdMul)) {
           b.defuseT += dt;
           S.bomb.defuseT = b.defuseT; S.bomb.defuser = b.id;
           if (b.defuseT >= 7) { S.bomb.state = 'defused'; }
         } else if ((b.stuckT || 0) > 2) { b.state = 'patrol'; b.stuckT = 0; }
+      } else if (b.state === 'flank') {
+        // Flanking (v27.1): circling to the waypoint behind you. The bot
+        // stops flanking the moment it has a firing line (the seen-block
+        // above flips it back to combat) or when it arrives / times out.
+        b.flankT -= dt;
+        if (moveToward(b, b.flankTx, b.flankTz, dt, 3.6 * spdMul) || b.flankT <= 0) b.state = 'react';
+        else if ((b.stuckT || 0) > 2) { b.state = 'react'; b.stuckT = 0; }
       }
       if (b.state === 'combat' && seen) {
-        // Low HP: flee to the farthest waypoint for 3s, no shooting,
-        // regenerating 10 HP/s up to 50 (v22.0.8).
-        if (b.hp < 25 && !b.fleeing) { b.fleeing = true; b.fleeT = 3; }
-        if (b.fleeing) {
-          b.fleeT -= dt;
-          b.hp = Math.min(50, b.hp + 10 * dt);
-          let far = null, farD = -1;
+        b.combatT = (b.combatT || 0) + dt;
+        // Tactical retreat (v27.1, replaces the old flee): low HP — or the
+        // last bot standing — falls back to cover, throwing smoke and
+        // firing suppressive bursts on the way. Holders fall back to their
+        // site to regroup; the rest to the farthest waypoint from you.
+        // (The old flee had a `return` here that skipped every bot after
+        // the fleeing one for the whole tick — the retreat moves above,
+        // in the dispatch, so all bots still get their turn.)
+        const alliesAlive = S.bots.filter(o => o.alive && o !== b && o.team !== 'ally').length;
+        if (!b.retreating && (b.retreatCd || 0) <= 0 && (b.hp < 30 || (b.hp < 50 && alliesAlive === 0))) {
+          b.retreating = true; b.retreatT = 4;
+          const site = b.id === 0 ? world.sites.A : b.id === 1 ? world.sites.B : null;
+          let tgt = null, tgtD = -1;
           for (const wp of world.waypoints) {
             const dd = Math.hypot(wp.x - p.x, wp.z - p.z);
-            if (dd > farD) { farD = dd; far = wp; }
+            if (site && Math.hypot(wp.x - site.x, wp.z - site.z) > 12) continue;
+            if (dd > tgtD) { tgtD = dd; tgt = wp; }
           }
-          if (far) moveToward(b, far.x, far.z, dt, 3.8);
-          if (b.fleeT <= 0) b.fleeing = false;
-          return; // fleeing bots do not shoot this tick
+          if (!tgt) tgt = world.waypoints[0];
+          b.retreatTx = tgt.x; b.retreatTz = tgt.z;
+          const tc0 = tactics();
+          if (tc0.grenadesPerRound > 0 && (b.grenadeCd || 0) <= 0 && b.grenadesUsed < tc0.grenadesPerRound) {
+            throwBotGrenade(b, 'smoke', b.x, b.z, false);
+            tacticSay(b, '💨 falling back — smoke out!');
+          }
         }
+        // Operator skill (v27.1): Tak-5 heals, Bull charges, Gravity
+        // slams, Sparrow lobs an explosive arrow.
+        tryBotSkill(b, d, true);
         // Face player, strafe, fire in bursts; accuracy falls with distance.
         b.yaw = Math.atan2(-(p.x - b.x), -(p.z - b.z));
         // Low HP: the bot crouches (slower, smaller target, crouch anim).
-        b.crouch = b.hp < 25;
-        // Too close: backpedal while still facing you (backwards walk anim).
-        if (d < 6) {
+        // A Gravity Spikes wind-up crouches too — the telegraph.
+        b.crouch = b.hp < 25 || (b.slamT || 0) > 0;
+        // Retreating bots keep facing you and walk to cover (moved above);
+        // a charging Bull runs straight at you; the rest strafe/backpedal.
+        if (b.retreating) {
+          // hold the facing, no sideways movement
+        } else if ((b.chargeT || 0) > 0) {
+          moveToward(b, p.x, p.z, dt, 3.8 * spdMul);
+        } else if (d < 6) {
           const adx = b.x - p.x, adz = b.z - p.z, ad = Math.hypot(adx, adz) || 1;
           const mx = adx / ad * 2.2 * dt, mz = adz / ad * 2.2 * dt;
           if (!world.isColliding(b.x + mx, b.z, 0.35, 0)) b.x += mx;
@@ -374,16 +535,30 @@ export function createBots(scene, world, S, rng, deps = {}) {
           if (b.strafeT <= 0) { b.strafeDir *= -1; b.strafeT = 0.7 + rng() * 0.9; }
           b.lean = b.strafeDir * 0.12; // body leans into the strafe (v18.8.3)
           const sx = Math.cos(b.yaw) * b.strafeDir, sz = -Math.sin(b.yaw) * b.strafeDir;
-          const snx = b.x + sx * 1.6 * dt, snz = b.z + sz * 1.6 * dt;
+          const snx = b.x + sx * 1.6 * spdMul * dt, snz = b.z + sz * 1.6 * spdMul * dt;
           if (!world.isColliding(snx, b.z, 0.35, 0)) b.x = snx;
           if (!world.isColliding(b.x, snz, 0.35, 0)) b.z = snz;
         }
         // Stuck against a wall while chasing: hop over it (jump anim).
         if ((b.stuckT || 0) > 1.5) { b.hopT = 0.5; b.stuckT = 0; }
+        // Bull Charge: running into you hurts (once per charge).
+        if ((b.chargeT || 0) > 0 && d < 1.5 && !b.chargeHit) { b.chargeHit = true; onPlayerHit && onPlayerHit(20, b); }
         // Reload cycle: 6 shots, then 1.5s reloading (arm-raise anim + click).
         // Burst fire (v25.0.5): 3-round bursts, 0.12s between shots, with
         // difficulty aim error + damage multiplier from DIFFICULTY_DEFS.
-        if (b.reloadT > 0) {
+        // Gravity Spikes wind-up (v27.1): 0.5s crouch, then the slam lands
+        // if you are still close — no shooting while it winds up.
+        if ((b.slamT || 0) > 0) {
+          b.slamT -= dt;
+          if (b.slamT <= 0) {
+            const dd = Math.hypot(p.x - b.x, p.z - b.z);
+            if (dd < 10) {
+              onPlayerHit && onPlayerHit(30, b);
+              if (fx) fx.explosion({ x: p.x, y: 0.3, z: p.z }, false);
+              if (fx && fx.shake) fx.shake(0.4);
+            }
+          }
+        } else if (b.reloadT > 0) {
           b.reloadT -= dt;
         } else if ((b.reactT || 0) > 0) {
           b.reactT -= dt; // still reacting — no shooting yet
@@ -404,7 +579,7 @@ export function createBots(scene, world, S, rng, deps = {}) {
             // non-hit. The hit now rolls first, then the reload triggers.
             // Accuracy/damage also buffed — a single bot's TTK at 10m was
             // 17-30s, below the 4 HP/s regen at range.)
-            const acc = Math.max(0.05, 0.55 - d * 0.008 - diff.aimErr);
+            const acc = Math.max(0.05, 0.55 - d * 0.008 - diff.aimErr) * (b.retreating ? 0.45 : 1);
             if (rng() < acc) {
               const dmg = (11 + rng() * 9) * diff.dmg;
               onPlayerHit && onPlayerHit(dmg, b);
@@ -417,7 +592,11 @@ export function createBots(scene, world, S, rng, deps = {}) {
           }
         } else {
           b.shootT -= dt;
-          if (b.shootT <= 0) { b.burst = 3; b.burstT = 0; }
+          if (b.shootT <= 0) {
+            // Suppressive fire while retreating: half the bursts.
+            if (b.retreating && rng() < 0.5) b.shootT = 0.6;
+            else { b.burst = 3; b.burstT = 0; }
+          }
         }
       }
     }

@@ -893,10 +893,19 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
     if (gr.kind === 'he') {
       if (fx) fx.explosion({ x, y: 0.3, z }, false);
       else if (audio.explosion) audio.explosion();
+      // A bot-thrown frag (v27.1) does not credit you — its kills go to
+      // the feed instead of onKill (which pays you +300 and a streak).
+      const thrower = gr.fromBot !== undefined ? S.bots[gr.fromBot] : null;
       for (const b of S.bots) {
         if (!b.alive) continue;
         const d = Math.hypot(b.x - x, b.z - z);
-        if (d < 4) { const killed = bots.damage(b, Math.round(150 * (1 - d / 4))); if (killed) onKill(b, false); }
+        if (d < 4) {
+          const killed = bots.damage(b, Math.round(150 * (1 - d / 4)));
+          if (killed) {
+            if (thrower) hud.killfeedHtml(`<span style="color:#ff9a3d">💥 BOT-${thrower.id + 1} frag got BOT-${b.id + 1}</span>`);
+            else onKill(b, false);
+          }
+        }
       }
       // Blast hurts you too if you stand in it — Flak Jacket cuts it by 40%.
       // Close blast (<6m) shakes the screen and rings your ears.
@@ -904,7 +913,7 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
       if (pd < 5 && p.alive) {
         let dmg = Math.round(60 * (1 - pd / 5));
         if (hasPerk('flak_jacket')) dmg = Math.round(dmg * 0.6);
-        hurtPlayer(dmg);
+        hurtPlayer(dmg, thrower || undefined);
       }
       if (pd < 6) { if (audio.ring) audio.ring(); }
     } else if (gr.kind === 'flash') {
@@ -979,6 +988,7 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
       }
     }
     if (!g.flying.length) grenadeMesh.visible = false;
+    else grenadeMesh.visible = true; // v27.1: a bot-thrown grenade shows too
   }
   // Damage the player (records last-hurt time for Quick Fix regen).
   // killerBot is the bot that dealt the blow (for the killcam).

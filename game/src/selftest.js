@@ -1,6 +1,6 @@
 // Scripted self-test of the v2 systems. Runs only under ?shot=test.
 // The game context (state, systems, helpers) is passed in from main.js.
-import { EMOTE_DEFS, WHEEL_PRESETS, FINISHER_DEFS } from './state.js';
+import { EMOTE_DEFS, WHEEL_PRESETS, FINISHER_DEFS, OPERATOR_DEFS } from './state.js';
 import { MAP_IDS } from './maps.js';
 import { getDaily, dailyEmoteXp } from './daily.js';
 import { createBotModel, BOT_SKINS, BOT_WEAPONS, CHAR_OPERATORS, CHAR_SKINS, killerInfo } from './characters.js';
@@ -346,6 +346,104 @@ export function runSelfTest(ctx) {
     S.player.x = -20; S.player.z = 20; S.player.vx = 0; S.player.vz = 0; S.player.onGround = true;
     for (let i = 0; i < 60; i++) player.step(FIXED_STEP, new Set(['ShiftLeft', 'KeyW']), false);
     check('Sprint drains stamina', S.stamina < 100);
+    // 37. Bot tactics (v27.1): flank, grenade flush, operator skills, retreat.
+    // The player is a punching bag here (9999 HP) so the bots can act.
+    // Lane x=-20 is the known-clear lane (see the movement tests above).
+    S.mode = 'tdm'; S.difficulty = 'normal';
+    game.startRound();
+    S.player.hp = 9999; S.spawnProtT = 0;
+    settle(60 * 4); // past the 3.2s countdown
+    const parkOthers = (keep) => {
+      S.bots.forEach((b, i) => { if (b === keep) return; b.x = 24; b.z = 24 - i * 2; b.state = 'hold'; });
+      bots.syncMeshes();
+    };
+    // Put one bot in combat with the player; the player stands at (-20,20)
+    // unless the check moves them after (the x=-20 lane is clear z=10..20;
+    // the z=-8 lane behind the furnace is clear too — the containers at
+    // (-20,2) and (-20,6) block the south half of the x=-20 lane).
+    const duelSetup = (b, bx, bz) => {
+      b.x = bx; b.z = bz; b.state = 'combat';
+      S.player.x = -20; S.player.z = 20;
+      parkOthers(b);
+      bots.syncMeshes();
+    };
+    check('Bots have operator skills assigned',
+      S.bots.every(b => b.skill && OPERATOR_DEFS[b.skill]));
+    // Tak-5: a hurt bot heals itself (+50, cooldown consumed).
+    const tak = S.bots[0]; // skill 'tak5'
+    tak.hp = 35; tak.skillCd = 0;
+    duelSetup(tak, -20, 10);
+    settle(60 * 2);
+    check('Tak-5 heals a hurt bot', tak.hp > 35 && tak.skillCd > 30);
+    // Gravity Spikes: a close bot slams you after a 0.5s crouch wind-up.
+    const grav = S.bots[2]; // skill 'gravity'
+    grav.hp = 100; grav.skillCd = 0;
+    duelSetup(grav, -20, 10);
+    S.player.x = -20; S.player.z = 15;
+    const php0 = S.player.hp;
+    settle(60 * 2);
+    check('Gravity slam hurts the player', grav.skillCd > 20 && S.player.hp < php0);
+    // Bull Charge: a far bot charges at you ~80% faster.
+    const bull = S.bots[1]; // skill 'bull'
+    bull.hp = 100; bull.skillCd = 0;
+    duelSetup(bull, -30, -8);
+    S.player.x = -14; S.player.z = -8;
+    const bx0 = bull.x, bz0 = bull.z;
+    settle(60 * 1);
+    check('Bull Charge speeds the bot',
+      bull.chargeT > 0 && Math.hypot(bull.x - bx0, bull.z - bz0) > 2);
+    // Sparrow: an explosive arrow (a free HE grenade) at mid range.
+    const spar = S.bots[3]; // skill 'sparrow'
+    spar.hp = 100; spar.skillCd = 0;
+    duelSetup(spar, -14, -8);
+    S.player.x = 14; S.player.z = -8;
+    settle(60 * 2);
+    check('Sparrow lobs an explosive arrow', spar.skillCd > 20);
+    // Flanking: after a 7s duel, losing sight makes the bot circle behind
+    // you instead of walking straight at your last known spot.
+    const flk = S.bots[4];
+    flk.hp = 100; flk.flankCd = 0; flk.combatT = 7; flk.state = 'combat';
+    duelSetup(flk, -20, 10);
+    S.player.x = 20; S.player.z = -20; // 50m away, no LOS
+    flk.lastCombatT = S.time - 3;
+    settle(60 * 2);
+    check('Bot flanks after a long duel', flk.flankedOnce === true);
+    // Camper tracking: a bot notes how long you have stood still.
+    const cam = S.bots[0];
+    cam.x = 0; cam.z = 12; cam.state = 'hold'; cam.playerStillT = 0;
+    S.player.x = 0; S.player.z = -14; // the furnace blocks LOS between them
+    parkOthers(cam);
+    bots.syncMeshes();
+    settle(60 * 4);
+    check('Bot tracks a still player', cam.playerStillT > 3.5);
+    // Grenade flush: a bot that lost you behind cover lobs a frag at your
+    // last known spot (1 per bot per round).
+    cam.state = 'react'; cam.hasSeen = true; cam.lastSeenX = 0; cam.lastSeenZ = -14;
+    cam.grenadeCd = 0; cam.grenadesUsed = 0;
+    settle(60 * 1);
+    check('Bot throws a grenade at a camper', cam.grenadesUsed > 0);
+    // Tactical retreat: a low-HP bot falls back to cover, throwing smoke
+    // and firing suppressive bursts, regenerating as it goes.
+    const ret = S.bots[1];
+    ret.hp = 20; ret.skillCd = 999; ret.grenadeCd = 0; ret.grenadesUsed = 0;
+    duelSetup(ret, -20, 10);
+    const rd0 = Math.hypot(ret.x - S.player.x, ret.z - S.player.z);
+    settle(60 * 2);
+    check('Low-HP bot retreats to cover',
+      ret.retreating === true && ret.hp > 20 && ret.grenadesUsed > 0
+      && Math.hypot(ret.x - S.player.x, ret.z - S.player.z) > rd0 + 2);
+    check('Retreat throws smoke cover', S.grenades.smokes.length > 0);
+    // Easy bots never use tactics (they still retreat — that is survival,
+    // not an advantage).
+    S.difficulty = 'easy';
+    const ez = S.bots[0];
+    ez.hp = 100; ez.skillCd = 0; ez.grenadeCd = 0; ez.flankCd = 0; ez.grenadesUsed = 0;
+    ez.flankedOnce = false; ez.combatT = 0;
+    duelSetup(ez, -20, 10);
+    settle(60 * 8);
+    check('Easy bots never use tactics',
+      ez.skillCd <= 0 && ez.grenadesUsed === 0 && ez.flankedOnce !== true);
+    S.difficulty = 'normal';
   } catch (e) {
     checks.push({ name: 'exception: ' + (e && e.message) + ' @ ' + (e && e.stack ? String(e.stack).split('\n').slice(0, 4).join(' | ') : '?'), ok: false });
   }
