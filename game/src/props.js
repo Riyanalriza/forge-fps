@@ -1811,16 +1811,24 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
     // ---- v22.3 / v22.4 props: bushes, power poles, city interactables ----
   function addBush(x, z) {
     const g = new THREE.Group();
-    const m1 = new THREE.Mesh(new THREE.SphereGeometry(0.9, 8, 6),
-      new THREE.MeshStandardMaterial({ color: 0x2a5a2a, roughness: 1 }));
-    m1.position.y = 0.6; m1.castShadow = true; g.add(m1);
-    const m2 = new THREE.Mesh(new THREE.SphereGeometry(0.6, 8, 6),
-      new THREE.MeshStandardMaterial({ color: 0x3a6a2a, roughness: 1 }));
-    m2.position.set(0.5, 0.9, 0.3); m2.castShadow = true; g.add(m2);
+    // Deterministic hash from position so the shape is stable across rebuilds
+    // and never touches the gameplay rng.
+    const h = n => { const s = Math.sin(x * 12.9898 + z * 78.233 + n * 37.719) * 43758.5453; return s - Math.floor(s); };
+    const greens = [0x1e4a1e, 0x2a5a2a, 0x3a6a2a, 0x46682a];
+    const lobes = 3 + Math.floor(h(0) * 2); // 3-4 squashed lobes, not one ball
+    for (let i = 0; i < lobes; i++) {
+      const r = 0.5 + h(i + 1) * 0.5;
+      const m = new THREE.Mesh(new THREE.SphereGeometry(r, 8, 6),
+        new THREE.MeshStandardMaterial({ color: greens[i % greens.length], roughness: 1 }));
+      m.scale.y = 0.65 + h(i + 5) * 0.25; // squashed
+      m.position.set((h(i + 9) - 0.5) * 1.1, 0.35 + h(i + 13) * 0.5, (h(i + 17) - 0.5) * 0.9);
+      m.rotation.y = h(i + 21) * Math.PI;
+      m.castShadow = true; g.add(m);
+      m.userData.propType = 'bush';
+      shootable(m, 'wood');
+    }
     g.position.set(x, 0, z);
     group.add(g);
-    m1.userData.propType = 'bush'; m2.userData.propType = 'bush';
-    shootable(m1, 'wood'); shootable(m2, 'wood');
     bushes.push({ x, z, mesh: g });
     return g;
   }

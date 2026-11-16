@@ -739,8 +739,31 @@ export function createFirstPersonHands(S) {
   // sits ~30cm away and blasts a smooth sphere pale, so the base must be
   // darker than the flat box it replaces.
   const palmM = gloveM.clone(); palmM.color.multiplyScalar(0.62);
-  const sleeveM = new THREE.MeshStandardMaterial({ color: 0x2e8b62, roughness: 0.85, emissive: 0x0a2e1c, emissiveIntensity: 0.25 });
-  const gunM = new THREE.MeshStandardMaterial({ color: 0x2b2f33, roughness: 0.5, metalness: 0.5 });
+  // Sleeve fabric: procedural canvas with fold stripes along the arm so the
+  // green sleeve reads as cloth, not a plain plastic tube. Map carries the
+  // base green itself, so the material colour stays white. (Math.random here
+  // is texture-only — the gameplay rng is untouched.)
+  const sleeveTex = (() => {
+    const c = document.createElement('canvas'); c.width = 128; c.height = 128;
+    const g = c.getContext('2d');
+    g.fillStyle = '#2e8b62'; g.fillRect(0, 0, 128, 128);
+    for (let x = 0; x < 128; x += 8) { // fold ridges around the arm
+      g.fillStyle = (x / 8) % 2 ? 'rgba(0,0,0,0.18)' : 'rgba(255,255,255,0.10)';
+      g.fillRect(x, 0, 4, 128);
+    }
+    for (let i = 0; i < 5; i++) { // crease lines across the arm
+      g.fillStyle = 'rgba(0,0,0,0.12)'; g.fillRect(0, 20 + i * 24, 128, 2);
+    }
+    for (let i = 0; i < 300; i++) { // weave speckle
+      g.fillStyle = Math.random() > 0.5 ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)';
+      g.fillRect(Math.random() * 128, Math.random() * 128, 1.5, 1.5);
+    }
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    return t;
+  })();
+  const sleeveM = new THREE.MeshStandardMaterial({ color: 0xffffff, map: sleeveTex, roughness: 0.85, emissive: 0x0a2e1c, emissiveIntensity: 0.25 });
+  const gunM = new THREE.MeshStandardMaterial({ color: 0x23272b, roughness: 0.45, metalness: 0.65 }); // dark gunmetal, not washed white
   const barrelM = new THREE.MeshStandardMaterial({ color: 0x16181c, roughness: 0.35, metalness: 0.8 });
   const gripM = new THREE.MeshStandardMaterial({ color: 0x14161a, roughness: 0.95 });
   const woodM = new THREE.MeshStandardMaterial({ color: 0x6b4a2a, roughness: 0.8 });

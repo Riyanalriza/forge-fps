@@ -91,10 +91,11 @@ export function createHud(S) {
     } else if (el.reloadBar) el.reloadBar.hidden = true;
     // Stamina bar + movement status + surface (v22.6.4).
     if (el.staminaFill) el.staminaFill.style.width = Math.round(Math.max(0, Math.min(100, S.stamina ?? 100))) + '%';
-    // Movement + surface as ONE tidy chip (was two stacked labels).
+    // Movement + surface as ONE tidy chip (was two stacked labels). "di atas"
+    // makes the chip read as a sentence — status + the ground under you.
     if (el.moveStatus) {
       const surfName = { concrete: 'beton', wood: 'kayu', grass: 'rumput', sand: 'pasir', snow: 'salju', metal: 'besi', water: 'air', mud: 'lumpur', stairs: 'tangga' };
-      el.moveStatus.textContent = `${S.moveStatus || 'DIAM'} · ${surfName[S.surface] || S.surface || 'beton'}`;
+      el.moveStatus.textContent = `${S.moveStatus || 'DIAM'} · di atas ${surfName[S.surface] || S.surface || 'beton'}`;
     }
     // Crosshair pulse while firing (v18.1.16) + lock when aiming at a bot (v18.2).
     if (el.crosshair) {

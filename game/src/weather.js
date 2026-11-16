@@ -80,14 +80,28 @@ export function createWeather(scene, S, world, audio) {
   const cloudGeo = new THREE.SphereGeometry(1, 10, 8);
   const cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, fog: false });
   const clouds = [];
+  const cloudMats = []; // {mat, shade, op} — per-puff shade so clusters aren't flat white balls
   for (let i = 0; i < 15; i++) {
     const c = new THREE.Group();
-    const puffs = 3 + Math.floor(Math.random() * 3);
+    const puffs = 3 + Math.floor(Math.random() * 4); // 3-6 lobes
+    const wide = Math.random() > 0.5; // wide-flat vs tall cluster
     for (let j = 0; j < puffs; j++) {
-      const p = new THREE.Mesh(cloudGeo, cloudMat);
-      p.scale.set(2.2 + Math.random() * 2.8, 1 + Math.random() * 0.9, 1.6 + Math.random() * 1.6);
+      const shade = 0.82 + Math.random() * 0.18; // grey variation per puff
+      const m = cloudMat.clone();
+      const op = 0.55 + Math.random() * 0.35; m.opacity = op;
+      const p = new THREE.Mesh(cloudGeo, m);
+      p.scale.set(2.2 + Math.random() * 2.8, wide ? 0.6 + Math.random() * 0.6 : 1 + Math.random() * 1.2, 1.6 + Math.random() * 1.6);
       p.position.set((j - puffs / 2) * 2.4 + (Math.random() - 0.5), (Math.random() - 0.5) * 0.9, (Math.random() - 0.5) * 1.6);
       c.add(p);
+      cloudMats.push({ mat: m, shade, op });
+    }
+    if (Math.random() > 0.5) { // small satellite puff — breaks the smooth ellipse outline
+      const m = cloudMat.clone(); m.opacity = 0.5 + Math.random() * 0.3;
+      const p = new THREE.Mesh(cloudGeo, m);
+      p.scale.set(1 + Math.random(), 0.6 + Math.random() * 0.5, 1 + Math.random());
+      p.position.set((Math.random() > 0.5 ? 1 : -1) * (5 + Math.random() * 2), (Math.random() - 0.5) * 1.2, (Math.random() - 0.5) * 2);
+      c.add(p);
+      cloudMats.push({ mat: m, shade: 0.85 + Math.random() * 0.15, op: m.opacity });
     }
     c.position.set((Math.random() * 2 - 1) * 60, 26 + Math.random() * 14, (Math.random() * 2 - 1) * 55);
     scene.add(c);
@@ -212,8 +226,10 @@ export function createWeather(scene, S, world, audio) {
     moonMesh.visible = id === 'night';
     const nClouds = def.clouds;
     clouds.forEach((c, i) => { c.visible = i < nClouds; }); // clusters share cloudMat
-    cloudMat.color.setHex((over && over.cloud != null) ? over.cloud : id === 'night' ? 0x2a2a3a : id === 'storm' || id === 'rain' ? 0x3a4550 : id === 'dawn' ? 0xffc8d0 : (over && over.sky) ? 0x6a6a72 : 0xffffff);
+    const cTint = (over && over.cloud != null) ? over.cloud : id === 'night' ? 0x2a2a3a : id === 'storm' || id === 'rain' ? 0x3a4550 : id === 'dawn' ? 0xffc8d0 : (over && over.sky) ? 0x6a6a72 : 0xffffff;
+    cloudMat.color.setHex(cTint);
     cloudMat.opacity = id === 'storm' || id === 'rain' ? 0.95 : 0.8;
+    cloudMats.forEach(o => { o.mat.color.setHex(cTint); o.mat.color.multiplyScalar(o.shade); o.mat.opacity = o.op; }); // per-puff shade kept under the map tint
     stars.visible = !!def.stars;
     rain.visible = def.rain > 0;
     snow.visible = def.snow > 0;

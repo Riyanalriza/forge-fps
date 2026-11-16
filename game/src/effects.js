@@ -54,7 +54,7 @@ export function createEffects(scene, S, audio) {
   let poolIdx = 0;
   // ---- Tracer pool: glowing lines from the muzzle to the hit ----
   const tracers = [];
-  const tubeGeo = new THREE.CylinderGeometry(0.035, 0.035, 1, 6);
+  const tubeGeo = new THREE.CylinderGeometry(0.02, 0.02, 1, 6); // thinner: 0.035 read as a laser
   for (let i = 0; i < 8; i++) {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
@@ -222,7 +222,7 @@ export function createEffects(scene, S, audio) {
     // red 0xff2222) is used as-is.
     const col = typeof sniper === 'number' || typeof sniper === 'string' ? sniper : (sniper ? 0x55ddff : 0xffdd55);
     t.line.material.color.set(col);
-    t.line.visible = true; t.line.material.opacity = 1; t.life = 0.13;
+    t.line.visible = true; t.line.material.opacity = 0.85; t.life = 0.13;
     // Tube: midpoint + length + orientation from the same endpoints.
     const dx = to.x - from.x, dy = to.y - from.y, dz = to.z - from.z;
     const len = Math.hypot(dx, dy, dz) || 0.001;
@@ -230,7 +230,7 @@ export function createEffects(scene, S, audio) {
     t.tube.scale.set(1, len, 1);
     t.tube.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(dx / len, dy / len, dz / len));
     t.tube.material.color.set(col);
-    t.tube.material.opacity = 0.95; t.tube.visible = true;
+    t.tube.material.opacity = 0.65; t.tube.visible = true;
   }
   function shell(tip, right) {
     const s = shells[shIdx]; shIdx = (shIdx + 1) % shells.length;
@@ -420,8 +420,8 @@ export function createEffects(scene, S, audio) {
     for (const t of tracers) {
       if (t.life <= 0) continue;
       t.life -= dt;
-      t.line.material.opacity = Math.max(0, t.life / 0.09) * 0.95;
-      t.tube.material.opacity = Math.max(0, t.life / 0.09) * 0.85;
+      t.line.material.opacity = Math.max(0, t.life / 0.09) * 0.8;
+      t.tube.material.opacity = Math.max(0, t.life / 0.09) * 0.6;
       if (t.life <= 0) { t.line.visible = false; t.tube.visible = false; }
     }
     for (const s of shells) {
