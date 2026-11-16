@@ -240,7 +240,7 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
     const p = point || { x: rec.x, y: 0.5, z: rec.z };
     if (rec.kind === 'barrel') {
       if (fx) fx.explosion({ x: rec.x, y: 0.5, z: rec.z }, false);
-      else if (audio.explosion) audio.explosion();
+      else if (audio.explosion) audio.explosion(rec.x, 0.5, rec.z);
       areaDamage(rec.x, rec.z, 4, 150);
     } else if (rec.kind === 'car') {
       // Two blasts 0.3s apart, 5m radius (pending booms, stepped in step()).
@@ -257,11 +257,11 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
         return true;
       }
       if (fx) fx.glass(p);
-      else if (audio.glass) audio.glass();
+      else if (audio.glass) audio.glass(p.x, p.y, p.z);
     } else if (rec.kind === 'oil') {
       // Oil puddle (v18.9.10): shot -> catches fire, small area burn.
       if (fx) fx.explosion(p, false);
-      else if (audio.explosion) audio.explosion();
+      else if (audio.explosion) audio.explosion(p.x, p.y, p.z);
       areaDamage(rec.x, rec.z, 2, 60);
     } else {
       if (fx) fx.impact(p, { x: 0, y: 0, z: 1 }, 'wood');
@@ -280,7 +280,7 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
     const dir = { x: 0, y: 0, z: 1 };
     switch (type) {
       case 'lamp': { // v19.2.1: glass + the nearest point light dies
-        if (fx) fx.glass(p); else if (audio.glass) audio.glass();
+        if (fx) fx.glass(p); else if (audio.glass) audio.glass(p.x, p.y, p.z);
         if (rec) rec.dead = true;
         mesh.material.color && mesh.material.color.setHex(0x222222);
         if (world.setLightsOut) { /* single lamp only — the room dims via decor */ }
@@ -288,7 +288,7 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
       }
       case 'tv': { // v19.2.2: small explosion + smoke + screen dies
         if (fx) { fx.explosion(p, false); fx.smokePuff(p.x, p.y + 0.3, p.z); }
-        else if (audio.explosion) audio.explosion();
+        else if (audio.explosion) audio.explosion(p.x, p.y, p.z);
         if (rec) rec.dead = true;
         mesh.material.color && mesh.material.color.setHex(0x111111);
         return true;
@@ -613,7 +613,7 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
       b.t -= dt;
       if (b.t <= 0) {
         if (fx) fx.explosion({ x: b.x, y: 0.5, z: b.z }, true);
-        else if (audio.explosion) audio.explosion();
+        else if (audio.explosion) audio.explosion(b.x, 0.5, b.z);
         areaDamage(b.x, b.z, 5, 150);
         S.pendingBooms.splice(i, 1);
       }
@@ -990,7 +990,7 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
     const x = gr.x, z = gr.z;
     if (gr.kind === 'he') {
       if (fx) fx.explosion({ x, y: 0.3, z }, false);
-      else if (audio.explosion) audio.explosion();
+      else if (audio.explosion) audio.explosion(x, 0.3, z);
       // A bot-thrown frag (v27.1) does not credit you — its kills go to
       // the feed instead of onKill (which pays you +300 and a streak).
       const thrower = gr.fromBot !== undefined ? S.bots[gr.fromBot] : null;
@@ -1048,7 +1048,7 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
       fz.mesh = m;
       S.fireZones.push(fz);
       if (fx) fx.explosion({ x, y: 0.3, z }, false);
-      else if (audio.explosion) audio.explosion();
+      else if (audio.explosion) audio.explosion(x, 0.3, z);
     } else if (gr.kind === 'gas') {
       // Gas grenade (v23.0.6): damaging cloud, 5 dmg/s for 6s, radius 4m.
       S.gasClouds.push({ x, z, r: 4, t: 6 });
@@ -1078,7 +1078,7 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
         // One bounce off the ground (40% rebound + bounce sound), then blow.
         if (!gr.bounced && gr.vy < -1) {
           gr.bounced = true; gr.y = 0.06; gr.vy = -gr.vy * 0.4;
-          if (audio.bounce) audio.bounce();
+          if (audio.bounce) audio.bounce(gr.x, 0.1, gr.z);
         } else {
           g.flying.splice(i, 1);
           detonateGrenade(gr);
@@ -1344,7 +1344,7 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
         a.bombs -= 1;
         const bx = a.x + (Math.random() * 2 - 1) * 4, bz = a.z + (Math.random() * 2 - 1) * 4;
         if (fx) fx.explosion({ x: bx, y: 0.3, z: bz }, true);
-        else if (audio.explosion) audio.explosion();
+        else if (audio.explosion) audio.explosion(bx, 0.3, bz);
         for (const b of S.bots) {
           if (!b.alive || b.team === 'ally') continue;
           const d = Math.hypot(b.x - bx, b.z - bz);
@@ -1457,7 +1457,7 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
       // Sparrow (v23.0.3): explosive arrow — 150 blast 25m ahead.
       const tx = p.x - Math.sin(p.yaw) * 25, tz = p.z - Math.cos(p.yaw) * 25;
       if (fx) fx.explosion({ x: tx, y: 0.5, z: tz }, true);
-      else if (audio.explosion) audio.explosion();
+      else if (audio.explosion) audio.explosion(tx, 0.5, tz);
       areaDamage(tx, tz, 5, 150, 'sparrow');
       S.msg = '🏹 SPARROW — explosive arrow!'; S.msgT = 3;
     } else if (S.operator === 'tak5') {
@@ -1495,7 +1495,7 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
       if (S.c4) { // press again: detonate
         const c = S.c4;
         if (fx) fx.explosion({ x: c.x, y: 0.5, z: c.z }, true);
-        else if (audio.explosion) audio.explosion();
+        else if (audio.explosion) audio.explosion(c.x, 0.5, c.z);
         areaDamage(c.x, c.z, 5, 150, 'c4');
         scene.remove(c.mesh); S.c4 = null;
         return;
@@ -1575,7 +1575,7 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
       }
       if (trip) {
         if (fx) fx.explosion({ x: t.x, y: 0.5, z: t.z }, false);
-        else if (audio.explosion) audio.explosion();
+        else if (audio.explosion) audio.explosion(t.x, 0.5, t.z);
         areaDamage(t.x, t.z, 4, 120, 'tripmine');
         scene.remove(t.mesh);
         S.tripmines.splice(i, 1);
@@ -1755,7 +1755,7 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
     predator.t -= dt;
     if (predator.t <= 0) {
       if (fx) fx.explosion({ x: predator.x, y: 0.5, z: predator.z }, true);
-      else if (audio.explosion) audio.explosion();
+      else if (audio.explosion) audio.explosion(predator.x, 0.5, predator.z);
       areaDamage(predator.x, predator.z, 8, 150, 'predator');
       predator = null;
     }
@@ -1824,6 +1824,9 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
     if (S.phase !== 'playing') return;
     // Countdown 3-2-1: nothing moves or ticks until it reaches 0.
     if (S.countdownT > 0) { S.countdownT -= dt; return; }
+    // 3D audio listener follows the camera every frame (position + yaw),
+    // so bot shots, explosions and footsteps pan with the player's view.
+    if (audio.setListener) { const pl = S.player; audio.setListener(pl.x, pl.y + pl.eye, pl.z, pl.yaw); }
     S.round.timer -= dt;
     if (S.uavT > 0) S.uavT -= dt;
     if (S.opCd > 0) { S.opCd -= dt; if (S.opCd < 0) S.opCd = 0; }

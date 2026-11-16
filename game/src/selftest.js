@@ -147,8 +147,6 @@ export function runSelfTest(ctx) {
     check('Stair mid-height ~2.35', Math.abs(world.groundY(-19.1, 20, 2.35) - 2.35) < 0.05);
     check('Floor 2 groundY is 4.7', Math.abs(world.groundY(-15, 20, 4.7) - 4.7) < 0.01);
     check('Ground floor groundY is 0', world.groundY(0, 20, 0) === 0);
-    world.buildMap('foundry');
-    game.startRound();
     // 16. Characters: full bot models, varied skins/weapons, name + HP bar,
     // enemy indicator, first-person hands, walk/idle/death animation.
     check('5 bot skins defined', BOT_SKINS.length === 5);
@@ -652,6 +650,50 @@ export function runSelfTest(ctx) {
         total += world.glbPlacements.length;
       }
       return total === 47;
+    })());
+    // 41. 3D positional audio (combat-feedback pass): PannerNode routing,
+    // direction (ahead/right/behind/left), distance falloff, and the
+    // listener following the player's yaw. Audibility itself can't be
+    // proven headless — the counters + lastSpatial() record prove the
+    // routing, angle and gain instead.
+    audio.setListener(0, 1.6, 0, 0);
+    const sp0 = audio.spatialCount();
+    audio.enemyShot('ax117', 10, 10, 1.3, 0);
+    check('Bot shot to the right pans +90 and counts as spatial',
+      audio.spatialCount() > sp0 && Math.abs(audio.lastSpatial().angleDeg - 90) < 1);
+    audio.enemyShot('ax117', 10, -10, 1.3, 0);
+    check('Bot shot to the left pans -90',
+      Math.abs(audio.lastSpatial().angleDeg + 90) < 1);
+    audio.enemyShot('ax117', 10, 0, 1.3, -10);
+    check('Bot shot ahead pans 0',
+      Math.abs(audio.lastSpatial().angleDeg) < 1);
+    audio.enemyShot('ax117', 10, 0, 1.3, 10);
+    check('Bot shot behind pans +/-180',
+      Math.abs(Math.abs(audio.lastSpatial().angleDeg) - 180) < 1);
+    audio.setListener(0, 1.6, 0, Math.PI); // turn around: front is now +z
+    audio.enemyShot('ax117', 10, 0, 1.3, 10);
+    check('Listener yaw turns the pan with the player',
+      Math.abs(audio.lastSpatial().angleDeg) < 1);
+    audio.setListener(0, 1.6, 0, 0);
+    audio.explosion(5, 0.5, 0);
+    const gNear = audio.lastSpatial().gain;
+    audio.explosion(40, 0.5, 0);
+    const gFar = audio.lastSpatial().gain;
+    check('Explosion fades with distance (near gain > far gain)',
+      gNear > 0.8 && gFar < 0.5 && gFar > 0 && gFar < gNear);
+    audio.step('concrete', 0.05, 0, 0.1, -8);
+    check('Bot footstep is spatial, 8m ahead',
+      Math.abs(audio.lastSpatial().dist - 8) < 0.5 && Math.abs(audio.lastSpatial().angleDeg) < 1);
+    const sp1 = audio.spatialCount();
+    audio.explosion(); // no position: flat, must not count as spatial
+    check('Non-positional explosion stays flat (no spatial count)',
+      audio.spatialCount() === sp1);
+    check('Listener follows the player each frame (game.step)', (() => {
+      S.countdownT = 0;
+      S.player.x = 3; S.player.z = -4; S.player.yaw = Math.PI / 2; // facing -x
+      game.step(1 / 60, new Set());
+      audio.enemyShot('ax117', 10, -7, 1.3, -4); // 10m straight ahead
+      return Math.abs(audio.lastSpatial().angleDeg) < 1;
     })());
     world.buildMap('foundry');
     game.startRound();

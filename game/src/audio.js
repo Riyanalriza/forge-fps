@@ -35,7 +35,7 @@ export function createAudio() {
       return ctx;
     } catch { return null; }
   }
-  function tone(freq, dur, type = 'square', vol = 0.12, slide = 0) {
+  function tone(freq, dur, type = 'square', vol = 0.12, slide = 0, pos = null) {
     if (muted) return;
     const c = ac(); if (!c) return;
     try {
@@ -45,11 +45,11 @@ export function createAudio() {
       g.gain.setValueAtTime(0.0001, c.currentTime);
       g.gain.linearRampToValueAtTime(vol * gunVol, c.currentTime + 0.008);
       g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + dur);
-      o.connect(g).connect(c.destination);
+      o.connect(g); route(g, pos);
       o.start(); o.stop(c.currentTime + dur);
     } catch { /* ignore */ }
   }
-  function noise(dur, vol = 0.25, low = 400) {
+  function noise(dur, vol = 0.25, low = 400, pos = null) {
     if (muted) return;
     const c = ac(); if (!c) return;
     try {
@@ -60,17 +60,62 @@ export function createAudio() {
       const src = c.createBufferSource(); src.buffer = buf;
       const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = low;
       const g = c.createGain(); g.gain.setValueAtTime(0.0001, c.currentTime); g.gain.linearRampToValueAtTime(vol * gunVol, c.currentTime + 0.02);
-      src.connect(f).connect(g).connect(c.destination); src.start();
+      src.connect(f); f.connect(g); route(g, pos); src.start();
     } catch { /* ignore */ }
   }
   let lastCallout = 0;
   let steps = 0; // footstep counter (self-test reads it via stepCount)
+  // 3D positional audio (combat-feedback pass): one shared listener,
+  // updated once per frame from game.step(); any sound given a world
+  // position routes through a PannerNode (HRTF, linear falloff to 60m)
+  // so it pans left/right and fades with distance. Sounds without a
+  // position (own gun, UI, voice) stay flat. Headless tests read
+  // spatialCount() / lastSpatial() — no speaker needed to prove the
+  // direction + falloff. Angle convention matches hud.js dmgAngle:
+  // ahead 0, right +90, behind +/-180, left -90.
+  let listener = { x: 0, y: 1.6, z: 0, yaw: 0 };
+  let spatialPlays = 0, lastSpatial = null;
+  function route(g, pos, maxDist) {
+    const c = ac(); if (!c) return;
+    if (!pos || !c.createPanner) { try { g.connect(c.destination); } catch { /* ignore */ } return; }
+    try {
+      const pn = c.createPanner();
+      pn.panningModel = 'HRTF'; pn.distanceModel = 'linear';
+      pn.refDistance = 1; pn.maxDistance = maxDist || 60; pn.rolloffFactor = 1;
+      if (pn.positionX) { pn.positionX.value = pos.x; pn.positionY.value = pos.y || 0; pn.positionZ.value = pos.z; }
+      else pn.setPosition(pos.x, pos.y || 0, pos.z);
+      g.connect(pn); pn.connect(c.destination);
+      spatialPlays += 1;
+      const dx = pos.x - listener.x, dy = (pos.y || 0) - listener.y, dz = pos.z - listener.z;
+      const d = Math.hypot(dx, dy, dz) || 0.001;
+      const fx = -Math.sin(listener.yaw), fz = -Math.cos(listener.yaw);
+      const rx = Math.cos(listener.yaw), rz = -Math.sin(listener.yaw);
+      const ang = Math.atan2((dx * rx + dz * rz) / d, (dx * fx + dz * fz) / d) * 180 / Math.PI;
+      const max = maxDist || 60;
+      lastSpatial = { x: pos.x, y: pos.y || 0, z: pos.z, dist: Math.round(d * 10) / 10, angleDeg: Math.round(ang * 10) / 10, gain: d <= 1 ? 1 : Math.max(0, Math.round((1 - (d - 1) / (max - 1)) * 100) / 100) };
+    } catch { try { g.connect(c.destination); } catch { /* ignore */ } }
+  }
   function stepInterval(speed) { // stride 2.3m: walk 6 -> 0.38s, sprint 9 -> 0.26s, crouch 3 -> 0.77s, prone 2.1 -> 1.1s
     return Math.max(0.2, Math.min(1.2, 2.3 / Math.max(0.5, speed || 6)));
   }
   return {
     unlock() { ac(); },
     stepCount() { return steps; },
+    // Listener follows the camera (called once per frame from game.step).
+    // Also drives the real AudioListener so the panning is audible, not
+    // just recorded in lastSpatial().
+    setListener(x, y, z, yaw) {
+      listener = { x: x || 0, y: y == null ? 1.6 : y, z: z || 0, yaw: yaw || 0 };
+      const c = ac(); if (!c || !c.listener) return;
+      try {
+        const l = c.listener;
+        const fx = -Math.sin(listener.yaw), fz = -Math.cos(listener.yaw);
+        if (l.positionX) { l.positionX.value = listener.x; l.positionY.value = listener.y; l.positionZ.value = listener.z; l.forwardX.value = fx; l.forwardY.value = 0; l.forwardZ.value = fz; l.upX.value = 0; l.upY.value = 1; l.upZ.value = 0; }
+        else { l.setPosition(listener.x, listener.y, listener.z); l.setOrientation(fx, 0, fz, 0, 1, 0); }
+      } catch { /* ignore */ }
+    },
+    spatialCount() { return spatialPlays; },
+    lastSpatial() { return lastSpatial; },
     stepInterval,
     setVolumes(gun, voice) { gunVol = Math.max(0, Math.min(1, gun ?? 1)); voiceVol = Math.max(0, Math.min(1, voice ?? 1)); },
     setCallouts(on) { calloutsOn = !!on; },
@@ -120,15 +165,14 @@ export function createAudio() {
       tone(head ? 1400 : 1000, 0.06, 'sine', 0.12);
     },
     // Water splash (v18.3.9): bright burst + falling tone.
-    splash() { noise(0.3, 0.2, 800); tone(600, 0.25, 'sine', 0.08, -300); },
+    splash(x, y, z) { const pos = x !== undefined ? { x, y: y == null ? 0.3 : y, z, max: 30 } : null; noise(0.3, 0.2, 800, pos); tone(600, 0.25, 'sine', 0.08, -300, pos); },
     thunder() { noise(2.2, 0.4, 120); tone(50, 2.0, 'sine', 0.25, -20); },
     plant() { tone(880, 0.12, 'sine', 0.12); },
     defuse() { tone(660, 0.12, 'sine', 0.12); },
     beep() { tone(1200, 0.08, 'sine', 0.1); },
-    explosion() { noise(1.2, 0.5, 300); tone(60, 1.0, 'sine', 0.3, -30); },
+    explosion(x, y, z) { const pos = x !== undefined ? { x, y: y == null ? 0.5 : y, z, max: 60 } : null; noise(1.2, 0.5, 300, pos); tone(60, 1.0, 'sine', 0.3, -30, pos); },
     // Grenade pin pull: short metallic click.
-    pin() { tone(3200, 0.03, 'square', 0.08); setTimeout(() => tone(1800, 0.05, 'square', 0.06), 50); },
-    // Attack-heli rotor: one persistent looping pair of oscillators, started
+    pin() { tone(3200, 0.03, 'square', 0.08); setTimeout(() => tone(1800, 0.05, 'square', 0.06), 50); },    // Attack-heli rotor: one persistent looping pair of oscillators, started
     // and stopped explicitly — no interval, no new context per call.
     rotor(on) {
       if (muted && on) return;
@@ -214,9 +258,9 @@ export function createAudio() {
     },
     stopCinematic() { stopCinematic(); },
     // Blood: wet splat (short filtered noise burst).
-    splat() { noise(0.12, 0.2, 500); tone(180, 0.1, 'sine', 0.1, -80); },
+    splat(x, y, z) { const pos = x !== undefined ? { x, y: y == null ? 1 : y, z, max: 30 } : null; noise(0.12, 0.2, 500, pos); tone(180, 0.1, 'sine', 0.1, -80, pos); },
     // Headshot / metal "ting!" — bright metallic ping.
-    ting() { tone(2400, 0.18, 'sine', 0.16, -400); tone(3200, 0.1, 'sine', 0.08); },
+    ting(x, y, z) { const pos = x !== undefined ? { x, y: y == null ? 1 : y, z, max: 30 } : null; tone(2400, 0.18, 'sine', 0.16, -400, pos); tone(3200, 0.1, 'sine', 0.08, 0, pos); },
     // Shell casing bouncing on the floor.
     shellTing() { tone(2800, 0.06, 'sine', 0.06, -600); },
     // Kill confirm: ting + TTS "Eliminated".
@@ -236,32 +280,41 @@ export function createAudio() {
     // Jump effort: rising 300 -> 500 Hz.
     hup() { tone(300, 0.16, 'sine', 0.1, 200); },
     // Shattering glass: bright noise burst + high pings.
-    glass() { noise(0.25, 0.22, 5000); tone(3200, 0.12, 'sine', 0.1, -1200); setTimeout(() => tone(2600, 0.1, 'sine', 0.08), 60); },
+    glass(x, y, z) { const pos = x !== undefined ? { x, y: y == null ? 1 : y, z, max: 30 } : null; noise(0.25, 0.22, 5000, pos); tone(3200, 0.12, 'sine', 0.1, -1200, pos); setTimeout(() => tone(2600, 0.1, 'sine', 0.08, 0, pos), 60); },
     // Grenade bouncing off the floor: dull thud.
-    bounce() { tone(120, 0.09, 'sine', 0.14, -40); noise(0.06, 0.1, 300); },
+    bounce(x, y, z) { const pos = x !== undefined ? { x, y: y == null ? 0.1 : y, z, max: 30 } : null; tone(120, 0.09, 'sine', 0.14, -40, pos); noise(0.06, 0.1, 300, pos); },
     // An enemy reloading nearby: two soft clicks.
-    enemyReload() { tone(900, 0.04, 'square', 0.04); setTimeout(() => tone(600, 0.04, 'square', 0.04), 120); },
+    enemyReload(x, y, z) { const pos = x !== undefined ? { x, y: y == null ? 1.2 : y, z, max: 40 } : null; tone(900, 0.04, 'square', 0.04, 0, pos); setTimeout(() => tone(600, 0.04, 'square', 0.04, 0, pos), 120); },
     // Enemy gunshot with distance falloff (v18.17): quieter the farther away.
-    enemyShot(id, dist) {
+    // With a position, the PannerNode does the falloff (linear to 60m —
+    // matches the old 1-dist/60 curve) and pans by direction.
+    enemyShot(id, dist, x, y, z) {
+      if (x !== undefined) {
+        const pos = { x, y: y == null ? 1.3 : y, z, max: 60 };
+        noise(0.1, 0.2, 1200, pos); tone(150, 0.08, 'sawtooth', 0.1, -60, pos);
+        return;
+      }
       const f = Math.max(0.08, 1 - (dist || 20) / 60);
       noise(0.1, 0.2 * f, 1200); tone(150, 0.08, 'sawtooth', 0.1 * f, -60);
     },
     // Footstep, per surface (v18.14 + v18.2.4): sand is nearly silent,
     // wood is a dull 800 Hz knock, metal/concrete a brighter step.
     // Volume: 0.05 normal, 0.02 crouched, 0.01 prone (v18.1.6).
-    step(surface = 'concrete', vol = 0.05) {
+    // With a position (bot steps) the panner fades them out by 25m.
+    step(surface = 'concrete', vol = 0.05, x, y, z) {
       steps += 1;
+      const pos = x !== undefined ? { x, y: y == null ? 0.1 : y, z, max: 25 } : null;
       // 8 surfaces (v22.2.1): sand, wood, metal + grass, snow, water, mud,
       // stairs. Left/right alternation is handled by the caller timing.
-      if (surface === 'sand') { noise(0.05, vol * 0.4, 200); return; }
-      if (surface === 'wood') { tone(800, 0.05, 'sine', vol * 0.7, -200); noise(0.04, vol * 0.5, 600); return; }
-      if (surface === 'metal') { tone(2500, 0.04, 'sine', vol * 0.6, -800); noise(0.04, vol * 0.6, 3000); return; }
-      if (surface === 'grass') { noise(0.06, vol * 0.7, 900); tone(500, 0.04, 'sine', vol * 0.3, -100); return; }
-      if (surface === 'snow') { noise(0.07, vol * 0.5, 400); return; }
-      if (surface === 'water') { noise(0.08, vol * 0.8, 1200); tone(700, 0.1, 'sine', vol * 0.3, -300); return; }
-      if (surface === 'mud') { noise(0.09, vol * 0.6, 150); tone(120, 0.08, 'sine', vol * 0.4, -40); return; }
-      if (surface === 'stairs') { tone(1100, 0.05, 'sine', vol * 0.8, -300); noise(0.03, vol * 0.4, 800); return; }
-      noise(0.05, vol, 300);
+      if (surface === 'sand') { noise(0.05, vol * 0.4, 200, pos); return; }
+      if (surface === 'wood') { tone(800, 0.05, 'sine', vol * 0.7, -200, pos); noise(0.04, vol * 0.5, 600, pos); return; }
+      if (surface === 'metal') { tone(2500, 0.04, 'sine', vol * 0.6, -800, pos); noise(0.04, vol * 0.6, 3000, pos); return; }
+      if (surface === 'grass') { noise(0.06, vol * 0.7, 900, pos); tone(500, 0.04, 'sine', vol * 0.3, -100, pos); return; }
+      if (surface === 'snow') { noise(0.07, vol * 0.5, 400, pos); return; }
+      if (surface === 'water') { noise(0.08, vol * 0.8, 1200, pos); tone(700, 0.1, 'sine', vol * 0.3, -300, pos); return; }
+      if (surface === 'mud') { noise(0.09, vol * 0.6, 150, pos); tone(120, 0.08, 'sine', vol * 0.4, -40, pos); return; }
+      if (surface === 'stairs') { tone(1100, 0.05, 'sine', vol * 0.8, -300, pos); noise(0.03, vol * 0.4, 800, pos); return; }
+      noise(0.05, vol, 300, pos);
     },
     // Shell casing bounce: pitch follows the floor material (v18.2.4).
     shellTing(freq = 2800) { tone(freq, 0.06, 'sine', 0.06, -freq * 0.3); },

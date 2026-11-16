@@ -157,7 +157,7 @@ export function createEffects(scene, S, audio) {
       spawn(point.x, point.y, point.z, vx, vy, vz, Math.random() < 0.7 ? 0xaa0000 : 0xcc1111,
         0.5 + Math.random() * 0.4, 12, 0.8 + Math.random() * 0.7, true);
     }
-    if (audio.splat) audio.splat();
+    if (audio.splat) audio.splat(point.x, point.y, point.z);
   }
   function bloodPool(x, z, big) {
     if (S.settings && S.settings.graphics && S.settings.graphics.blood === false) return;
@@ -249,7 +249,7 @@ export function createEffects(scene, S, audio) {
           (Math.random() - 0.5) * 4 + dir.x, Math.random() * 2.5 + 0.5, (Math.random() - 0.5) * 4 + dir.z,
           0xffcc22, 0.25 + Math.random() * 0.3, 10, 0.7);
       }
-      if (audio.ting) audio.ting();
+      if (audio.ting) audio.ting(point.x, point.y, point.z);
     } else if (mat === 'wood') {
       for (let i = 0; i < 10; i++) {
         spawn(point.x, point.y, point.z,
@@ -307,7 +307,7 @@ export function createEffects(scene, S, audio) {
       s.sprite.visible = true; s.sprite.material.opacity = 0.45; s.sprite.scale.set(1.6, 1.6, 1);
     }
     shakeT = Math.max(shakeT, big ? 0.6 : 0.4);
-    if (audio.explosion) audio.explosion();
+    if (audio.explosion) audio.explosion(point.x, point.y, point.z);
   }
   // ---- Water splash: blue-white droplets + an expanding ripple ring ----
   const ripples = [];
@@ -327,7 +327,7 @@ export function createEffects(scene, S, audio) {
     const r = ripples[ripIdx]; ripIdx = (ripIdx + 1) % ripples.length;
     r.mesh.position.set(point.x, 0.32, point.z);
     r.mesh.scale.setScalar(0.5); r.life = 0.8; r.mesh.visible = true; r.mesh.material.opacity = 0.8;
-    if (audio.splash) audio.splash();
+    if (audio.splash) audio.splash(point.x, point.y, point.z);
   }
   // ---- Glass shatter: clear-white shards bursting outward ----
   function glass(point) {
@@ -336,7 +336,7 @@ export function createEffects(scene, S, audio) {
         (Math.random() - 0.5) * 3, Math.random() * 1.5 + 0.3, (Math.random() - 0.5) * 3,
         0xd8ecff, 0.4 + Math.random() * 0.4, 9, 0.8);
     }
-    if (audio.glass) audio.glass();
+    if (audio.glass) audio.glass(point.x, point.y, point.z);
   }
   // ---- Blood trail drop (low HP while running): small stain, 8s ----
   function trailDrop(x, z) {

@@ -197,7 +197,7 @@ export function createBots(scene, world, S, rng, deps = {}) {
       if (b.stepAcc > 2.2) {
         b.stepAcc = 0;
         const pd = Math.hypot(S.player.x - b.x, S.player.z - b.z);
-        if (sfx && pd < 20) sfx.step(deps.surfaceAt ? deps.surfaceAt(b.x, b.z) : 'concrete', 0.04 * (1 - pd / 20));
+        if (sfx && pd < 20) sfx.step(deps.surfaceAt ? deps.surfaceAt(b.x, b.z) : 'concrete', 0.05, b.x, 0.1, b.z);
       }
     }
     else b.stuckT = (b.stuckT || 0) + dt;
@@ -584,7 +584,7 @@ export function createBots(scene, world, S, rng, deps = {}) {
             b.adsT = 0.5; // ADS pose: arms up, body tilted (v18.8.4)
             // Enemy tracer (red) + distance gunshot on every bot shot.
             if (fx) fx.tracer({ x: b.x, y: 1.3, z: b.z }, { x: p.x, y: p.y + p.eye, z: p.z }, 0xff2222);
-            if (sfx && sfx.enemyShot) sfx.enemyShot(b.weapon, d);
+            if (sfx && sfx.enemyShot) sfx.enemyShot(b.weapon, d, b.x, 1.3, b.z);
             // Tracker perk (v23.0.5): an enemy shot marks it on the minimap.
             if (hasPerk('tracker') && deps.onBotShot) deps.onBotShot(b);
             const diff = DIFFICULTY_DEFS[S.difficulty] || DIFFICULTY_DEFS.normal;
@@ -600,7 +600,7 @@ export function createBots(scene, world, S, rng, deps = {}) {
             }
             if (b.shotsFired >= 6) {
               b.shotsFired = 0; b.reloadT = 1.5;
-              if (d < 40 && sfx && sfx.enemyReload) sfx.enemyReload();
+              if (d < 40 && sfx && sfx.enemyReload) sfx.enemyReload(b.x, 1.2, b.z);
             }
             if (b.burst <= 0) b.shootT = 0.45 + rng() * 0.4;
           }
