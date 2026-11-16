@@ -244,7 +244,7 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
     const t = S.time;
     const bob = S.player.moving && S.player.onGround ? Math.sin(t * 11) * 0.012 : 0;
     const em = S.emote;
-    let gx = S.ads ? 0.0 : 0.22, gy = S.ads ? -0.16 : -0.2 + bob, vis = true;
+    let gx = S.ads ? 0.0 : 0.22, gy = S.ads ? -0.16 : -0.17 + bob, vis = true;
     if (em) {
       if (em.id === 'wave' || em.id === 'salute') gy += 0.12;
       if (em.id === 'dance') gy += Math.abs(Math.sin(t * 8)) * 0.05;

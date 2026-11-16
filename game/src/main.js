@@ -1965,6 +1965,10 @@ function runShot(name) {
     weather.applyWeather('sunset'); S.weatherManual = true;
     settle(10);
     aimAt(0, 2.5, -10);
+    // Staged match numbers so the scoreboard reads (same staging convention
+    // as the play shot's killfeed — layout demo, not gameplay).
+    S.kills = 9; S.botKills = 5; S.score = 900; S.headshots = 3;
+    S.shotsFired = 120; S.shotsHit = 54;
     game.endRound(true, 'TEAM DEATHMATCH — 15 KILLS');
     S.msgT = 0;
     hud.update(world);

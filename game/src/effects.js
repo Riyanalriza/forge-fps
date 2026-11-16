@@ -118,12 +118,27 @@ export function createEffects(scene, S, audio) {
   const flashLight = new THREE.PointLight(0xffaa33, 0, 6);
   scene.add(flashLight);
   let flashT = 0;
+  // ---- Soft smoke: radial-gradient sprite (dense core fading to
+  // transparent, NO outline) — reads as a real cloud, not hard balls.
+  // One shared texture; each sprite gets its own material so opacities
+  // fade independently.
+  function makeSmokeTexture() {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+    const g = cv.getContext('2d');
+    const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gr.addColorStop(0, 'rgba(255,255,255,0.85)');
+    gr.addColorStop(0.45, 'rgba(255,255,255,0.45)');
+    gr.addColorStop(0.8, 'rgba(255,255,255,0.12)');
+    gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+    const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; return tex;
+  }
+  const smokeTex = makeSmokeTexture();
   const smokes = [];
-  const smokeGeo = new THREE.SphereGeometry(0.12, 8, 8);
-  for (let i = 0; i < 10; i++) {
-    const m = new THREE.Mesh(smokeGeo, new THREE.MeshBasicMaterial({ color: 0x999999, transparent: true, opacity: 0 }));
-    m.visible = false; scene.add(m);
-    smokes.push({ mesh: m, life: 0, maxLife: 0.9, vx: 0, vy: 0, vz: 0 });
+  for (let i = 0; i < 14; i++) {
+    const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, color: 0xcfd4d4, transparent: true, opacity: 0, depthWrite: false }));
+    m.visible = false; m.renderOrder = 3; scene.add(m);
+    smokes.push({ sprite: m, life: 0, maxLife: 0.9, vx: 0, vy: 0, vz: 0, size: 1, grow: 1, baseOp: 0.35 });
   }
   let smIdx = 0;
   // ---- Blood on clothes: red decals parented to the bot's body mesh ----
@@ -192,9 +207,10 @@ export function createEffects(scene, S, audio) {
     flashLight.intensity = 4 * scale;
     // Muzzle smoke lingers ~2s (v18.2.3): grows and fades slowly.
     const s = smokes[smIdx]; smIdx = (smIdx + 1) % smokes.length;
-    s.mesh.position.copy(tip);
+    s.sprite.position.copy(tip);
     s.vx = dir.x * 0.6; s.vy = 0.4; s.vz = dir.z * 0.6;
-    s.life = 2.0; s.maxLife = 2.0; s.mesh.visible = true; s.mesh.material.opacity = 0.35; s.mesh.scale.setScalar(0.6);
+    s.life = 2.0; s.maxLife = 2.0; s.size = 0.5; s.grow = 0.6; s.baseOp = 0.3;
+    s.sprite.visible = true; s.sprite.material.opacity = 0.3; s.sprite.scale.set(0.5, 0.5, 1);
   }
   function tracer(from, to, sniper) {
     const t = tracers[trIdx]; trIdx = (trIdx + 1) % tracers.length;
@@ -285,9 +301,10 @@ export function createEffects(scene, S, audio) {
     // 3 smoke puffs rising from the blast.
     for (let i = 0; i < 3; i++) {
       const s = smokes[smIdx]; smIdx = (smIdx + 1) % smokes.length;
-      s.mesh.position.set(point.x + (Math.random() - 0.5), point.y + 0.5, point.z + (Math.random() - 0.5));
+      s.sprite.position.set(point.x + (Math.random() - 0.5), point.y + 0.5, point.z + (Math.random() - 0.5));
       s.vx = (Math.random() - 0.5) * 0.5; s.vy = 1.2 + Math.random(); s.vz = (Math.random() - 0.5) * 0.5;
-      s.life = 1.4; s.maxLife = 1.4; s.mesh.visible = true; s.mesh.material.opacity = 0.4; s.mesh.scale.setScalar(0.9);
+      s.life = 1.4; s.maxLife = 1.4; s.size = 1.6; s.grow = 1.4; s.baseOp = 0.45;
+      s.sprite.visible = true; s.sprite.material.opacity = 0.45; s.sprite.scale.set(1.6, 1.6, 1);
     }
     shakeT = Math.max(shakeT, big ? 0.6 : 0.4);
     if (audio.explosion) audio.explosion();
@@ -352,9 +369,10 @@ export function createEffects(scene, S, audio) {
   // ---- One smoke puff (car smoking, explosions) ----
   function smokePuff(x, y, z) {
     const s = smokes[smIdx]; smIdx = (smIdx + 1) % smokes.length;
-    s.mesh.position.set(x, y, z);
+    s.sprite.position.set(x, y, z);
     s.vx = (Math.random() - 0.5) * 0.3; s.vy = 0.8 + Math.random() * 0.5; s.vz = (Math.random() - 0.5) * 0.3;
-    s.life = 1.4; s.maxLife = 1.4; s.mesh.visible = true; s.mesh.material.opacity = 0.4; s.mesh.scale.setScalar(0.9);
+    s.life = 1.4; s.maxLife = 1.4; s.size = 1.2; s.grow = 1.0; s.baseOp = 0.4;
+    s.sprite.visible = true; s.sprite.material.opacity = 0.4; s.sprite.scale.set(1.2, 1.2, 1);
   }
   // ---- Tire track (v18.9.11): dark rectangle decal behind a driven
   // vehicle, 10s life, from the decal pool ----
@@ -431,10 +449,11 @@ export function createEffects(scene, S, audio) {
     for (const s of smokes) {
       if (s.life <= 0) continue;
       s.life -= dt;
-      s.mesh.position.x += s.vx * dt; s.mesh.position.y += s.vy * dt; s.mesh.position.z += s.vz * dt;
-      s.mesh.scale.addScalar(dt * 0.5); // grows and fades
-      s.mesh.material.opacity = Math.max(0, s.life / (s.maxLife || 0.9)) * 0.35;
-      if (s.life <= 0) s.mesh.visible = false;
+      s.sprite.position.x += s.vx * dt; s.sprite.position.y += s.vy * dt; s.sprite.position.z += s.vz * dt;
+      s.size += s.grow * dt; // grows and fades
+      s.sprite.scale.set(s.size, s.size, 1);
+      s.sprite.material.opacity = Math.max(0, s.life / (s.maxLife || 0.9)) * s.baseOp;
+      if (s.life <= 0) s.sprite.visible = false;
     }
     if (flashT > 0) {
       flashT -= dt;

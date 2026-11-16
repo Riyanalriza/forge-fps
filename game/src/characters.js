@@ -79,7 +79,9 @@ export function camoMatches(camo, mapId, weather) {
 }
 
 const SKIN_TONE = { male: 0xc89878, female: 0xd9a986 };
-const GLOVE_COLOR = { default: 0x1c1e20, ghillie: 0x2a3a1a, samurai: 0x3a1a1a, zombie: 0x4a6a2a, gold: 0xc9a227, stealth: 0x0a0a0a };
+const GLOVE_COLOR = { default: 0x26262a, ghillie: 0x2a3a1a, samurai: 0x3a1a1a, zombie: 0x4a6a2a, gold: 0xc9a227, stealth: 0x0a0a0a };
+// Dark charcoal default glove: reads as a hand against the bright gold
+// mythic gun even under warm dusk light (a brown glove washes gold).
 
 function box(w, h, d, mat) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
@@ -716,35 +718,44 @@ export function createBotModel(weaponSkin, weaponId, name, charOpId = 'specter',
 // Glove color follows the player's character skin.
 export function createFirstPersonHands(S) {
   const group = new THREE.Group();
-  const gloveM = new THREE.MeshStandardMaterial({ color: GLOVE_COLOR[S.charSkin] || 0x1c1e20, roughness: 0.9 });
-  const sleeveM = new THREE.MeshStandardMaterial({ color: 0x2e332a, roughness: 0.85 });
+  const gloveM = new THREE.MeshStandardMaterial({ color: GLOVE_COLOR[S.charSkin] || 0x26262a, roughness: 0.9 });
+  const sleeveM = new THREE.MeshStandardMaterial({ color: 0x2e7d5f, roughness: 0.85 });
   const gunM = new THREE.MeshStandardMaterial({ color: 0x2b2f33, roughness: 0.5, metalness: 0.5 });
   const barrelM = new THREE.MeshStandardMaterial({ color: 0x16181c, roughness: 0.35, metalness: 0.8 });
   const gripM = new THREE.MeshStandardMaterial({ color: 0x14161a, roughness: 0.95 });
   const bladeM = new THREE.MeshStandardMaterial({ color: 0xd8dce2, roughness: 0.25, metalness: 0.9 });
   const accentM = new THREE.MeshStandardMaterial({ color: 0xffb020, roughness: 0.5, metalness: 0.3 });
-  // GRAPHICS FIX (2026-11-15): hands are no longer plain boxes — the right
-  // hand grips the pistol grip and the left hand holds the handguard, with
-  // finger segments wrapping the grip and a thumb on each side.
-  const handR = box(0.09, 0.08, 0.16, gloveM); handR.position.set(0.07, -0.1, -0.04); group.add(handR);
-  for (let i = 0; i < 3; i++) {
-    const f = box(0.02, 0.03, 0.07, gloveM);
-    f.position.set(0.035 + i * 0.035, -0.07, -0.06); f.rotation.x = 0.6; group.add(f);
+  // HANDS REWORK (2026-11-16, reference: hand clearly gripping the gun):
+  // palms sit BELOW the gun so they read against the world instead of
+  // hiding behind the receiver, fingers curl up around the grip/fore-end,
+  // thumbs ride the near side, forearms + green sleeves run down toward
+  // the camera. All hand/arm meshes live in handsGroup so recoil (step)
+  // moves the hands together with the gun — the gun no longer slides out
+  // of the grip when it kicks.
+  const handsGroup = new THREE.Group(); group.add(handsGroup);
+  const handR = box(0.17, 0.13, 0.17, gloveM); handR.position.set(0.08, -0.18, -0.05); handsGroup.add(handR);
+  for (let i = 0; i < 4; i++) {
+    const f = box(0.04, 0.12, 0.04, gloveM);
+    f.position.set(0.03 + i * 0.04, -0.09, -0.06); f.rotation.x = 0.6; handsGroup.add(f);
   }
-  const thumbR = box(0.025, 0.03, 0.07, gloveM); thumbR.position.set(0.115, -0.07, -0.05); thumbR.rotation.y = -0.5; group.add(thumbR);
-  const armR = box(0.09, 0.09, 0.4, sleeveM); armR.position.set(0.13, -0.18, 0.02); armR.rotation.x = 0.15; group.add(armR);
-  const handL = box(0.09, 0.08, 0.16, gloveM); handL.position.set(-0.05, -0.08, -0.5); group.add(handL);
-  for (let i = 0; i < 3; i++) {
-    const f = box(0.02, 0.03, 0.07, gloveM);
-    f.position.set(-0.085 + i * 0.035, -0.05, -0.54); f.rotation.x = 0.6; group.add(f);
+  const thumbR = box(0.035, 0.05, 0.1, gloveM); thumbR.position.set(0.15, -0.14, -0.04); thumbR.rotation.y = -0.6; handsGroup.add(thumbR);
+  const armR = box(0.12, 0.12, 0.16, sleeveM); armR.position.set(0.13, -0.26, 0.1); armR.rotation.x = 0.3; handsGroup.add(armR);
+  // Left hand rides a subgroup so buildGun can slide it along the fore-end
+  // per weapon class (pump on shotguns, handguard on rifles, grip on pistols).
+  const gripL = new THREE.Group(); handsGroup.add(gripL);
+  const handL = box(0.17, 0.12, 0.17, gloveM); handL.position.set(-0.05, -0.19, 0); gripL.add(handL);
+  for (let i = 0; i < 4; i++) {
+    const f = box(0.04, 0.11, 0.04, gloveM);
+    f.position.set(-0.10 + i * 0.04, -0.10, -0.03); f.rotation.x = 0.6; gripL.add(f);
   }
-  const thumbL = box(0.025, 0.03, 0.07, gloveM); thumbL.position.set(-0.005, -0.05, -0.52); thumbL.rotation.y = 0.5; group.add(thumbL);
-  const armL = box(0.09, 0.09, 0.5, sleeveM); armL.position.set(-0.08, -0.17, -0.3); armL.rotation.x = 0.35; group.add(armL);
+  const thumbL = box(0.035, 0.05, 0.1, gloveM); thumbL.position.set(0.02, -0.15, 0); thumbL.rotation.y = 0.6; gripL.add(thumbL);
+  gripL.position.set(0, 0, -0.5);
+  const armL = box(0.12, 0.12, 0.18, sleeveM); armL.position.set(-0.08, -0.25, -0.3); armL.rotation.x = 0.45; handsGroup.add(armL);
   // Gun (rebuilt per weapon below).
   const gun = new THREE.Group();
   group.add(gun);
   const hands = {
-    group, gun, parts: { handL, handR, armL, armR, gun },
+    group, gun, parts: { handL, handR, armL, armR, gun, gripL, handsGroup },
     kickT: 0, weaponId: null,
     buildGun(w, mythicDef) {
       while (gun.children.length) gun.remove(gun.children[0]);
@@ -767,7 +778,11 @@ export function createFirstPersonHands(S) {
         const q = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 10), m);
         q.rotation.x = Math.PI / 2; q.position.set(x, y, z); q.castShadow = true; gun.add(q); return q;
       };
-      const cls = w.cls || 'ar';
+      // BUGFIX (2026-11-16): WEAPONS_DB classes are capitalized ('Shotgun',
+      // 'Sniper', 'Pistol'...) but the branches below compare lowercase, so
+      // EVERY weapon used to build the AR-default viewmodel — the double
+      // barrel, sniper scope and pistol slide never rendered. Lowercase once.
+      const cls = (w.cls || 'ar').toLowerCase();
       let tipZ = -0.72, mag = null;
       // Magazine: base y MUST stay -0.09 (the reload animation in step()
       // resets mag.position.y to exactly -0.09).
@@ -898,6 +913,10 @@ export function createFirstPersonHands(S) {
         P(0.02, 0.02, 0.05, barrelM, 0.035, 0.01, -0.3); // charging handle
         tipZ = -0.8;
       }
+      // Left-hand grip point per weapon class (reference: hand on the
+      // fore-end for long guns, supporting the grip for pistols).
+      const GRIP_Z = { shotgun: -0.5, ar: -0.5, smg: -0.42, sniper: -0.55, dmr: -0.55, lmg: -0.48, pistol: -0.16, launcher: -0.35, melee: -0.14, crossbow: -0.48 };
+      gripL.position.z = GRIP_Z[cls] ?? -0.5;
       gun.userData.mag = mag;
       const tip = new THREE.Object3D();
       tip.position.set(0, -0.01, tipZ);
@@ -916,9 +935,11 @@ export function createFirstPersonHands(S) {
     },
     kick() { this.kickT = 1; },
     step(dt, w) {
-      // Recoil: gun jumps forward 0.05 then settles back.
+      // Recoil: gun jumps forward 0.05 then settles back — the hands ride
+      // along (handsGroup) so the grip never slides out of the fingers.
       if (this.kickT > 0) this.kickT = Math.max(0, this.kickT - dt * 8);
       gun.position.z = this.kickT * 0.05;
+      handsGroup.position.z = this.kickT * 0.05;
       // Reload: weapon dips down and the magazine drops, then returns.
       if (w.reloading) {
         const p = 1 - Math.max(0, w.reloadT) / w.reload;

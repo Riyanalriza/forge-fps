@@ -29,8 +29,23 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
   bombLight.position.set(0.2, 0.25, 0);
   bombMesh.add(bombBody, bombLight);
   bombMesh.visible = false; scene.add(bombMesh);
-  // Smoke meshes pool
-  const smokeMat = new THREE.MeshBasicMaterial({ color: 0xcfd4d4, transparent: true, opacity: 0.6, depthWrite: false });
+  // Smoke meshes pool — soft sprite clouds (radial-gradient texture: dense
+  // core fading to transparent, no outline) instead of hard-edged spheres.
+  function makeSmokeTexture() {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+    const g = cv.getContext('2d');
+    const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gr.addColorStop(0, 'rgba(255,255,255,0.85)');
+    gr.addColorStop(0.45, 'rgba(255,255,255,0.45)');
+    gr.addColorStop(0.8, 'rgba(255,255,255,0.12)');
+    gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+    const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; return tex;
+  }
+  const smokeTex = makeSmokeTexture();
+  function smokeSpriteMat() {
+    return new THREE.SpriteMaterial({ map: smokeTex, color: 0xdfe4e4, transparent: true, opacity: 0.55, depthWrite: false });
+  }
   const smokeMeshes = [];
   // Sentry gun mesh (hidden until deployed)
   const sentryMesh = new THREE.Group();
@@ -804,18 +819,27 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
     return null;
   }
   function buyHtml() {
+    // Money lives in the panel header (reference layout); refresh it here —
+    // buyHtml runs on open and after every purchase.
+    const bm = document.getElementById('buy-money');
+    if (bm) bm.textContent = '$' + S.economy.money;
     const rows = S.weapons.map((w, i) => {
       const owned = S.owned[i];
-      const price = owned ? 'OWNED' : '$' + w.price;
+      const price = owned ? '<span class="buy-owned">OWNED</span>' : `<span class="buy-price">$${w.price}</span>`;
       const cur = S.player.weaponIdx === i ? ' ◄ EQUIPPED' : '';
-      return `<button data-buy="w${i}" class="buy-row"><b>${w.name}</b><span>${w.cls} · ${w.dmg} dmg · ${w.magSize} mag · ${price}${cur}</span></button>`;
+      return `<button data-buy="w${i}" class="buy-row"><span class="buy-name"><b>${w.name}</b>${cur}</span><span class="buy-sub">${w.cls} · ${w.dmg} dmg · ${w.magSize} mag</span>${price}</button>`;
     }).join('');
-    return rows + `<button data-buy="armor" class="buy-row"><b>Full Armor</b><span>absorbs 60% of damage · $1000</span></button>
-      <button data-buy="smoke" class="buy-row"><b>Smoke Grenade</b><span>+1 smoke · $300</span></button>
-      <button data-buy="flash" class="buy-row"><b>Flash Grenade</b><span>+1 flash · $300</span></button>
-      <button data-buy="he" class="buy-row"><b>Frag Grenade</b><span>+1 frag · $300</span></button>
-      <button data-buy="ammo" class="buy-row"><b>Ammo Refill</b><span>full reserve for current weapon · $500</span></button>
-      <div class="buy-note">Money: $${S.economy.money} — press N to close</div>`;
+    const equip = [
+      ['armor', 'Full Armor', 'absorbs 60% of damage', 1000],
+      ['smoke', 'Smoke Grenade', '+1 smoke', 300],
+      ['flash', 'Flash Grenade', '+1 flash', 300],
+      ['he', 'Frag Grenade', '+1 frag', 300],
+      ['ammo', 'Ammo Refill', 'full reserve for current weapon', 500],
+    ].map(([id, name, sub, price]) =>
+      `<button data-buy="${id}" class="buy-row"><span class="buy-name"><b>${name}</b></span><span class="buy-sub">${sub}</span><span class="buy-price">$${price}</span></button>`).join('');
+    return `<div class="buy-sec">WEAPONS</div><div class="buy-grid">${rows}</div>`
+      + `<div class="buy-sec">EQUIPMENT</div><div class="buy-grid">${equip}</div>`
+      + `<div class="buy-note">Press N to close</div>`;
   }
   function toggleBuy() {
     if (S.phase !== 'playing' && S.phase !== 'roundEnd') return;
@@ -894,14 +918,15 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
       g.smokes.push(s);
       let m = smokeMeshes.find(m => !m.visible);
       if (!m) {
-        // Billowing cluster (reference look): one big puff + two satellites,
-        // so the cloud reads as smoke, not a single ball.
+        // Billowing cluster (reference look): one big soft puff + satellites
+        // of varying size, layered so the cloud reads as smoke, not balls.
         m = new THREE.Group();
-        const big = new THREE.Mesh(new THREE.SphereGeometry(4, 12, 10), smokeMat);
-        m.add(big);
-        for (const [ox, oy, oz, r] of [[-2.2, 0.6, 1.0, 2.4], [2.2, 0.4, -1.1, 2.6]]) {
-          const puff = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 8), smokeMat);
+        const mat = smokeSpriteMat();
+        for (const [ox, oy, oz, s] of [[0, 0, 0, 8], [-2.6, 0.8, 1.2, 5], [2.6, 0.6, -1.3, 5.5], [-1.2, 1.8, -0.8, 4], [1.4, 1.6, 1.0, 4.2]]) {
+          const puff = new THREE.Sprite(mat);
           puff.position.set(ox, oy, oz);
+          puff.scale.set(s, s, 1);
+          puff.renderOrder = 3;
           m.add(puff);
         }
         scene.add(m); smokeMeshes.push(m);

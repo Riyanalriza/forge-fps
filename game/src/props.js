@@ -315,6 +315,28 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
     }, 32, 1);
     return _brickTex;
   }
+  // Corrugated metal (reference site walls): vertical ridges + rust streaks.
+  // Used as the backing of the bomb-site signs.
+  let _corrTex = null;
+  function corrugatedTexture() {
+    if (_corrTex) return _corrTex;
+    _corrTex = ptex(256, (g, s) => {
+      g.fillStyle = '#6e4a3a'; g.fillRect(0, 0, s, s); // rust-brown base
+      for (let x = 0; x < s; x += 16) {
+        g.fillStyle = 'rgba(255,220,190,0.14)';
+        g.fillRect(x, 0, 5, s);
+        g.fillStyle = 'rgba(0,0,0,0.28)';
+        g.fillRect(x + 9, 0, 6, s);
+      }
+      // rust streaks running down the ridges (index-hash only)
+      for (let i = 0; i < 10; i++) {
+        const x = (i * 67 + 13) % 256, w = 3 + (i * 11) % 8, len = 60 + (i * 41) % 140;
+        g.fillStyle = 'rgba(40,20,10,0.25)';
+        g.fillRect(x, (i * 53) % 100, w, len);
+      }
+    }, 2, 1);
+    return _corrTex;
+  }
   // Wooden supply crate: horizontal planks + grain + stencilled code.
   // Two shared variants (FY-4 / FY-7) cover every crate on every map.
   const _crateTex = {};
@@ -908,7 +930,9 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
       new THREE.MeshBasicMaterial({ map: tex }));
     board.position.set(x, 2.6, z); board.rotation.y = rot; group.add(board);
     board.userData.propType = 'site-sign';
-    const back = box(5.2, 2.7, 0.12, 0x14100a);
+    const back = new THREE.Mesh(new THREE.BoxGeometry(5.2, 2.7, 0.12),
+      mat(0xffffff, 0.85, { map: corrugatedTexture() }));
+    back.castShadow = true;
     back.position.set(x, 2.6, z - 0.08); back.rotation.y = rot; group.add(back);
     return board;
   }

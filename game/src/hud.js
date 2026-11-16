@@ -19,7 +19,7 @@ export function createHud(S) {
     minimap: $('minimap'), killfeed: $('killfeed'), hitmarker: $('hitmarker'),
     msg: $('center-msg'), vignette: $('vignette'), flash: $('flash'),
     menu: $('menu'), buy: $('buy-menu'), buyItems: $('buy-items'),
-    endTitle: $('end-title'), endSub: $('end-sub'), menuTitle: $('menu-title'),
+    endTitle: $('end-title'), endSub: $('end-sub'), endTables: $('end-tables'), menuTitle: $('menu-title'),
     plantBar: $('plant-bar'), plantFill: $('plant-fill'), plantLabel: $('plant-label'),
     objective: $('objective'), modeName: $('mode-name'), objectiveText: $('objective-text'),
     streakBar: $('killstreak-bar'), streakCount: $('streak-count'), ksList: $('ks-list'),
@@ -346,7 +346,31 @@ export function createHud(S) {
   }
   function showMenu(title) { el.menuTitle.textContent = title; show(el.menu, true); }
   function hideMenu() { show(el.menu, false); }
-  function showEnd(title, sub) { el.endTitle.textContent = title; el.endSub.textContent = sub; show($('end'), true); }
+  function showEnd(title, sub) {
+    el.endTitle.textContent = title; el.endSub.textContent = sub;
+    // Match scoreboard (reference end screen): two team tables built only
+    // from stats the game already tracks — player kills/deaths/score and
+    // each bot's weapon + alive status. Deaths(YOU) = S.botKills is the
+    // game's own convention (main.js records matches that way).
+    if (el.endTables) {
+      const acc = S.shotsFired > 0 ? Math.round((S.shotsHit || 0) / S.shotsFired * 100) : 0;
+      // Bot weapon keys (game.js BOT_WEAPON_IDX) → display names from
+      // WEAPONS_DB: ax117='ak117' AX-117 Wolverine, kb50='kilo' KB-50
+      // Longshot, vx9='qq9' VX-9 Stinger, mp5='mp5' MP5.
+      const BOT_WEAPON_NAMES = { ax117: 'AX-117 Wolverine', kb50: 'KB-50 Longshot', vx9: 'VX-9 Stinger', mp5: 'MP5' };
+      const wname = (b) => BOT_WEAPON_NAMES[b.weapon] || b.weapon || '—';
+      const botRows = (S.bots || []).map((b) =>
+        `<tr><td>BOT-${b.id + 1}</td><td>${wname(b)}</td><td>${b.alive ? 'ALIVE' : 'ELIMINATED'}</td></tr>`).join('');
+      el.endTables.innerHTML =
+        `<div class="end-team"><div class="end-team-head"><span>YOU</span><span>${S.kills}</span></div>`
+        + `<table class="end-table"><tr><th>PLAYER</th><th>KILLS</th><th>DEATHS</th><th>SCORE</th></tr>`
+        + `<tr><td>YOU</td><td>${S.kills}</td><td>${S.botKills}</td><td>${S.score || 0}</td></tr></table>`
+        + `<div class="end-sub2">Accuracy ${acc}% · Headshots ${S.headshots || 0}</div></div>`
+        + `<div class="end-team"><div class="end-team-head bot"><span>BOT</span><span>${S.botKills}</span></div>`
+        + `<table class="end-table"><tr><th>PLAYER</th><th>WEAPON</th><th>STATUS</th></tr>${botRows}</table></div>`;
+    }
+    show($('end'), true);
+  }
   function hideEnd() { show($('end'), false); }
   function showBuy(on) { show(el.buy, on); }
   function plantBar(showIt, frac, label) {

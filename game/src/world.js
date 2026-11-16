@@ -103,21 +103,22 @@ function concreteTex(rng) {
     }
     // Expansion joints: heavy outer tile edge + a 2x2 sub-plate grid, so
     // plates still read at play distance (repeat 16x12 => ~6.5 m tiles).
-    g.strokeStyle = 'rgba(20,16,10,0.85)'; g.lineWidth = 4;
+    g.strokeStyle = 'rgba(20,16,10,0.9)'; g.lineWidth = 5;
     g.strokeRect(2, 2, s - 4, s - 4);
-    g.lineWidth = 2; g.strokeStyle = 'rgba(20,16,10,0.6)';
+    g.lineWidth = 3; g.strokeStyle = 'rgba(20,16,10,0.7)';
     g.beginPath(); g.moveTo(s / 2, 0); g.lineTo(s / 2, s); g.moveTo(0, s / 2); g.lineTo(s, s / 2); g.stroke();
-    // Cobblestone cells (reference dusk look): index-hash shading only —
-    // NEVER rng() here, the gameplay random sequence must stay byte-identical.
-    const cell = 32;
-    for (let ry = 0; ry < 8; ry++) {
-      const off = (ry % 2) * (cell / 2);
-      for (let cx = -1; cx < 9; cx++) {
-        const h = (((ry * 31 + cx * 17 + 7) * 2654435761) >>> 0) % 1000 / 1000;
-        g.fillStyle = h < 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.07)';
-        g.fillRect(cx * cell + off, ry * cell, cell - 2, cell - 2);
-        g.strokeStyle = 'rgba(0,0,0,0.25)'; g.lineWidth = 1.5;
-        g.strokeRect(cx * cell + off + 0.5, ry * cell + 0.5, cell - 2, cell - 2);
+    // Large concrete slabs (reference look): one warm dusk tint per plate,
+    // index-hash shading only — NEVER rng() here, the gameplay random
+    // sequence must stay byte-identical.
+    const plate = s / 2;
+    for (let py = 0; py < 2; py++) {
+      for (let px = 0; px < 2; px++) {
+        const h = (((py * 31 + px * 17 + 3) * 2654435761) >>> 0) % 1000 / 1000;
+        g.fillStyle = h < 0.4 ? 'rgba(255,170,110,0.07)' : h < 0.7 ? 'rgba(255,200,140,0.05)' : 'rgba(0,0,0,0.07)';
+        g.fillRect(px * plate + 3, py * plate + 3, plate - 6, plate - 6);
+        // faint wear streak across the plate
+        g.fillStyle = 'rgba(255,255,255,0.03)';
+        g.fillRect(px * plate + 3, py * plate + plate * 0.3, plate - 6, plate * 0.12);
       }
     }
   }, 16, 12);
