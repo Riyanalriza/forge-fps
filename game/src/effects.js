@@ -54,7 +54,7 @@ export function createEffects(scene, S, audio) {
   let poolIdx = 0;
   // ---- Tracer pool: glowing lines from the muzzle to the hit ----
   const tracers = [];
-  const tubeGeo = new THREE.CylinderGeometry(0.03, 0.03, 1, 6);
+  const tubeGeo = new THREE.CylinderGeometry(0.035, 0.035, 1, 6);
   for (let i = 0; i < 8; i++) {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
@@ -112,7 +112,7 @@ export function createEffects(scene, S, audio) {
     const tex = new THREE.CanvasTexture(c);
     return tex;
   }
-  const flash = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.34),
+  const flash = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5),
     new THREE.MeshBasicMaterial({ map: makeFlashTexture(), color: 0xffffff, transparent: true, opacity: 0, depthWrite: false }));
   flash.visible = false; scene.add(flash);
   const flashLight = new THREE.PointLight(0xffaa33, 0, 6);
@@ -200,11 +200,11 @@ export function createEffects(scene, S, audio) {
     if (S.settings && S.settings.graphics && S.settings.graphics.muzzle === false) return;
     flash.position.copy(tip);
     flash.lookAt(camPos);
-    flash.visible = true; flashT = 0.06;
+    flash.visible = true; flashT = 0.08;
     flash.material.opacity = 1;
-    flash.scale.setScalar((0.8 + Math.random() * 0.5) * scale);
-    flashLight.position.copy(tip);
-    flashLight.intensity = 4 * scale;
+    flash.scale.setScalar((1.1 + Math.random() * 0.6) * scale);
+    flashLight.position.copy(tip).addScaledVector(dir, 0.4);
+    flashLight.intensity = 3 * scale;
     // Muzzle smoke lingers ~2s (v18.2.3): grows and fades slowly.
     const s = smokes[smIdx]; smIdx = (smIdx + 1) % smokes.length;
     s.sprite.position.copy(tip);
@@ -222,7 +222,7 @@ export function createEffects(scene, S, audio) {
     // red 0xff2222) is used as-is.
     const col = typeof sniper === 'number' || typeof sniper === 'string' ? sniper : (sniper ? 0x55ddff : 0xffdd55);
     t.line.material.color.set(col);
-    t.line.visible = true; t.line.material.opacity = 0.95; t.life = 0.09;
+    t.line.visible = true; t.line.material.opacity = 1; t.life = 0.13;
     // Tube: midpoint + length + orientation from the same endpoints.
     const dx = to.x - from.x, dy = to.y - from.y, dz = to.z - from.z;
     const len = Math.hypot(dx, dy, dz) || 0.001;
@@ -230,7 +230,7 @@ export function createEffects(scene, S, audio) {
     t.tube.scale.set(1, len, 1);
     t.tube.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(dx / len, dy / len, dz / len));
     t.tube.material.color.set(col);
-    t.tube.material.opacity = 0.85; t.tube.visible = true;
+    t.tube.material.opacity = 0.95; t.tube.visible = true;
   }
   function shell(tip, right) {
     const s = shells[shIdx]; shIdx = (shIdx + 1) % shells.length;

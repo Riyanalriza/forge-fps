@@ -79,7 +79,7 @@ export function camoMatches(camo, mapId, weather) {
 }
 
 const SKIN_TONE = { male: 0xc89878, female: 0xd9a986 };
-const GLOVE_COLOR = { default: 0x26262a, ghillie: 0x2a3a1a, samurai: 0x3a1a1a, zombie: 0x4a6a2a, gold: 0xc9a227, stealth: 0x0a0a0a };
+const GLOVE_COLOR = { default: 0x4a4a52, ghillie: 0x2a3a1a, samurai: 0x3a1a1a, zombie: 0x4a6a2a, gold: 0xc9a227, stealth: 0x0a0a0a };
 // Dark charcoal default glove: reads as a hand against the bright gold
 // mythic gun even under warm dusk light (a brown glove washes gold).
 
@@ -718,11 +718,12 @@ export function createBotModel(weaponSkin, weaponId, name, charOpId = 'specter',
 // Glove color follows the player's character skin.
 export function createFirstPersonHands(S) {
   const group = new THREE.Group();
-  const gloveM = new THREE.MeshStandardMaterial({ color: GLOVE_COLOR[S.charSkin] || 0x26262a, roughness: 0.9 });
-  const sleeveM = new THREE.MeshStandardMaterial({ color: 0x2e7d5f, roughness: 0.85 });
+  const gloveM = new THREE.MeshStandardMaterial({ color: GLOVE_COLOR[S.charSkin] || 0x4a4a52, roughness: 0.9 });
+  const sleeveM = new THREE.MeshStandardMaterial({ color: 0x2e8b62, roughness: 0.85, emissive: 0x0a2e1c, emissiveIntensity: 0.4 });
   const gunM = new THREE.MeshStandardMaterial({ color: 0x2b2f33, roughness: 0.5, metalness: 0.5 });
   const barrelM = new THREE.MeshStandardMaterial({ color: 0x16181c, roughness: 0.35, metalness: 0.8 });
   const gripM = new THREE.MeshStandardMaterial({ color: 0x14161a, roughness: 0.95 });
+  const woodM = new THREE.MeshStandardMaterial({ color: 0x6b4a2a, roughness: 0.8 });
   const bladeM = new THREE.MeshStandardMaterial({ color: 0xd8dce2, roughness: 0.25, metalness: 0.9 });
   const accentM = new THREE.MeshStandardMaterial({ color: 0xffb020, roughness: 0.5, metalness: 0.3 });
   // HANDS REWORK (2026-11-16, reference: hand clearly gripping the gun):
@@ -733,24 +734,26 @@ export function createFirstPersonHands(S) {
   // moves the hands together with the gun — the gun no longer slides out
   // of the grip when it kicks.
   const handsGroup = new THREE.Group(); group.add(handsGroup);
-  const handR = box(0.17, 0.13, 0.17, gloveM); handR.position.set(0.08, -0.18, -0.05); handsGroup.add(handR);
+  const handR = box(0.21, 0.16, 0.2, gloveM); handR.position.set(0.08, -0.2, -0.04); handsGroup.add(handR);
   for (let i = 0; i < 4; i++) {
-    const f = box(0.04, 0.12, 0.04, gloveM);
-    f.position.set(0.03 + i * 0.04, -0.09, -0.06); f.rotation.x = 0.6; handsGroup.add(f);
+    const f = box(0.05, 0.14, 0.05, gloveM);
+    f.position.set(0.02 + i * 0.05, -0.1, -0.03); f.rotation.x = 0.6; handsGroup.add(f);
   }
-  const thumbR = box(0.035, 0.05, 0.1, gloveM); thumbR.position.set(0.15, -0.14, -0.04); thumbR.rotation.y = -0.6; handsGroup.add(thumbR);
-  const armR = box(0.12, 0.12, 0.16, sleeveM); armR.position.set(0.13, -0.26, 0.1); armR.rotation.x = 0.3; handsGroup.add(armR);
+  const thumbR = box(0.04, 0.06, 0.12, gloveM); thumbR.position.set(0.16, -0.15, -0.03); thumbR.rotation.y = -0.6; handsGroup.add(thumbR);
+  const armR = box(0.12, 0.12, 0.3, sleeveM); armR.position.set(0.1, -0.35, 0.14); armR.rotation.x = 0.5; handsGroup.add(armR);
   // Left hand rides a subgroup so buildGun can slide it along the fore-end
   // per weapon class (pump on shotguns, handguard on rifles, grip on pistols).
   const gripL = new THREE.Group(); handsGroup.add(gripL);
-  const handL = box(0.17, 0.12, 0.17, gloveM); handL.position.set(-0.05, -0.19, 0); gripL.add(handL);
+  const handL = box(0.21, 0.15, 0.2, gloveM); handL.position.set(-0.05, -0.21, 0); gripL.add(handL);
   for (let i = 0; i < 4; i++) {
-    const f = box(0.04, 0.11, 0.04, gloveM);
-    f.position.set(-0.10 + i * 0.04, -0.10, -0.03); f.rotation.x = 0.6; gripL.add(f);
+    const f = box(0.05, 0.13, 0.05, gloveM);
+    f.position.set(-0.11 + i * 0.05, -0.11, 0.0); f.rotation.x = 0.6; gripL.add(f);
   }
-  const thumbL = box(0.035, 0.05, 0.1, gloveM); thumbL.position.set(0.02, -0.15, 0); thumbL.rotation.y = 0.6; gripL.add(thumbL);
+  const thumbL = box(0.04, 0.06, 0.12, gloveM); thumbL.position.set(0.03, -0.16, 0); thumbL.rotation.y = 0.6; gripL.add(thumbL);
   gripL.position.set(0, 0, -0.5);
-  const armL = box(0.12, 0.12, 0.18, sleeveM); armL.position.set(-0.08, -0.25, -0.3); armL.rotation.x = 0.45; handsGroup.add(armL);
+  const armL = box(0.12, 0.12, 0.3, sleeveM); armL.position.set(-0.06, -0.35, -0.28); armL.rotation.x = 0.55; handsGroup.add(armL);
+  // Camo repaints the GUN only: hands + sleeves keep their colours.
+  handsGroup.traverse(o => { if (o.isMesh) o.userData.noCamo = true; });
   // Gun (rebuilt per weapon below).
   const gun = new THREE.Group();
   group.add(gun);
@@ -787,12 +790,12 @@ export function createFirstPersonHands(S) {
       // Magazine: base y MUST stay -0.09 (the reload animation in step()
       // resets mag.position.y to exactly -0.09).
       const magAt = (x, z, tilt = 0.3, h = 0.13) => {
-        const m = P(0.05, h, 0.06, gunM, x, -0.09, z, tilt);
-        P(0.052, 0.02, 0.062, accentM, x, -0.09 - h / 2 + 0.01, z + 0.015, tilt);
+        const m = P(0.06, h, 0.07, gunM, x, -0.09, z, tilt);
+        P(0.062, 0.02, 0.072, accentM, x, -0.09 - h / 2 + 0.01, z + 0.015, tilt);
         return m;
       };
-      const gripAt = (x, z) => P(0.045, 0.11, 0.06, gripM, x, -0.08, z, 0.35);
-      const stockAt = (len) => { P(0.05, 0.08, len, gunM, 0, -0.02, 0.06); P(0.055, 0.09, 0.03, gripM, 0, -0.02, 0.06 + len / 2); };
+      const gripAt = (x, z) => P(0.055, 0.12, 0.07, gripM, x, -0.08, z, 0.35);
+      const stockAt = (len) => { P(0.06, 0.09, len, gunM, 0, -0.02, 0.06); P(0.065, 0.1, 0.03, gripM, 0, -0.02, 0.06 + len / 2); };
       const railStrip = (z, len) => P(0.052, 0.012, len, accentM, 0, 0.028, z);
       const frontPost = (z) => P(0.015, 0.05, 0.015, barrelM, 0, 0.045, z);
       const rearSight = (z) => P(0.025, 0.035, 0.03, accentM, 0, 0.032, z);
@@ -806,8 +809,8 @@ export function createFirstPersonHands(S) {
         P(0.05, 0.04, 0.05, gunM, 0, 0.025, z);
       };
       if (cls === 'sniper') {
-        P(0.05, 0.07, 0.4, gunM, 0, -0.01, -0.3);
-        CYL(0.014, 0.36, barrelM, 0, -0.01, -0.62);
+        P(0.06, 0.08, 0.4, gunM, 0, -0.01, -0.3);
+        CYL(0.018, 0.36, barrelM, 0, -0.01, -0.62);
         scopeAt(-0.3, 0.035, 0.2);
         mag = magAt(0, -0.2, 0.1);
         gripAt(0, -0.02); stockAt(0.2);
@@ -817,35 +820,36 @@ export function createFirstPersonHands(S) {
         P(0.012, 0.16, 0.012, barrelM, 0.05, -0.1, -0.5, 0, -0.5);
         muzzle(-0.82); tipZ = -0.86;
       } else if (cls === 'smg') {
-        P(0.05, 0.06, 0.26, gunM, 0, -0.01, -0.26);
-        CYL(0.015, 0.1, barrelM, 0, -0.01, -0.46);
+        P(0.06, 0.07, 0.26, gunM, 0, -0.01, -0.26);
+        CYL(0.018, 0.1, barrelM, 0, -0.01, -0.46);
         if (w.id === 'qq9') CYL(0.028, 0.14, barrelM, 0, -0.01, -0.55);
         mag = magAt(0, -0.18, 0.1, 0.2);
         gripAt(0, 0.0);
-        P(0.04, 0.09, 0.04, gripM, 0, -0.08, -0.38, 0.1); // foregrip
+        P(0.05, 0.1, 0.05, gripM, 0, -0.08, -0.38, 0.1); // foregrip
         P(0.04, 0.06, 0.14, gunM, 0, -0.02, 0.05); // collapsible stock
         frontPost(-0.4); rearSight(-0.14); tipZ = -0.55;
       } else if (cls === 'dmr') {
-        P(0.05, 0.07, 0.36, gunM, 0, -0.01, -0.3);
-        CYL(0.015, 0.26, barrelM, 0, -0.01, -0.58);
+        P(0.06, 0.08, 0.36, gunM, 0, -0.01, -0.3);
+        CYL(0.018, 0.26, barrelM, 0, -0.01, -0.58);
         scopeAt(-0.3, 0.03, 0.16);
         mag = magAt(0, -0.22, 0.12);
         gripAt(0, -0.04); stockAt(0.18);
         muzzle(-0.72); tipZ = -0.76;
       } else if (cls === 'shotgun') {
-        P(0.055, 0.07, 0.3, gunM, 0, -0.01, -0.26);
-        // Double barrel (reference look): two side-by-side barrels.
-        CYL(0.022, 0.3, barrelM, -0.028, -0.01, -0.55);
-        CYL(0.022, 0.3, barrelM, 0.028, -0.01, -0.55);
-        CYL(0.02, 0.24, gunM, 0, -0.05, -0.5); // tube mag under barrels
-        P(0.09, 0.06, 0.14, gripM, 0, -0.015, -0.5); // pump
-        P(0.092, 0.02, 0.02, barrelM, 0, -0.015, -0.44);
-        P(0.092, 0.02, 0.02, barrelM, 0, -0.015, -0.56);
+        P(0.075, 0.09, 0.3, gunM, 0, -0.01, -0.26);
+        // Double barrel (reference look): two thick side-by-side barrels.
+        CYL(0.028, 0.3, barrelM, -0.032, -0.01, -0.55);
+        CYL(0.028, 0.3, barrelM, 0.032, -0.01, -0.55);
+        CYL(0.026, 0.24, gunM, 0, -0.055, -0.5); // tube mag under barrels
+        const pump = P(0.11, 0.08, 0.16, woodM, 0, -0.02, -0.5); pump.userData.noCamo = true; // wooden pump
+        P(0.112, 0.02, 0.02, barrelM, 0, -0.02, -0.44);
+        P(0.112, 0.02, 0.02, barrelM, 0, -0.02, -0.56);
+        P(0.02, 0.012, 0.3, barrelM, 0, 0.032, -0.5); // top rib
         frontPost(-0.68); rearSight(-0.12);
         gripAt(0, -0.02); stockAt(0.2); tipZ = -0.72;
       } else if (cls === 'lmg') {
-        P(0.055, 0.08, 0.4, gunM, 0, -0.01, -0.3);
-        CYL(0.018, 0.28, barrelM, 0, -0.01, -0.62);
+        P(0.07, 0.09, 0.4, gunM, 0, -0.01, -0.3);
+        CYL(0.022, 0.28, barrelM, 0, -0.01, -0.62);
         const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.06, 12), gunM);
         drum.rotation.z = Math.PI / 2; drum.position.set(0, -0.1, -0.2); drum.castShadow = true; gun.add(drum);
         P(0.04, 0.03, 0.2, gunM, 0, 0.05, -0.3); // carry handle
@@ -857,24 +861,24 @@ export function createFirstPersonHands(S) {
         if (w.id === 'dual') {
           for (const sx of [-0.055, 0.055]) {
             const rz = sx > 0 ? 0.12 : -0.12;
-            P(0.04, 0.045, 0.24, gunM, sx, 0.005, -0.3, 0, rz);
-            P(0.04, 0.06, 0.2, gripM, sx, -0.035, -0.26, 0, rz);
-            P(0.04, 0.1, 0.06, gripM, sx, -0.1, -0.12, 0.25, rz);
+            P(0.05, 0.05, 0.24, gunM, sx, 0.005, -0.3, 0, rz);
+            P(0.05, 0.07, 0.2, gripM, sx, -0.035, -0.26, 0, rz);
+            P(0.05, 0.11, 0.07, gripM, sx, -0.1, -0.12, 0.25, rz);
           }
           mag = P(0.035, 0.08, 0.05, gunM, -0.055, -0.09, -0.12, 0.25, -0.12);
           P(0.037, 0.02, 0.052, accentM, -0.055, -0.125, -0.11, 0.25, -0.12);
           tipZ = -0.44;
         } else {
-          P(0.04, 0.045, 0.24, gunM, 0, 0.005, -0.3); // slide
-          P(0.04, 0.06, 0.2, gripM, 0, -0.035, -0.26); // frame
-          P(0.04, 0.1, 0.06, gripM, 0, -0.1, -0.12, 0.25); // grip
+          P(0.05, 0.05, 0.24, gunM, 0, 0.005, -0.3); // slide
+          P(0.05, 0.07, 0.2, gripM, 0, -0.035, -0.26); // frame
+          P(0.05, 0.11, 0.07, gripM, 0, -0.1, -0.12, 0.25); // grip
           mag = magAt(0, -0.12, 0.25, 0.08);
           frontPost(-0.4); rearSight(-0.16); tipZ = -0.44;
         }
       } else if (cls === 'launcher') {
-        CYL(0.05, 0.6, gunM, 0, -0.01, -0.28); // fat tube
+        CYL(0.06, 0.6, gunM, 0, -0.01, -0.28); // fat tube
         if (w.id === 'rpg') {
-          const cone = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.16, 10), barrelM);
+          const cone = new THREE.Mesh(new THREE.ConeGeometry(0.065, 0.16, 10), barrelM);
           cone.rotation.x = -Math.PI / 2; cone.position.set(0, -0.01, -0.62); cone.castShadow = true; gun.add(cone);
         }
         if (w.id === 'thumper') {
@@ -886,13 +890,13 @@ export function createFirstPersonHands(S) {
         P(0.02, 0.05, 0.02, accentM, 0, 0.06, -0.3); // sight
         tipZ = -0.6;
       } else if (cls === 'melee') {
-        P(0.012, 0.05, 0.3, bladeM, 0, 0.02, -0.45); // blade
-        P(0.012, 0.045, 0.14, bladeM, 0, 0.028, -0.66, 0.12); // blade tip
-        CYL(0.02, 0.14, gripM, 0, -0.01, -0.12); // wrapped handle
+        P(0.016, 0.05, 0.3, bladeM, 0, 0.02, -0.45); // blade
+        P(0.016, 0.045, 0.14, bladeM, 0, 0.028, -0.66, 0.12); // blade tip
+        CYL(0.024, 0.14, gripM, 0, -0.01, -0.12); // wrapped handle
         P(0.07, 0.02, 0.02, accentM, 0, -0.01, -0.2); // guard
         tipZ = -0.75;
       } else if (cls === 'crossbow') {
-        P(0.05, 0.06, 0.4, gunM, 0, -0.01, -0.28); // stock
+        P(0.06, 0.07, 0.4, gunM, 0, -0.01, -0.28); // stock
         P(0.3, 0.02, 0.03, gunM, -0.12, 0, -0.5, 0, 0.5); // limbs
         P(0.3, 0.02, 0.03, gunM, 0.12, 0, -0.5, 0, -0.5);
         P(0.5, 0.008, 0.008, barrelM, 0, 0, -0.42); // string
@@ -900,12 +904,13 @@ export function createFirstPersonHands(S) {
         scopeAt(-0.28, 0.025, 0.12);
         gripAt(0, -0.04); tipZ = -0.6;
       } else { // ar (default)
-        P(0.05, 0.07, 0.34, gunM, 0, -0.01, -0.28); // receiver
-        P(0.055, 0.055, 0.2, gunM, 0, -0.01, -0.5); // handguard
-        CYL(0.016, 0.14, barrelM, 0, -0.01, -0.66);
+        P(0.065, 0.08, 0.34, gunM, 0, -0.01, -0.28); // receiver
+        P(0.07, 0.07, 0.2, gunM, 0, -0.01, -0.5); // handguard
+        P(0.05, 0.1, 0.05, gripM, 0, -0.08, -0.48, 0.1); // foregrip
+        CYL(0.02, 0.14, barrelM, 0, -0.01, -0.66);
         railStrip(-0.4, 0.3);
         frontPost(-0.58); rearSight(-0.14);
-        if (w.id === 'vk9') CYL(0.03, 0.16, barrelM, 0, -0.01, -0.76); // suppressor
+        if (w.id === 'vk9') CYL(0.034, 0.16, barrelM, 0, -0.01, -0.76); // suppressor
         else muzzle(-0.74);
         mag = magAt(0, -0.2, 0.35); // curved mag
         P(0.05, 0.08, 0.06, gunM, 0, -0.14, -0.17, 0.5);
@@ -938,8 +943,8 @@ export function createFirstPersonHands(S) {
       // Recoil: gun jumps forward 0.05 then settles back — the hands ride
       // along (handsGroup) so the grip never slides out of the fingers.
       if (this.kickT > 0) this.kickT = Math.max(0, this.kickT - dt * 8);
-      gun.position.z = this.kickT * 0.05;
-      handsGroup.position.z = this.kickT * 0.05;
+      gun.position.z = this.kickT * 0.08;
+      handsGroup.position.z = this.kickT * 0.08;
       // Reload: weapon dips down and the magazine drops, then returns.
       if (w.reloading) {
         const p = 1 - Math.max(0, w.reloadT) / w.reload;

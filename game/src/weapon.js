@@ -27,7 +27,7 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
   ray.far = 120;
   // First-person hands + gun viewmodel attached to the camera.
   const hands = createFirstPersonHands(S);
-  hands.group.scale.setScalar(0.55);
+  hands.group.scale.setScalar(0.62);
   hands.group.position.set(0.22, -0.2, -0.8);
   camera.add(hands.group);
   scene.add(camera);
@@ -161,7 +161,7 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
     const hex = wc ? parseInt(String(wc).replace('#', ''), 16) : camo.color;
     const em = wc ? 0 : camo.emissive;
     hands.group.traverse(o => {
-      if (o.isMesh && o.material && o.material.color) {
+      if (o.isMesh && !o.userData.noCamo && o.material && o.material.color) {
         o.material.color.setHex(hex);
         if (o.material.emissive) o.material.emissive.setHex(em);
       }
@@ -242,7 +242,7 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
     // Viewmodel bob + ADS position (emote can lift/hide the gun).
     // ADS speed comes from the Gunsmith (stock / scope / barrel).
     const t = S.time;
-    const bob = S.player.moving && S.player.onGround ? Math.sin(t * 11) * 0.012 : 0;
+    const bob = S.player.moving && S.player.onGround ? Math.sin(t * 11) * 0.016 : 0;
     const em = S.emote;
     let gx = S.ads ? 0.0 : 0.22, gy = S.ads ? -0.16 : -0.17 + bob, vis = true;
     if (em) {
