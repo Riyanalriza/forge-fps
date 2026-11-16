@@ -96,7 +96,7 @@ export function createInput(canvas, cbs, settings) {
     else if (a === 'slot2') cbs.onSlot && cbs.onSlot(1);
     else if (a === 'operator') cbs.onOperator && cbs.onOperator();
     else if (EMOTE_BINDINGS[a]) cbs.onEmote && cbs.onEmote(EMOTE_BINDINGS[a]);
-    else if (a === 'grenadeHE') cbs.onGrenade && cbs.onGrenade('he');
+    else if (a === 'grenadeHE') cbs.onGrenadeAim && cbs.onGrenadeAim(true); // hold Q: aim arc, release: throw
     else if (a === 'grenadeFlash') cbs.onGrenade && cbs.onGrenade('flash');
     else if (a === 'grenadeSmoke') cbs.onGrenade && cbs.onGrenade('smoke');
     else if (a === 'medkit') cbs.onMedkit && cbs.onMedkit();
@@ -130,12 +130,14 @@ export function createInput(canvas, cbs, settings) {
   window.addEventListener('keyup', (e) => {
     held.delete(e.code);
     const a = actionFor(e.code);
+    if (a === 'grenadeHE') cbs.onGrenadeAim && cbs.onGrenadeAim(false);
     if (a === 'wheel' && state.wheelOpen) { state.wheelOpen = false; cbs.onWheelClose && cbs.onWheelClose(); }
     if (a === 'scoreboard') cbs.onScoreboard && cbs.onScoreboard(false);
     syncKeys();
   });
   window.addEventListener('blur', () => {
     held.clear(); keys.clear(); state.firing = false; state.ads = false; state.joyMag = 0;
+    cbs.onAimCancel && cbs.onAimCancel(); // never throw on focus loss
     if (state.wheelOpen) { state.wheelOpen = false; cbs.onWheelClose && cbs.onWheelClose(); }
   });
   // ---- Mobile ADS / crouch buttons (hold vs toggle) ----

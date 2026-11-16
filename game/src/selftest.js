@@ -487,6 +487,60 @@ export function runSelfTest(ctx) {
     S.spawnProtT = 0;
     check('Walking plays footsteps', audio.stepCount() - steps0 >= 2);
     S.difficulty = 'normal';
+    // 38. Grenade aim preview: hold Q shows the arc, release throws along
+    // it, the arc follows the aim, and it never shows with no grenades,
+    // while driving, or when the round is over.
+    S.mode = 'tdm';
+    game.startRound();
+    S.player.hp = 9999; S.spawnProtT = 0;
+    S.player.x = -20; S.player.z = 20; S.player.yaw = 0; S.player.y = 0;
+    S.bots.forEach((b) => { b.x = 24; b.z = 24; b.state = 'hold'; });
+    bots.syncMeshes();
+    settle(60 * 4); // past the 3.2s countdown
+    S.grenades.he = 1;
+    check('Aim arc appears while holding Q',
+      game.startGrenadeAim() === true && game.aimState().aiming === true
+      && game.aimState().arcVisible === true && !!game.aimState().landing);
+    const pred = game.aimState().landing;
+    const aimDbg = game.aimState();
+    check('Aim line spans the whole flight to the landing',
+      Math.hypot(aimDbg.lineEnd[0] - pred.x, aimDbg.lineEnd[2] - pred.z) < 1.5);
+    check('Aim dots spread from near the player to the landing',
+      Math.hypot(aimDbg.dots[0][0] - S.player.x, aimDbg.dots[0][2] - S.player.z) < 4
+      && Math.hypot(aimDbg.dots[11][0] - pred.x, aimDbg.dots[11][2] - pred.z) < 1.5);
+    S.player.yaw = Math.PI / 2; // turn 90 degrees: the arc must follow
+    settle(2);
+    const pred2 = game.aimState().landing;
+    check('Aim arc follows the player aim',
+      Math.hypot(pred2.x - pred.x, pred2.z - pred.z) > 5);
+    S.player.yaw = 0;
+    settle(2);
+    const pred3 = game.aimState().landing;
+    const he0 = S.grenades.he;
+    check('Release throws the grenade and hides the arc',
+      game.releaseGrenadeAim() === true && S.grenades.he === he0 - 1
+      && S.grenades.flying.length === 1 && game.aimState().aiming === false
+      && game.aimState().arcVisible === false);
+    // Track the real grenade to its detonation point and compare.
+    let lx = 0, lz = 0, n = 0;
+    while (S.grenades.flying.length && n < 300) {
+      const g = S.grenades.flying[0]; lx = g.x; lz = g.z; settle(1); n += 1;
+    }
+    check('Predicted landing matches the real landing',
+      S.grenades.flying.length === 0
+      && Math.hypot(lx - pred3.x, lz - pred3.z) < 1.5);
+    S.grenades.he = 0;
+    check('No arc with no grenades left',
+      game.startGrenadeAim() === false && game.aimState().aiming === false);
+    S.grenades.he = 1;
+    S.driving = true;
+    check('No arc while driving',
+      game.startGrenadeAim() === false && game.aimState().aiming === false);
+    S.driving = false;
+    S.phase = 'roundEnd';
+    check('No arc when the round is over',
+      game.startGrenadeAim() === false && game.aimState().aiming === false);
+    S.phase = 'playing';
   } catch (e) {
     checks.push({ name: 'exception: ' + (e && e.message) + ' @ ' + (e && e.stack ? String(e.stack).split('\n').slice(0, 4).join(' | ') : '?'), ok: false });
   }

@@ -68,7 +68,7 @@ S.mapWeatherOn = loadJson('forge_weather_map_v2', true);
 S.cycleOn = loadJson('forge_cycle_v2', false);
 S.medkits = 0;
 S.hint = '';
-S.binoZoom = false; // binocular zoom for non-sniper weapons (V, v18.0)
+S.binoZoom = false;
 S.isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 document.body.classList.toggle('no-touch', !S.isMobile);
 window.addEventListener('error', (e) => {
@@ -136,7 +136,7 @@ const weapon = createWeapon(scene, camera, S, audio, effects, {
 });
 const bots = createBots(scene, world, S, rng, {
   effects, audio, surfaceAt,
-  onBotTactic: (text) => hud.chatLog(text), // v27.1 bot tactic callouts
+  onBotTactic: (text) => hud.chatLog(text),
   onZoneDeath: (b) => hud.killfeedHtml(`<span style="color:#ff9a3d">☠️ SUICIDE! ${b.name} mati sendiri</span>`),
   onBotShot: (b) => { S.trackMark = { x: b.x, z: b.z, t: 5 }; },
   onSpot: (b) => {
@@ -267,7 +267,7 @@ document.querySelectorAll('.mode-btn').forEach(b => {
 document.querySelectorAll('.perk').forEach(cb => {
   cb.addEventListener('change', () => {
     const checked = [...document.querySelectorAll('.perk:checked')];
-    if (checked.length > 3) cb.checked = false; // max 3 perks
+    if (checked.length > 3) cb.checked = false;
     readMenu();
   });
 });
@@ -423,7 +423,7 @@ function renderDailyCard() {
   });
 }
 renderDailyCard();
-setInterval(renderDailyCard, 30000); // refresh the midnight countdown
+setInterval(renderDailyCard, 30000);
 setInterval(() => {
   try {
     saveJson('forge_autosave_v2', { t: Date.now(), bp: S.bp, coins: economy.profile.coins, xp: economy.profile.xp });
@@ -473,7 +473,7 @@ function renderWeatherPanel() {
   S.cycleProgress = info.progress;
 }
 renderWeatherPanel();
-setInterval(renderWeatherPanel, 1000); // cycle countdown ticks
+setInterval(renderWeatherPanel, 1000);
 
 function renderGunsmith() {
   const wrap = document.getElementById('gunsmith-slots');
@@ -1009,7 +1009,7 @@ function doEmote(id) {
   if (S.phase !== 'playing' || S.emote) return;
   S.emote = { id, t: 2 };
   hud.showEmote(EMOTE_DEFS[id].icon);
-  mirrorEmote(S.bots, S, id); // nearest bot mirrors the emote
+  mirrorEmote(S.bots, S, id);
   const xp = dailyEmoteXp(id);
   if (xp > 0) {
     addXP(S.bp, xp);
@@ -1075,7 +1075,7 @@ function onFinisherDone(kind) {
 }
 
 let started = false, frozen = false, accumulator = 0, lastTime = performance.now();
-let lastRawDt = 1 / 60; // last frame delta, for the spectator free cam
+let lastRawDt = 1 / 60;
 const markerHoldMs = shot ? 4000 : 90;
 
 function syncCamera() {
@@ -1160,7 +1160,7 @@ function onBotHit(bot, head, w, dmgOverride, wallbang, point) {
   const hitPoint = point || { x: bot.x, y: 1.4, z: bot.z };
   if (bot.kind === 'zombie') {
     let dmg = dmgOverride != null ? dmgOverride : w.dmg * (head ? w.headMult : 1);
-    if (S.papWeapons && S.papWeapons.includes(w.id)) dmg *= 2; // Pack-a-Punch (v23.0.9)
+    if (S.papWeapons && S.papWeapons.includes(w.id)) dmg *= 2;
     const killed = zombies.damage(bot, dmg);
     hud.hitmarker(head, killed, dmg);
     audio.hit(head, killed);
@@ -1169,7 +1169,7 @@ function onBotHit(bot, head, w, dmgOverride, wallbang, point) {
       effects.bloodPool(bot.x, bot.z, head);
       audio.killConfirm();
       economy.addCoins(50); economy.recordStat('kills', 1);
-      S.economy.money += 150; // in-match cash for Pack-a-Punch / Perk-a-Cola
+      S.economy.money += 150;
       S.msg = '+50 🪙  +$150'; S.msgT = 1;
     } else {
       effects.bloodSpray(hitPoint, dir, head);
@@ -1179,11 +1179,11 @@ function onBotHit(bot, head, w, dmgOverride, wallbang, point) {
   }
   const dist = Math.hypot(bot.x - S.player.x, bot.z - S.player.z);
   let dmg = dmgOverride != null ? dmgOverride : w.dmg * (head ? w.headMult : 1);
-  if (dmgOverride == null && S.papWeapons && S.papWeapons.includes(w.id)) dmg *= 2; // Pack-a-Punch (v23.0.9)
+  if (dmgOverride == null && S.papWeapons && S.papWeapons.includes(w.id)) dmg *= 2;
   if (dmgOverride == null) {
-    if (S.ads) dmg *= 1.1; // ADS bonus
-    dmg = damageAtRange(dmg, dist, w.range || 40); // range falloff
-    if (wallbang) dmg *= 0.5; // thin-wall penetration: half damage
+    if (S.ads) dmg *= 1.1;
+    dmg = damageAtRange(dmg, dist, w.range || 40);
+    if (wallbang) dmg *= 0.5;
   }
   const ws = S.weaponStats[w.id] || (S.weaponStats[w.id] = { shots: 0, hits: 0, kills: 0 });
   ws.hits += 1;
@@ -1196,7 +1196,7 @@ function onBotHit(bot, head, w, dmgOverride, wallbang, point) {
   hud.hitmarker(head, killed, dmg);
   audio.hit(head, killed);
   audio.haptic(head ? 'headshot' : 'hit');
-  S.crossPulse = true; // crosshair pulse while firing (v18.1.16)
+  S.crossPulse = true;
   setTimeout(() => { S.crossPulse = false; }, 120);
   if (head) { audio.ting(); audio.callout('Headshot!'); }
   if (killed) {
@@ -1250,7 +1250,7 @@ function onPlayerHit(dmg, bot, from) {
   if (S.phase !== 'playing' || !S.player.alive) return;
   game.hurtPlayer(dmg, bot, from);
   hud.vignette();
-  effects.screenBlood(); // blood splatter + screen shake
+  effects.screenBlood();
   if (settings.haptic && navigator.vibrate) { try { navigator.vibrate(40); } catch { /* ignore */ } }
 }
 
@@ -1374,6 +1374,8 @@ const input = createInput(renderer.domElement, {
       game.throwGrenade(k, camera);
     }
   },
+  onGrenadeAim: (d) => { if (S.phase !== 'playing') return; if (d) game.startGrenadeAim(); else game.releaseGrenadeAim(camera); },
+  onAimCancel: () => game.cancelGrenadeAim(),
   onMedkit: () => { if (S.phase === 'playing') game.useMedkit(); },
   onOperator: () => { if (S.phase === 'playing') game.useOperator(); },
   onEmote: (id) => doEmote(id),
@@ -1437,7 +1439,7 @@ const input = createInput(renderer.domElement, {
   onWheelOpen: () => { if (S.phase === 'playing') hud.showWheel(true); },
   onWheelMove: (dx, dy) => hud.wheelMove(dx, dy),
   onWheelClose: () => {
-    if (wheelViaButton) { wheelViaButton = false; return; } // button mode stays open until a slot is picked
+    if (wheelViaButton) { wheelViaButton = false; return; }
     hud.showWheel(false);
     if (S.phase === 'playing') doEmote(hud.wheelSelected(S.wheel));
   },
@@ -1544,7 +1546,7 @@ function updateEnvironmentSmall(dt) {
 
 function step(dt) {
   S.time += dt;
-  S.joyMag = input.state.joyMag || 0; // virtual joystick magnitude -> player speed
+  S.joyMag = input.state.joyMag || 0;
   if (S.msgT > 0) S.msgT -= dt;
   if (S.flashT > 0) S.flashT -= dt;
   if (S.emote) { S.emote.t -= dt; if (S.emote.t <= 0) S.emote = null; }
@@ -1612,12 +1614,12 @@ function frame(now) {
       S.finisher = mythicFx.finisher;
     }
     mythicFx.step(rawDt, onFinisherDone);
-    effects.step(rawDt); // blood / shells / tracers / explosions (pooled)
-    world.stepDoors(rawDt); // door swing animation (real time)
-    updateEnvironmentSmall(rawDt); // flags, TVs, fires, lamps + weather particles
-    animatePlayers(S.bots, S, rawDt, S.time); // walk/idle/emote/death animations
+    effects.step(rawDt);
+    world.stepDoors(rawDt);
+    updateEnvironmentSmall(rawDt);
+    animatePlayers(S.bots, S, rawDt, S.time);
     if (S.mode === 'zombie') zombies.syncMeshes();
-    weather.animateWeather(rawDt, S.time, camera); // rain follows the camera
+    weather.animateWeather(rawDt, S.time, camera);
     weather.stepCycle(rawDt);
     vehicles.animate(rawDt, S.time);
     if (S.ping) {
@@ -1728,7 +1730,7 @@ function applyShotFx() {
 }
 
 function runShot(name) {
-  hideLoading(); // frame() never runs in shot mode, so hide it here.
+  hideLoading();
   document.body.classList.add('shot'); // hide the click-only pills for a clean frame.
   hud.hideMenu(); hud.hideEnd(); hud.showBuy(false);
   const p = S.player;
@@ -1767,9 +1769,12 @@ function runShot(name) {
     S.bots.forEach(b => { b.state = 'combat'; b.blindT = 0; });
     p.hp = 100;
     settle(10);
-    aimAt(S.bots[0].x, 1.4, S.bots[0].z);
+    // Aim just right of BOT-1 so the grenade arc lands on open ground
+    // beside him (dots + landing ring visible, not hidden behind him).
+    aimAt(S.bots[0].x + 2.5, 0.8, S.bots[0].z);
     const b0 = S.bots[0];
     bots.damage(b0, 60);
+    game.startGrenadeAim(); // play shot shows the grenade aim arc
     shotFx = {
       radio: 'Contact at Mid Yard, rotating',
       killfeed: ['YOU — B12 Breacher @ BOT-1 — HIT', '🔥 KILLSTREAK READY: 🛰️ UAV — click it!'],

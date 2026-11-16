@@ -120,6 +120,28 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
   const grenadeMesh = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 8),
     new THREE.MeshStandardMaterial({ color: 0x2e4a2e, roughness: 0.5, metalness: 0.4 }));
   grenadeMesh.visible = false; scene.add(grenadeMesh);
+  // Grenade aim preview: one dashed arc + landing ring + dot, created once
+  // and reused while the player holds Q. Points are rewritten every frame.
+  const ARC_PTS = 29;
+  const arcGeo = new THREE.BufferGeometry();
+  arcGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(ARC_PTS * 3), 3));
+  const arcLine = new THREE.Line(arcGeo, new THREE.LineDashedMaterial({ color: 0xffd23d, dashSize: 0.35, gapSize: 0.22, transparent: true, opacity: 0.95 }));
+  arcLine.visible = false; arcLine.frustumCulled = false; scene.add(arcLine);
+  const arcMark = new THREE.Mesh(new THREE.RingGeometry(0.3, 0.45, 24),
+    new THREE.MeshBasicMaterial({ color: 0xffd23d, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false }));
+  arcMark.rotation.x = -Math.PI / 2; arcMark.visible = false; scene.add(arcMark);
+  const arcDot = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6),
+    new THREE.MeshBasicMaterial({ color: 0xffd23d }));
+  arcDot.visible = false; scene.add(arcDot);
+  // Dots along the arc: a 1px line seen from behind compresses into a
+  // faint vertical streak, so the dots carry the readability.
+  const arcDots = [];
+  for (let i = 0; i < 12; i++) {
+    const d = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6),
+      new THREE.MeshBasicMaterial({ color: 0xffd23d, transparent: true, opacity: 0.95 }));
+    d.visible = false; scene.add(d); arcDots.push(d);
+  }
+  let aiming = false, aimLand = null;
   // K9 attack dog (v23.0.3): small dark dog that chases the nearest bot.
   const k9Mesh = new THREE.Group();
   {
@@ -700,6 +722,7 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
     heliMesh.visible = false;
     planeMesh.visible = false;
     grenadeMesh.visible = false;
+    cancelGrenadeAim();
     if (audio.rotor) audio.rotor(false);
     S.sentry = null; S.airstrike = null; S.heli = null;
     S.grenades.flying = [];
@@ -773,6 +796,7 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
   }
   function endRound(won, reason) {
     if (S.phase !== 'playing') return;
+    cancelGrenadeAim();
     S.phase = 'roundEnd';
     S.round.result = won ? 'won' : 'lost';
     if (won) {
@@ -867,6 +891,13 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
   // Grenades: pin sound + a visible grenade that flies ~1s on an arc, then
   // detonates at the landing point. HE: 150 damage at the center, falling to
   // 0 at 4m. Flash: white screen 1.5s if you are close. Smoke: cloud for 4s.
+  // Throw origin + velocity, shared by the real throw and the aim preview
+  // so the preview line is the flight the grenade will actually take.
+  function throwOrigin() {
+    const p = S.player;
+    const fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw);
+    return { x: p.x + fx * 0.5, y: p.y + p.eye - 0.2, z: p.z + fz * 0.5, vx: fx * 12, vy: 3, vz: fz * 12 };
+  }
   function throwGrenade(kind, camera) {
     const g = S.grenades;
     const p = S.player;
@@ -877,15 +908,81 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
     else g.he -= 1;
     if (audio.pin) audio.pin();
     // Throw from the player's chest, forward + up on a ~1s arc.
-    const fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw);
-    g.flying.push({
-      kind,
-      x: p.x + fx * 0.5, y: p.y + p.eye - 0.2, z: p.z + fz * 0.5,
-      vx: fx * 12, vy: 3, vz: fz * 12,
-    });
+    const o = throwOrigin();
+    g.flying.push({ kind, x: o.x, y: o.y, z: o.z, vx: o.vx, vy: o.vy, vz: o.vz });
     grenadeMesh.visible = true;
     S.msg = kind === 'he' ? 'FRAG OUT' : kind === 'flash' ? 'FLASH OUT' : 'SMOKE OUT';
     S.msgT = 1.5;
+  }
+  // Simulate the throw at 1/60s with the SAME rules as stepFlyingGrenades
+  // (gravity 9.8, wall check, one 40% ground bounce, then detonate) and
+  // return the sampled points plus the detonation point.
+  function simulateArc() {
+    const o = throwOrigin();
+    const pts = [[o.x, o.y, o.z]];
+    let x = o.x, y = o.y, z = o.z, vx = o.vx, vy = o.vy, vz = o.vz;
+    let bounced = false, hitWall = false;
+    const DT = 1 / 60;
+    for (let i = 0; i < 240; i++) {
+      vy -= 9.8 * DT; x += vx * DT; y += vy * DT; z += vz * DT;
+      pts.push([x, y, z]);
+      if (world.isColliding(x, z, 0.15, y)) { hitWall = true; break; }
+      if (y <= 0.05) {
+        if (!bounced && vy < -1) { bounced = true; y = 0.06; vy = -vy * 0.4; }
+        else break;
+      }
+    }
+    return { pts, land: { x, y: Math.max(y, 0.06), z }, hitWall };
+  }
+  function updateAim() {
+    if (!aiming) return;
+    const p = S.player;
+    if (!p.alive || S.driving || (S.grenades.he || 0) <= 0) { cancelGrenadeAim(); return; }
+    const sim = simulateArc();
+    aimLand = sim.land;
+    const pos = arcGeo.attributes.position;
+    for (let i = 0; i < ARC_PTS; i++) {
+      // Spread the 29 line points over the WHOLE simulated flight, not
+      // just its first 29 samples (the flight has ~84).
+      const pt = sim.pts[Math.floor(i * (sim.pts.length - 1) / (ARC_PTS - 1))];
+      pos.setXYZ(i, pt[0], pt[1], pt[2]);
+    }
+    pos.needsUpdate = true;
+    arcLine.computeLineDistances();
+    for (let i = 0; i < arcDots.length; i++) {
+      // Skip the first 15% of the path (too close to the camera) and grow
+      // each dot with its distance, so every dot reads ~the same on screen.
+      const k = 0.15 + 0.85 * i / (arcDots.length - 1);
+      const pt = sim.pts[Math.floor(k * (sim.pts.length - 1))];
+      const d = arcDots[i];
+      d.position.set(pt[0], pt[1], pt[2]);
+      const camD = Math.hypot(pt[0] - S.player.x, pt[1] - (S.player.y + S.player.eye), pt[2] - S.player.z);
+      const r = 0.02 + 0.015 * camD;
+      d.scale.setScalar(r / 0.07);
+    }
+    arcMark.position.set(sim.land.x, sim.land.y + 0.03, sim.land.z);
+    arcDot.position.set(sim.land.x, sim.land.y + 0.09, sim.land.z);
+  }
+  function startGrenadeAim() {
+    if (aiming || S.phase !== 'playing' || !S.player.alive || S.driving || (S.grenades.he || 0) <= 0) return false;
+    aiming = true;
+    arcLine.visible = true; arcMark.visible = true; arcDot.visible = true;
+    for (const d of arcDots) d.visible = true;
+    updateAim();
+    return true;
+  }
+  function releaseGrenadeAim(camera) {
+    if (!aiming) return false;
+    aiming = false;
+    arcLine.visible = false; arcMark.visible = false; arcDot.visible = false;
+    for (const d of arcDots) d.visible = false;
+    throwGrenade('he', camera);
+    return true;
+  }
+  function cancelGrenadeAim() {
+    aiming = false;
+    arcLine.visible = false; arcMark.visible = false; arcDot.visible = false;
+    for (const d of arcDots) d.visible = false;
   }
   function detonateGrenade(gr) {
     const g = S.grenades;
@@ -1034,6 +1131,7 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
     }
   }
   function playerDies(killerBot) {
+    cancelGrenadeAim();
     const p = S.player;
     // Quick Revive cola (v23.0.9): self-revive once at 50 HP, consumed.
     if (S.perkCola && S.perkCola.includes('quickrevive')) {
@@ -1732,6 +1830,7 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
     stepAirstrike(dt); // plane flyover + 3 sequential blasts
     stepHeli(dt); // circling attack heli
     stepFlyingGrenades(dt); // grenade arcs + detonations
+    updateAim(); // grenade aim preview follows the player's aim
     stepDropped(dt); // dropped weapons spin + expire after 30s
     stepPendingBooms(dt); // delayed car explosions
     stepSmokingCars(dt); // smoking cars puff smoke while damaged
@@ -1942,5 +2041,5 @@ export function createGame(S, world, bots, hud, audio, scene, cbs = {}) {
     resetPlayer();
     S.msg = 'YOU ARE BACK IN THE FIGHT'; S.msgT = 2;
   }
-  return { startRound, endRound, nextRound, toggleBuy, buy, throwGrenade, throwThrowable, onKill, useStreak, useBestStreak, useOperator, hurtPlayer, step, buyHtml, useMedkit, useArmor, respawnPlayer, damageProp, damagePropHit, openCrate, dropWeapon, pickupDropped, triggerEvent, areaDamage, droppedCount: () => S.droppedWeapons.length, lootCount: () => lootItems.filter(i => !i.taken).length };
+  return { startRound, endRound, nextRound, toggleBuy, buy, throwGrenade, throwThrowable, startGrenadeAim, releaseGrenadeAim, cancelGrenadeAim, aimState: () => ({ aiming, landing: aimLand, arcVisible: arcLine.visible, dots: arcDots.map(d => [d.position.x, d.position.y, d.position.z, d.scale.x]), lineEnd: [arcGeo.attributes.position.getX(ARC_PTS - 1), arcGeo.attributes.position.getY(ARC_PTS - 1), arcGeo.attributes.position.getZ(ARC_PTS - 1)] }), onKill, useStreak, useBestStreak, useOperator, hurtPlayer, step, buyHtml, useMedkit, useArmor, respawnPlayer, damageProp, damagePropHit, openCrate, dropWeapon, pickupDropped, triggerEvent, areaDamage, droppedCount: () => S.droppedWeapons.length, lootCount: () => lootItems.filter(i => !i.taken).length };
 }
