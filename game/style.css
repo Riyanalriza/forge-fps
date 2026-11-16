@@ -40,7 +40,7 @@
   #streak-info { background:rgba(0,0,0,.6); padding:8px 12px; border-radius:99px; font-size:13px; }
   .ks-btn { background:var(--amber); color:#000; border:none; padding:8px 12px; border-radius:99px; font-weight:800; cursor:pointer; font-size:12px; }
   .ks-btn:hover { background:var(--ink); }
-  #operator-box { position:fixed; left:14px; bottom:120px; background:rgba(0,0,0,.6); padding:10px 12px; border-radius:12px; border:1px solid var(--amber); min-width:170px; }
+  #operator-box { position:fixed; left:14px; bottom:134px; background:rgba(0,0,0,.6); padding:10px 12px; border-radius:12px; border:1px solid var(--amber); min-width:170px; }
   #operator-box .lbl { font-size:11px; opacity:.7; letter-spacing:.08em; }
   #operator-name { font-weight:900; color:var(--amber); }
   #operator-box .track { background:#333; height:6px; border-radius:99px; margin-top:6px; overflow:hidden; }
@@ -53,9 +53,10 @@
   #mythic-effect.fire { background:radial-gradient(circle, rgba(255,100,0,.4), transparent 70%); }
   #mythic-effect.void { background:radial-gradient(circle, rgba(138,0,255,.5), transparent 70%); }
   .mythic-pop { animation:emotePop 1s forwards; }
-  #bottombar { position:fixed; left:0; right:0; bottom:0; display:flex; justify-content:space-between; align-items:flex-end; padding:18px 28px; font-family:ui-monospace,Menlo,monospace; }
+  #bottombar { position:fixed; left:0; right:0; bottom:0; display:flex; justify-content:flex-start; gap:6px; align-items:flex-end; padding:18px 28px 18px 14px; font-family:ui-monospace,Menlo,monospace; }
+  #bottombar .stat:last-child { margin-left:auto; }
   .stat { background:rgba(10,12,10,.65); border:1px solid #2c323a; border-radius:6px; padding:6px 12px; }
-  .stat b { font-size:34px; font-weight:600; }
+  .stat b { font-size:34px; font-weight:600; display:block; border-bottom:2px solid rgba(255,255,255,.55); padding-bottom:3px; }
   .stat span { color:var(--muted); font-size:12px; display:block; letter-spacing:.08em; }
   #ammo-mag { font-size:52px; }
   #ammo-reserve { font-size:16px; color:var(--muted); }
@@ -288,9 +289,9 @@
 #fps-graph{position:fixed;left:14px;top:298px;display:flex;align-items:flex-end;gap:1px;height:20px;z-index:5}
 #fps-graph i{width:3px;display:block}
 #engine-stats{position:fixed;left:14px;top:324px;font-size:11px;font-family:ui-monospace,monospace;color:var(--muted);z-index:5}
-#stamina-bar{position:fixed;left:14px;bottom:110px;width:170px;height:8px;background:#222;border-radius:99px;overflow:hidden;z-index:5}
+#stamina-bar{position:fixed;left:14px;bottom:118px;width:170px;height:8px;background:#222;border-radius:99px;overflow:hidden;z-index:5}
 #stamina-fill{height:100%;background:#7ddc7d;width:100%}
-#move-status{position:fixed;left:14px;bottom:84px;font-size:11px;color:var(--muted);letter-spacing:.1em;z-index:5}
+#move-status{position:fixed;left:14px;bottom:98px;font-size:11px;color:var(--muted);letter-spacing:.1em;z-index:5}
 #surface-label{display:none}
 #weapon-fx{display:none}
 #reload-bar{position:fixed;left:50%;top:58%;transform:translateX(-50%);width:220px;text-align:center;z-index:6}
@@ -299,7 +300,7 @@
 #reload-fill{height:100%;background:var(--amber);width:0%}
 #reload-label{font-size:11px;color:var(--amber);margin-top:4px;letter-spacing:.1em}
 #hint-bar{position:fixed;left:50%;bottom:210px;transform:translateX(-50%);font-size:13px;color:#cfe6ff;text-shadow:0 1px 6px #000;opacity:0;transition:opacity .3s;z-index:5;pointer-events:none}
-#chat-log{position:fixed;left:14px;bottom:210px;font-size:12px;color:#cfe6ff;z-index:5;display:grid;gap:3px;max-width:320px}
+#chat-log{position:fixed;left:14px;bottom:224px;font-size:12px;color:#cfe6ff;z-index:5;display:grid;gap:3px;max-width:320px}
 #chat-log div{background:rgba(10,12,10,.6);padding:3px 8px;border-radius:4px}
 #chat-bubble{position:fixed;left:50%;top:52%;transform:translateX(-50%);background:rgba(255,255,255,.92);color:#111;border-radius:12px;padding:6px 12px;font-size:13px;z-index:6}
 #chat-bubble[hidden]{display:none}
