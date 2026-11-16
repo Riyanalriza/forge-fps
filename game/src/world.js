@@ -403,7 +403,13 @@ export function buildWorld(scene) {
     // Every other map keeps the generic lists unchanged.
     const frostD = mapId === 'frost';
     let placed = 0;
-    for (const [x, z] of barrelSpots) {
+    // Frost narrow corridors: the generic spots fall ON the lanes/ring —
+    // (0,±14) is the mid-lane waypoint line, (±20,0) is inside the lane
+    // facades — so frost uses north-strip / yard-corner spots instead.
+    const barrelList = frostD
+      ? [[-16, -24], [16, -24], [-14, -22], [14, -22], [-37, 0], [37, -10]]
+      : barrelSpots;
+    for (const [x, z] of barrelList) {
       if (placed >= 2) break;
       if (clearSpot(x, z, 1.0)) { props.addRedBarrel(x, z); placed += 1; }
     }

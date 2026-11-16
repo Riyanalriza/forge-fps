@@ -734,6 +734,153 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
     }
     return m;
   }
+  // Warm wood plank floor (narrow-corridor pass): brown boards with dark
+  // gaps + grain, like the reference house corridor. Two orientations:
+  // vertical boards (N-S strips, boards run along z) and horizontal
+  // boards (E-W strips, boards run along x).
+  let _woodFloorTexV = null, _woodFloorTexH = null;
+  function woodFloorTexture(horizontal = false) {
+    if (horizontal) { if (_woodFloorTexH) return _woodFloorTexH; }
+    else if (_woodFloorTexV) return _woodFloorTexV;
+    const tex = ptex(256, (g, s) => {
+      g.fillStyle = '#8a5c30'; g.fillRect(0, 0, s, s);
+      for (let b = 0; b < 8; b++) {
+        const p = b * 32, h = _hash(b * 13 + 7);
+        g.fillStyle = h < 0.5 ? 'rgba(255,220,170,0.10)' : 'rgba(0,0,0,0.10)';
+        if (horizontal) g.fillRect(0, p + 1, s, 30); else g.fillRect(p + 1, 0, 30, s);
+        g.fillStyle = 'rgba(40,22,8,0.6)';
+        if (horizontal) g.fillRect(0, p, s, 2); else g.fillRect(p, 0, 2, s);
+        g.strokeStyle = 'rgba(60,35,12,0.35)'; g.lineWidth = 1.2;
+        for (let k = 0; k < 2; k++) {
+          const gp = p + 8 + ((b * 5 + k * 17) % 18);
+          g.beginPath();
+          if (horizontal) { g.moveTo(0, gp); g.bezierCurveTo(80, gp + 3, 170, gp - 3, s, gp + 2); }
+          else { g.moveTo(gp, 0); g.bezierCurveTo(gp + 3, 80, gp - 3, 170, gp + 2, s); }
+          g.stroke();
+        }
+      }
+    }, horizontal ? 12 : 2, horizontal ? 2 : 12);
+    if (horizontal) _woodFloorTexH = tex; else _woodFloorTexV = tex;
+    return tex;
+  }
+  // Wood plank floor strip (narrow-corridor pass): thin visual slab on the
+  // ground, no collider — the reference house corridor floor. E-W strips
+  // sit 15mm higher so the crossing strips never z-fight.
+  function addWoodFloor(x, z, w, d) {
+    const ew = w > d;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.08, d),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, metalness: 0, map: woodFloorTexture(ew) }));
+    m.position.set(x, ew ? 0.055 : 0.04, z); m.receiveShadow = true;
+    m.userData.propType = 'wood-floor';
+    group.add(m);
+    return m;
+  }
+  // House facade wall (narrow-corridor pass): a plaster house wall run
+  // along one axis with real breakable glass windows + real openable
+  // doors, like addHouse's front wall but standalone. Behind the wall is
+  // open ground, so every door leads somewhere. axis 'z' = wall runs
+  // along z (thickness in x); 'x' = runs along x. features: [{at, kind}]
+  // with at = offset from the run centre along the axis, kind 'door'
+  // (1.3m) or 'window' (1.6m). Snow cap on top, like the houses.
+  function addHouseWall(cx, cz, len, axis, o = {}) {
+    const H = o.h || 3.5, T = o.thick || 0.4;
+    const color = o.color || 0x8a7a5a;
+    const alongZ = axis === 'z';
+    const feats = (o.features || []).slice().sort((a, b) => a.at - b.at);
+    const px = (a) => alongZ ? cx : cx + a;
+    const pz = (a) => alongZ ? cz + a : cz;
+    // Solid plaster run from offset a0 to a1 (full height).
+    const run = (a0, a1) => {
+      if (a1 - a0 < 0.05) return;
+      const mid = (a0 + a1) / 2, L = a1 - a0;
+      const m = box(alongZ ? T : L, H, alongZ ? L : T, color, { map: plasterTexture() });
+      m.position.set(px(mid), H / 2, pz(mid));
+      group.add(m); shootable(m, 'wall'); tagColor(m, 'building');
+      m.userData.propType = 'house-wall';
+      const x0 = alongZ ? cx - T / 2 : cx + a0, x1 = alongZ ? cx + T / 2 : cx + a1;
+      const z0 = alongZ ? cz + a0 : cz - T / 2, z1 = alongZ ? cz + a1 : cz + T / 2;
+      solid(x0, z0, x1, z1, 0, H);
+    };
+    // Glass window (mirrors windowGlass, warm amber lit pane): sill
+    // 0..1.2m, header 2.8..H, breakable pane 1.2..2.8m.
+    const win = (a, ww = 1.6) => {
+      const x = px(a), z = pz(a);
+      const sill = box(alongZ ? T : ww, 1.2, alongZ ? ww : T, color, { map: plasterTexture() });
+      sill.position.set(x, 0.6, z); group.add(sill); shootable(sill); tagColor(sill, 'building');
+      const hd = box(alongZ ? T : ww, H - 2.8, alongZ ? ww : T, color, { map: plasterTexture() });
+      hd.position.set(x, 2.8 + (H - 2.8) / 2, z); group.add(hd); shootable(hd); tagColor(hd, 'building');
+      const sx0 = alongZ ? cx - T / 2 : x - ww / 2, sx1 = alongZ ? cx + T / 2 : x + ww / 2;
+      const sz0 = alongZ ? z - ww / 2 : cz - T / 2, sz1 = alongZ ? z + ww / 2 : cz + T / 2;
+      solid(sx0, sz0, sx1, sz1, 0, 1.2);
+      solid(sx0, sz0, sx1, sz1, 2.8, H);
+      const frameM = new THREE.MeshStandardMaterial({ color: 0xe8e4da, roughness: 0.7 });
+      const fb = (fw, fh, fd, fx, fy, fz) => {
+        const b = new THREE.Mesh(new THREE.BoxGeometry(fw, fh, fd), frameM);
+        b.position.set(fx, fy, fz); b.castShadow = true; group.add(b);
+      };
+      const T2 = T + 0.06;
+      if (alongZ) {
+        fb(T2, 0.12, ww + 0.24, x, 2.86, z); fb(T2, 0.12, ww + 0.24, x, 1.14, z);
+        fb(T2, 1.84, 0.12, x, 2.0, z - ww / 2 - 0.06); fb(T2, 1.84, 0.12, x, 2.0, z + ww / 2 + 0.06);
+        fb(0.06, 1.6, 0.06, x, 2.0, z); fb(0.06, 0.06, ww, x, 2.0, z);
+      } else {
+        fb(ww + 0.24, 0.12, T2, x, 2.86, z); fb(ww + 0.24, 0.12, T2, x, 1.14, z);
+        fb(0.12, 1.84, T2, x - ww / 2 - 0.06, 2.0, z); fb(0.12, 1.84, T2, x + ww / 2 + 0.06, 2.0, z);
+        fb(0.06, 1.6, 0.06, x, 2.0, z); fb(ww, 0.06, 0.06, x, 2.0, z);
+      }
+      const glassMat = new THREE.MeshStandardMaterial({ color: 0xffc860, roughness: 0.1, metalness: 0.2, transparent: true, opacity: 0.55, emissive: 0xff9a30, emissiveIntensity: 0.9 });
+      const pane = new THREE.Mesh(new THREE.BoxGeometry(alongZ ? 0.05 : ww, 1.6, alongZ ? ww : 0.05), glassMat);
+      pane.position.set(x, 2.0, z); group.add(pane);
+      tagColor(pane, 'window'); shootable(pane, 'glass');
+      const rec = { kind: 'window', hp: 1, x, z, meshes: [pane], collider: null, smoking: false };
+      pane.userData.destructible = rec;
+      destructibles.push(rec);
+    };
+    // Openable door (mirrors addDoor): hinge + wood panel + handle, warm
+    // frame, collider while closed, lintel above. Registered in the world
+    // doors array so [E] and bots can open it.
+    const door = (a) => {
+      const x = px(a), z = pz(a);
+      const hinge = new THREE.Group();
+      hinge.position.set(alongZ ? x : x - 0.6, 0, alongZ ? z - 0.6 : z);
+      const panel = box(1.2, 2.6, 0.08, 0x7a4a26);
+      panel.position.set(alongZ ? 0 : 0.6, 1.3, alongZ ? 0.6 : 0);
+      if (alongZ) panel.rotation.y = Math.PI / 2;
+      hinge.add(panel); tagColor(panel, 'door');
+      const handle = box(0.08, 0.08, 0.2, 0xd8b25a);
+      handle.position.set(alongZ ? 0.08 : 1.05, 1.1, alongZ ? 1.05 : 0.08);
+      hinge.add(handle);
+      group.add(hinge);
+      const dFrameM = new THREE.MeshStandardMaterial({ color: 0xe8e4da, roughness: 0.7 });
+      const dPost = (qx, qz) => { const p = box(0.14, 2.7, 0.14, dFrameM); p.position.set(qx, 1.35, qz); group.add(p); };
+      if (alongZ) {
+        dPost(x, z - 0.68); dPost(x, z + 0.68);
+        const lin = box(0.14, 0.14, 1.5, dFrameM); lin.position.set(x, 2.68, z); group.add(lin);
+      } else {
+        dPost(x - 0.68, z); dPost(x + 0.68, z);
+        const lin = box(1.5, 0.14, 0.14, dFrameM); lin.position.set(x, 2.68, z); group.add(lin);
+      }
+      shootable(panel);
+      const dx0 = alongZ ? x - 0.12 : x - 0.65, dx1 = alongZ ? x + 0.12 : x + 0.65;
+      const dz0 = alongZ ? z - 0.65 : z - 0.12, dz1 = alongZ ? z + 0.65 : z + 0.12;
+      const col = solid(dx0, dz0, dx1, dz1, 0, 2.6);
+      const lx0 = alongZ ? x - T / 2 : x - 0.65, lx1 = alongZ ? x + T / 2 : x + 0.65;
+      const lz0 = alongZ ? z - 0.65 : z - T / 2, lz1 = alongZ ? z + 0.65 : z + T / 2;
+      solid(lx0, lz0, lx1, lz1, 2.6, H);
+      const rec = { x, z, hinge, angle: 0, target: 0, open: false, collider: col, dir: 1 };
+      doors.push(rec); propDoors.push(rec);
+    };
+    let cur = -len / 2;
+    for (const f of feats) {
+      const w = f.kind === 'door' ? 1.3 : 1.6;
+      run(cur, f.at - w / 2);
+      if (f.kind === 'door') door(f.at); else win(f.at);
+      cur = f.at + w / 2;
+    }
+    run(cur, len / 2);
+    const cap = box(alongZ ? T + 0.15 : len + 0.15, 0.12, alongZ ? len + 0.15 : T + 0.15, 0xeef2f6);
+    cap.position.set(cx, H + 0.06, cz); group.add(cap);
+  }
   // Horizontal wall pipe (reference: big black/red pipes along the walls):
   // dark steel run + 2 red coupling rings. Visual only, never solid.
   // rot 0 runs along x, Math.PI/2 runs along z. y is the pipe centre.
@@ -2503,6 +2650,7 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
     addCropPatch, addFruitTree,
     addBrickWall, addWallLetter, addHazardBarrier, brickTexture,
     addPanelWall, addPipe, addGlowWindow, addGrate, addSteamVent,
+    addHouseWall, addWoodFloor,
     propFall, setLightsOut, dropLeaves, recolor, setSeason, setLightColor,
     animateDecor, decorCounts, destructibles, houseRects, pools,
     treeRecs, flowerSpots, ammoBoxes, lifts, mudRects, lootCrates,

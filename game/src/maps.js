@@ -30,27 +30,30 @@ export const MAP_DEFS = {
     id: 'frost', name: 'Frostworks Yard', emoji: '❄️',
     desc: 'Snow-covered industrial plant — pipes, containers, cranes.',
     sites: {
-      A: { name: 'Boiler House', x: -22, z: -19, color: 0xf0a830 },
-      B: { name: 'Crane Dock', x: 24, z: -20, color: 0x37c8d8 },
+      A: { name: 'Boiler House', x: -22.5, z: -19, color: 0xf0a830 },
+      B: { name: 'Crane Dock', x: 22.5, z: -19, color: 0x37c8d8 },
       C: { name: 'Frost Gate', x: 0, z: 0, color: 0x7ddc7d },
     },
     ground: 0xe8eef2, groundTex: 'snow', fog: 0x9ab0c0,
-    // Corridor map (v29): three north-south lanes (west / mid / east)
-    // joined by two east-west cross lanes — the reference layout, not an
-    // open yard. Mid lane is the hero corridor: grate floor, overhead
-    // pipes, steam, long sightline from spawn to the north end wall.
+    // Narrow-corridor map (2026-11-16): three 5m north-south house
+    // corridors (west / mid / east) joined by two 5m east-west cross
+    // lanes — the reference layout, not an open yard. Mid lane is the
+    // hero corridor: wood floor, house facades with warm glass + doors,
+    // low overhead pipes, long sightline from spawn to the north end
+    // wall. The ring walks the mid lane twice per loop (mid is the
+    // centre of play); the north ends are dead ends off the cross lanes.
     waypoints: [
-      { x: 0, z: 22 }, { x: 0, z: 12 }, { x: 0, z: 2 }, { x: 0, z: -8 },
-      { x: 0, z: -18 }, { x: -8, z: -16 }, { x: -22, z: -16 }, { x: -22, z: -6 },
-      { x: -22, z: 4 }, { x: -22, z: 14 }, { x: -22, z: 20 }, { x: -12, z: 16 },
-      { x: 0, z: 16 }, { x: 12, z: 16 }, { x: 22, z: 16 }, { x: 22, z: 6 },
-      { x: 22, z: -4 }, { x: 22, z: -14 }, { x: 22, z: -20 }, { x: 12, z: -16 },
-      { x: 0, z: -16 },
+      { x: 0, z: 14.5 }, { x: 0, z: 0 }, { x: 0, z: -14.5 },
+      { x: -12.5, z: -14.5 }, { x: -22.5, z: -14.5 }, { x: -22.5, z: -5 },
+      { x: -22.5, z: 5 }, { x: -22.5, z: 14.5 }, { x: -12.5, z: 14.5 },
+      { x: 0, z: 14.5 }, { x: 12.5, z: 14.5 }, { x: 22.5, z: 14.5 },
+      { x: 22.5, z: 5 }, { x: 22.5, z: -5 }, { x: 22.5, z: -14.5 },
+      { x: 12.5, z: -14.5 }, { x: 0, z: -14.5 }, { x: 0, z: 0 },
     ],
     spawns: {
       player: { x: 0, z: 24, yaw: 0 },
       bots: [
-        { x: -22, z: -22 }, { x: 0, z: -22 }, { x: 22, z: -22 }, { x: -22, z: -18 }, { x: 22, z: -18 },
+        { x: -22.5, z: -22 }, { x: 0, z: -22 }, { x: 22.5, z: -22 }, { x: -22.5, z: -18 }, { x: 22.5, z: -18 },
       ],
     },
     build(api) {
@@ -68,8 +71,10 @@ export const MAP_DEFS = {
       api.addGlowWindow(-24.9, 4, Math.PI / 2, 4.8);
       // Freestanding stack at the SW corner + overhead pipes: a north run
       // across the yard and a vertical run down the hall's east face.
+      // The face run sits flush on the hall face (x -24.7) so it reads as
+      // wall pipes, not a floating bar across the narrow west lane.
       api.addCylinder(-36, 24, 1.1, 12, 0x2e3236);
-      for (let i = 0; i < 3; i++) api.addBox(-23.5, -2, 0.44, 0.44, 26, 0x6a7a8a, { y: 1 + i * 1.1, solid: false });
+      for (let i = 0; i < 3; i++) api.addBox(-24.7, -2, 0.44, 0.44, 26, 0x6a7a8a, { y: 1 + i * 1.1, solid: false });
       api.addBox(0, -20, 30, 0.44, 0.44, 0x6a7a8a, { y: 5, solid: false });
       // East boiler annex (SE corner) with furnace glow on its west face.
       // Panel walls + a lit window + a high wall pipe on the west face.
@@ -78,58 +83,87 @@ export const MAP_DEFS = {
       api.addBox(26.9, 20, 0.1, 1.8, 3, 0xff7a1a, { y: 0.3, solid: false, extra: { emissive: 0xff7a1a, emissiveIntensity: 1 } });
       api.addGlowWindow(26.9, 18, -Math.PI / 2, 3);
       api.addPipe(26.8, 20, 7, Math.PI / 2, 4.4);
-      // ---- Corridor walls (h=6): mid lane at x=±9, west lane east wall
-      // at x=-14, east lane west wall at x=+14. Gaps at the two cross
-      // lanes (z -19..-13 and 13..19) so every lane stays connected.
-      for (const wx of [-9, 9, -14, 14]) {
-        api.addPanelWall(wx, -21.5, 1, 5, 6, 0x8a929a);
-        api.addPanelWall(wx, 0, 1, 26, 6, 0x8a929a);
-        api.addPanelWall(wx, 21.5, 1, 5, 6, 0x8a929a);
-      }
-      // West lane west boundary beyond the hall: panel segments north and
-      // south of it. East lane east boundary: panel segments between the
-      // house (NE) and the annex (SE).
-      api.addPanelWall(-27, -21, 1, 6, 6, 0x8a929a);
-      api.addPanelWall(-27, 18, 1, 12, 6, 0x8a929a);
+      // ---- Narrow house corridors (2026-11-16): every lane wall is a
+      // house facade (plaster, warm glass windows, openable doors) — the
+      // reference house corridor, not industrial panels. 5m clear lanes:
+      // mid x -2.5..2.5 (facades at ±2.7), west x -25..-20 (hall face at
+      // -25, facade at -19.8), east x 20..25 (facades at 19.8 / 25.2).
+      // Cross lanes z -17..-12 and 12..17; facade segments leave those
+      // gaps open. Features are offsets from each segment centre.
+      const midWin = [{ at: -9, kind: 'window' }, { at: 0, kind: 'window' }, { at: 9, kind: 'window' }];
+      const midDoor = [{ at: -4.5, kind: 'door' }, { at: 4.5, kind: 'door' }];
+      const midMid = [...midWin, ...midDoor];
+      const midEnd = [{ at: 0, kind: 'window' }];
+      // Mid lane: west facade keeps the C letter at z=0, so its middle
+      // segment has windows at ±9 only (no window under the letter).
+      api.addHouseWall(-2.7, -20.5, 7, 'z', { features: midEnd });
+      api.addHouseWall(-2.7, 0, 24, 'z', { features: [{ at: -9, kind: 'window' }, { at: 9, kind: 'window' }, ...midDoor] });
+      api.addHouseWall(-2.7, 20.5, 7, 'z', { features: midEnd });
+      api.addHouseWall(2.7, -20.5, 7, 'z', { features: midEnd });
+      api.addHouseWall(2.7, 0, 24, 'z', { features: midMid });
+      api.addHouseWall(2.7, 20.5, 7, 'z', { features: midEnd });
+      // West lane east wall + east lane walls (same pattern).
+      api.addHouseWall(-19.8, -20.5, 7, 'z', { features: midEnd });
+      api.addHouseWall(-19.8, 0, 24, 'z', { features: midMid });
+      api.addHouseWall(-19.8, 20.5, 7, 'z', { features: midEnd });
+      api.addHouseWall(19.8, -20.5, 7, 'z', { features: midEnd });
+      api.addHouseWall(19.8, 0, 24, 'z', { features: midMid });
+      api.addHouseWall(19.8, 20.5, 7, 'z', { features: midEnd });
+      api.addHouseWall(25.2, -20.5, 7, 'z', { features: midEnd });
+      api.addHouseWall(25.2, 0, 24, 'z', { features: midMid });
+      api.addHouseWall(25.2, 20.5, 7, 'z', { features: midEnd });
+      // West lane west boundary beyond the hall: facades flush on the hall
+      // face (x -24.8), north of it (z -24..-18) and south (z 12..24).
+      api.addHouseWall(-24.8, -21, 6, 'z', { features: midEnd });
+      api.addHouseWall(-24.8, 18, 12, 'z', { features: [{ at: -3, kind: 'window' }, { at: 0, kind: 'door' }, { at: 3, kind: 'window' }] });
+      // East lane east boundary behind the facades: tall industrial panels
+      // stay (the plant behind the houses), between the house (NE) and
+      // the annex (SE).
       api.addPanelWall(30, -12, 1, 6, 6, 0x8a929a);
       api.addPanelWall(30, -6, 1, 6, 6, 0x8a929a);
       api.addPanelWall(30, 6, 1, 12, 6, 0x8a929a);
       api.addPanelWall(30, 13.5, 1, 3, 6, 0x8a929a);
       // North end walls: each lane ends at a wall with a giant site
       // letter on its south face (reference: SITE A / B on the end wall).
-      api.addPanelWall(-24, -24, 8, 1, 6, 0x8a929a);
-      api.addWallLetter(-24, -23.4, 0, 'A', 'BOILER HOUSE', '#f0a830', 5);
-      api.addPanelWall(24, -24, 8, 1, 6, 0x8a929a);
-      api.addWallLetter(24, -23.4, 0, 'B', 'CRANE DOCK', '#37c8d8', 5);
-      api.addPanelWall(0, -24, 10, 1, 6, 0x8a929a);
-      api.addGlowWindow(2, -23.4, 0, 3.5);
-      // Site C letter on the mid lane's west wall, facing the lane.
-      api.addWallLetter(-8.4, 0, Math.PI / 2, 'C', 'FROST GATE', '#7ddc7d', 5);
-      // Crane at Site B (north end of the east lane): legs wide across
-      // the lane mouth, beam along x, hook over the site.
-      api.addBox(19, -20, 0.8, 8, 0.8, 0xf0a830);
-      api.addBox(29, -20, 0.8, 8, 0.8, 0xf0a830);
-      api.addBox(24, -20, 10, 0.8, 0.8, 0xf0a830, { y: 8, solid: false });
-      api.addBox(24, -20, 1, 1.4, 1, 0x2e3236, { y: 6.5, solid: false });
+      api.addPanelWall(-22.5, -24, 5, 1, 6, 0x8a929a);
+      api.addWallLetter(-22.5, -23.4, 0, 'A', 'BOILER HOUSE', '#f0a830', 5);
+      api.addPanelWall(22.5, -24, 5, 1, 6, 0x8a929a);
+      api.addWallLetter(22.5, -23.4, 0, 'B', 'CRANE DOCK', '#37c8d8', 5);
+      api.addPanelWall(0, -24, 5, 1, 6, 0x8a929a);
+      api.addGlowWindow(0, -23.4, 0, 3.5);
+      // Site C letter on the mid lane's west facade, facing the lane.
+      // Size 3 so it fits under the 3.5m facade top (y 0.5..3.5).
+      api.addWallLetter(-2.4, 0, Math.PI / 2, 'C', 'FROST GATE', '#7ddc7d', 3);
+      // Crane at Site B (north end of the east lane): legs outside the
+      // narrow lane mouth, beam along x, hook over the site.
+      api.addBox(18, -20, 0.8, 8, 0.8, 0xf0a830);
+      api.addBox(26, -20, 0.8, 8, 0.8, 0xf0a830);
+      api.addBox(22, -20, 8, 0.8, 0.8, 0xf0a830, { y: 8, solid: false });
+      api.addBox(22, -20, 1, 1.4, 1, 0x2e3236, { y: 6.5, solid: false });
       // Overhead pipes down the mid lane (the reference corridor) and
-      // the east lane: twin runs, visual only.
-      api.addPipe(-2, 0, 44, Math.PI / 2, 5.2);
-      api.addPipe(2, 0, 44, Math.PI / 2, 4.6);
-      api.addPipe(22, 0, 40, Math.PI / 2, 5);
+      // the east lane: twin runs, visual only, low (y 3.1) under the
+      // 3.5m facade tops — pipes along the corridor ceiling.
+      api.addPipe(-1.2, 0, 44, Math.PI / 2, 3.1);
+      api.addPipe(1.2, 0, 44, Math.PI / 2, 3.1);
+      api.addPipe(23.7, 0, 40, Math.PI / 2, 3.1);
       // Two enterable crew houses (doors + stairs + interiors, like Ember).
       api.addHouse({ x: 32, z: -16, rot: 270, floors: 2, color: 0x7a8a9a, roof: 0x2e3a44 });
       api.addHouse({ x: -32, z: 20, rot: 0, floors: 2, color: 0x7a8a9a, roof: 0x2e3a44 });
-      // Grate floors down the lanes (reference walkway): mid lane full
-      // length in 8m tiles, west/east lanes two tiles each.
-      for (const gz of [-18, -6, 6, 18]) api.addGrate(0, gz, 10, 8);
-      api.addGrate(-22, -12, 8, 8); api.addGrate(-22, 12, 8, 8);
-      api.addGrate(22, -12, 8, 8); api.addGrate(22, 12, 8, 8);
+      // Wood plank floors down the lanes (reference house corridor):
+      // warm boards along each lane + both cross lanes. One steel grate
+      // patch stays in the south yard as an industrial accent (§53).
+      api.addWoodFloor(0, 0, 5, 48);
+      api.addWoodFloor(-22.5, 0, 5, 48);
+      api.addWoodFloor(22.5, 0, 5, 48);
+      api.addWoodFloor(0, -14.5, 50, 5);
+      api.addWoodFloor(0, 14.5, 50, 5);
+      api.addGrate(12, 21, 4, 4);
       // Steam vents in the lanes (white steam, see props.js).
       api.addSteamVent(0, -10, 0.4);
       api.addSteamVent(0, 4, 0.4);
       api.addSteamVent(0, 14, 0.4);
-      api.addSteamVent(-22, -2, 0.4);
-      api.addSteamVent(22, 10, 0.4);
+      api.addSteamVent(-22.5, -2, 0.4);
+      api.addSteamVent(22.5, 10, 0.4);
       // Hazard barriers flanking the mid lane's south entrance.
       api.addHazardBarrier(-7, 20, 0);
       api.addHazardBarrier(7, 20, 0);
@@ -145,18 +179,19 @@ export const MAP_DEFS = {
       api.addContainer(-8, -24, 6, 2.5, 0x5a7a3a);
       for (const [x, z, w, d, top] of [[-11.5, -6, 2.5, 6, 2.73], [-11.5, 6, 2.5, 6, 2.73], [11.5, -6, 2.5, 6, 2.73], [11.5, 6, 2.5, 6, 2.73], [34, 8, 2.5, 6, 2.73], [14, 20, 6, 2.5, 5.23], [36, -8, 2.5, 6, 2.73], [-8, -24, 6, 2.5, 2.73]])
         api.addBox(x, z, w - 0.2, 0.08, d - 0.2, 0xeef2f6, { y: top, solid: false });
-      // Crates as low cover inside the lanes, offset from the lane
-      // centreline so the waypoint line stays clear. FW-7 stacks at the
-      // two north sites.
-      scatterCrates(api, [[2.5, 6], [-2.5, -6], [2.5, 18], [-19.5, -6], [-24.5, 8], [19.5, -6], [24.5, 8], [-2.5, -20], [2.5, -20]]);
+      // Crates as low cover inside the lanes, 1.6m crates offset 1.6m
+      // from the lane centreline so the waypoint line stays clear (crate
+      // edge 0.8m off centre, bot radius 0.4). FW-7 stacks at the two
+      // north sites.
+      scatterCrates(api, [[1.6, 6], [-1.6, -6], [1.6, 18], [-24.1, -6], [-20.9, 8], [20.9, -6], [24.1, 8], [-1.6, -20], [1.6, -20]]);
       api.addCrate(-34, -22, 1.6, 'FW-7');
       api.addCrate(-34, -22, 1.6, 'FW-7', 1.16);
-      api.addCrate(25, -22, 1.6, 'FW-7');
-      api.addCrate(25, -22, 1.6, 'FW-7', 1.16);
+      api.addCrate(28, -22, 1.6, 'FW-7');
+      api.addCrate(28, -22, 1.6, 'FW-7', 1.16);
       scatterBarrels(api, [[-8, 20], [-7, 19], [8, -18], [26, -14], [-26, -14], [10, 20], [-10, 20], [30, 0]]);
-      api.addSandbag(-24, -14); api.addSandbag(-20, -14);
-      api.addSandbag(20, -14); api.addSandbag(24, -14);
-      api.addSandbag(-2, 4); api.addSandbag(2, 4);
+      api.addSandbag(-24, -14); api.addSandbag(-16, -11.5);
+      api.addSandbag(16, -11.5); api.addSandbag(24, -14);
+      api.addSandbag(-1.5, 4); api.addSandbag(1.5, 4);
       api.addTree(-36, 14); api.addTree(36, 14);
       api.addCar(-20, 24, 0, 0x5a6a7a); api.addCar(20, 24, 0, 0x7a2a2a);
       // Frostworks details: TV, flag, statue, billboard, bushes, planters.
