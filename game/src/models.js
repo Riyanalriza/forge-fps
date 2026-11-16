@@ -271,19 +271,21 @@ function findMeshByMaterial(parent, matName) {
   });
   return best;
 }
-// Bot team gear (frost pass): procedural helmet + backpack + chest
-// pouches + shoulder pads clipped onto the soldier GLB — the .glb file
-// itself is never modified. Enemy team = orange, revived allies = teal
-// (recoloured by the soldier model's setAlly). Positions come from the
-// bind-pose bounding boxes of the head/body meshes, in wrap space (the
-// clone sits at the wrap origin, front = +Z there, back = -Z).
+// Bot hi-vis worker gear (visual pass, 2026-11-16): procedural hard hat
+// + hi-vis vest with reflective stripes + tool belt clipped onto the
+// soldier GLB — the .glb file itself is never modified, and the rig +
+// animations are untouched (only the LOOK changes: no more soldier kit).
+// Enemy team = orange, revived allies = teal (recoloured by the soldier
+// model's setAlly). Positions come from the bind-pose bounding boxes of
+// the head/body meshes, in wrap space (the clone sits at the wrap origin,
+// front = +Z there, back = -Z).
 const TEAM_ORANGE = 0xff7a1a, TEAM_TEAL = 0x2fd8c8;
 function buildSoldierGear(wrap, headMesh, bodyMesh) {
   const gear = new THREE.Group();
   const teamMat = new THREE.MeshStandardMaterial({ color: TEAM_ORANGE, roughness: 0.6, metalness: 0.2 });
-  const packMat = new THREE.MeshStandardMaterial({ color: 0x5a5a3a, roughness: 0.9 });
   const darkMat = new THREE.MeshStandardMaterial({ color: 0x2a2a22, roughness: 0.9 });
-  const box = (w, h, d, m, x, y, z) => { const q = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); q.position.set(x, y, z); q.castShadow = true; gear.add(q); return q; };
+  const stripeMat = new THREE.MeshStandardMaterial({ color: 0xd8dce0, roughness: 0.35, metalness: 0.4, emissive: 0x555a60, emissiveIntensity: 0.5 });
+  const box = (w, h, d, m, x, y, z, part) => { const q = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); q.position.set(x, y, z); q.castShadow = true; if (part) q.userData.part = part; gear.add(q); return q; };
   let headX = 0, headY = 1.62, headZ = 0, chestY = 1.15, shoulderY = 1.48;
   if (headMesh && headMesh.geometry) {
     headMesh.geometry.computeBoundingBox();
@@ -295,24 +297,20 @@ function buildSoldierGear(wrap, headMesh, bodyMesh) {
     const b = bodyMesh.geometry.boundingBox;
     chestY = (b.max.y + b.min.y) / 2; shoulderY = b.max.y;
   }
-  // Helmet: dome + brim, team colour.
-  const helm = new THREE.Mesh(new THREE.SphereGeometry(0.17, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2), teamMat);
-  helm.position.set(headX, headY + 0.02, headZ); helm.scale.y = 0.8; helm.castShadow = true; gear.add(helm);
-  const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.025, 14), teamMat);
-  brim.position.set(headX, headY + 0.01, headZ); brim.castShadow = true; gear.add(brim);
-  // Backpack: khaki pack + team-colour top roll, on the back (-Z).
-  box(0.42, 0.52, 0.2, packMat, 0, chestY, -0.27);
-  const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.44, 10), teamMat);
-  roll.rotation.z = Math.PI / 2; roll.position.set(0, chestY + 0.29, -0.27); roll.castShadow = true; gear.add(roll);
-  // Shoulder pads, team colour.
-  box(0.17, 0.07, 0.22, teamMat, -0.25, shoulderY, 0);
-  box(0.17, 0.07, 0.22, teamMat, 0.25, shoulderY, 0);
-  // Chest pouches (front, +Z) with team-colour flaps + one belt pouch.
-  box(0.13, 0.17, 0.09, darkMat, -0.12, chestY, 0.2);
-  box(0.13, 0.17, 0.09, darkMat, 0.12, chestY, 0.2);
-  box(0.13, 0.05, 0.095, teamMat, -0.12, chestY + 0.1, 0.2);
-  box(0.13, 0.05, 0.095, teamMat, 0.12, chestY + 0.1, 0.2);
-  box(0.15, 0.12, 0.1, darkMat, 0.18, chestY - 0.2, 0.19);
+  // Hard hat: dome + wide brim + centre ridge, team colour.
+  const helm = new THREE.Mesh(new THREE.SphereGeometry(0.19, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2), teamMat);
+  helm.position.set(headX, headY + 0.03, headZ); helm.scale.y = 0.75; helm.castShadow = true; helm.userData.part = 'hat'; gear.add(helm);
+  const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.025, 14), teamMat);
+  brim.position.set(headX, headY + 0.01, headZ); brim.castShadow = true; brim.userData.part = 'hat'; gear.add(brim);
+  box(0.06, 0.05, 0.36, teamMat, headX, headY + 0.17, headZ, 'hat');
+  // Hi-vis vest: orange torso shell + 2 silver reflective stripes.
+  box(0.5, 0.6, 0.34, teamMat, 0, chestY, 0, 'vest');
+  box(0.52, 0.06, 0.36, stripeMat, 0, chestY + 0.15, 0, 'stripe');
+  box(0.52, 0.06, 0.36, stripeMat, 0, chestY - 0.15, 0, 'stripe');
+  // Tool belt at the waist + a pouch on each hip.
+  box(0.46, 0.1, 0.3, darkMat, 0, chestY - 0.38, 0, 'belt');
+  box(0.12, 0.16, 0.12, darkMat, -0.2, chestY - 0.38, 0.14, 'pouch');
+  box(0.12, 0.16, 0.12, darkMat, 0.2, chestY - 0.38, 0.14, 'pouch');
   noCamoDeep(gear);
   wrap.add(gear);
   return {

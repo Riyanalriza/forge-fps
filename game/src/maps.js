@@ -57,20 +57,29 @@ export const MAP_DEFS = {
       // hall; frost has no building in the middle at all.
       // West plant hall: long vertical hall, snow roof, furnace glow on
       // its east face, two chimneys on the roof at its north end.
-      api.addBox(-30, -3, 10, 7, 30, 0x4a5258);
+      // Corrugated steel panel walls (reference look) + wall pipes +
+      // lit windows along the east face.
+      api.addPanelWall(-30, -3, 10, 30, 7, 0x4a5258, { cap: false });
       api.addBox(-30, -3, 11, 0.6, 31, 0xe8eef2, { y: 7.2 });
       api.addBox(-24.9, -2, 0.1, 2.2, 4, 0xff7a1a, { y: 0.3, solid: false, extra: { emissive: 0xff7a1a, emissiveIntensity: 1 } });
       api.addCylinder(-32, -13, 0.9, 9, 0x2e3236, { y: 4.5 });
       api.addCylinder(-27, -15, 0.9, 11, 0x2e3236, { y: 4.5 });
+      api.addPipe(-24.75, -3, 26, Math.PI / 2, 3.4);
+      api.addPipe(-24.7, -3, 20, Math.PI / 2, 2.8);
+      api.addGlowWindow(-24.9, -8, Math.PI / 2, 4.8);
+      api.addGlowWindow(-24.9, 4, Math.PI / 2, 4.8);
       // Freestanding stack at the SW corner + overhead pipes: a north run
       // across the yard and a vertical run down the hall's east face.
       api.addCylinder(-36, 24, 1.1, 12, 0x2e3236);
       for (let i = 0; i < 3; i++) api.addBox(-23.5, -2, 0.44, 0.44, 26, 0x6a7a8a, { y: 1 + i * 1.1, solid: false });
       api.addBox(0, -20, 30, 0.44, 0.44, 0x6a7a8a, { y: 5, solid: false });
       // East boiler annex (SE building) with furnace glow on its west face.
-      api.addBox(26, 12, 10, 5, 9, 0x5a4a3a);
+      // Panel walls + a lit window + a high wall pipe on the west face.
+      api.addPanelWall(26, 12, 10, 9, 5, 0x5a4a3a, { cap: false });
       api.addBox(26, 12, 11, 0.5, 10, 0xe8eef2, { y: 5 });
       api.addBox(20.9, 12, 0.1, 1.8, 3, 0xff7a1a, { y: 0.3, solid: false, extra: { emissive: 0xff7a1a, emissiveIntensity: 1 } });
+      api.addGlowWindow(20.9, 10, -Math.PI / 2, 3);
+      api.addPipe(20.8, 12, 7, Math.PI / 2, 4.4);
       // Crane at Site B, turned 90 deg vs foundry: legs north-south, beam
       // along z, hook over the site.
       api.addBox(26, -6, 0.8, 8, 0.8, 0xf0a830);
@@ -93,12 +102,22 @@ export const MAP_DEFS = {
       api.addContainer(34, 8, 2.5, 6, 0x8a2a2a);
       api.addContainer(14, 20, 6, 2.5, 0x2a5a8a, { stack: true, stackColor: 0x5a7a3a });
       api.addContainer(34, -10, 2.5, 6, 0x2a5a8a);
-      // Brick gate walls flanking the diagonal lane, giant painted site
-      // letters on their south faces, hazard barriers framing the gate.
-      api.addBrickWall(-12, 2, 7, 1, 3.5);
-      api.addWallLetter(-12, 2.56, 0, 'A', 'BOILER HOUSE', '#f0a830');
-      api.addBrickWall(8, -4, 7, 1, 3.5);
-      api.addWallLetter(8, -3.44, 0, 'B', 'CRANE DOCK', '#37c8d8');
+      // Snow piled on the diagonal spine containers (and the stacked one).
+      for (const [x, z, w, d, top] of [[-16, 10, 6, 2.5, 2.73], [-10, 5, 2.5, 6, 2.73], [-4, 0, 6, 2.5, 2.73], [2, -5, 2.5, 6, 2.73], [8, -10, 6, 2.5, 2.73], [17, -14, 2.5, 6, 2.73], [14, 20, 6, 2.5, 5.23]])
+        api.addBox(x, z, w - 0.2, 0.08, d - 0.2, 0xeef2f6, { y: top, solid: false });
+      // Steel gate walls flanking the diagonal lane (panel, not brick),
+      // taller now so the giant painted site letters fit on them.
+      api.addPanelWall(-12, 2, 7, 1, 4.5, 0x8a929a);
+      api.addWallLetter(-12, 2.56, 0, 'A', 'BOILER HOUSE', '#f0a830', 3.8);
+      api.addPanelWall(8, -4, 7, 1, 4.5, 0x8a929a);
+      api.addWallLetter(8, -3.44, 0, 'B', 'CRANE DOCK', '#37c8d8', 3.8);
+      // Dark steel grate walkways on the snow (reference floor) + steam.
+      api.addGrate(0, 16, 8, 6);
+      api.addGrate(2, 0, 10, 8);
+      api.addSteamVent(-22, -8, 0.4);
+      api.addSteamVent(22, 10, 0.4);
+      api.addSteamVent(14, 10, 0.4);
+      api.addSteamVent(-14, -14, 0.4);
       api.addHazardBarrier(-8.5, 2, Math.PI / 2);
       api.addHazardBarrier(4.5, -4, Math.PI / 2);
       // Crates, grid-aligned (no overlaps): pairs 1.8m apart, plus a

@@ -982,7 +982,7 @@ export function runSelfTest(ctx) {
     // Bot team gear on the soldier GLB (procedural, never touches the GLB).
     const g0 = S.bots[0].mesh.model;
     check('§50 bot 0 is the soldier model', !!g0._isSoldier);
-    check('§50 soldier carries team gear (helmet/backpack/pouches)',
+    check('§50 soldier carries hi-vis gear (hard hat / vest / belt)',
       !!g0._gear && !!g0._gear.group && g0._gear.group.children.length >= 8);
     check('§50 enemy gear is orange', !!g0._gear && g0._gear.teamHex === 0xff7a1a);
     if (g0.setAlly && g0._gear) {
@@ -1135,6 +1135,36 @@ export function runSelfTest(ctx) {
     game.startRound();
     world.buildMap('foundry');
     game.startRound();
+    // ---- §53: visual pass — reference-style industrial frost (2026-11-16) ----
+    // Corrugated panel walls, grate floors, steam vents, wall pipes, lit
+    // windows, dusk snow light, hi-vis worker bots.
+    world.buildMap('frost'); vehicles.place('frost'); game.startRound();
+    S.player.hp = 9999; S.spawnProtT = 0; S.hideT = 0;
+    const tex53 = world.textureReport();
+    check('§53 frost gate walls are corrugated panel (not flat brick)', !!tex53['panel-wall']);
+    check('§53 frost has a steel grate floor', !!tex53['grate']);
+    const dc53 = world.decorCounts();
+    check('§53 frost has 4 steam vents', dc53.steams >= 4);
+    check('§53 frost has wall pipes', dc53.pipes >= 3);
+    check('§53 frost has lit windows', dc53.glowWindows >= 3);
+    check('§53 gate walls still solid at (-12,2) and (8,-4)',
+      world.isColliding(-12, 2, 0.35, 0) && world.isColliding(8, -4, 0.35, 0));
+    check('§53 steam vents and grates do not block the ground',
+      !world.isColliding(14, 10, 0.35, 0) && !world.isColliding(0, 16, 0.35, 0));
+    // Dusk snow light: warm low sun + warm horizon in the snow def, and
+    // the frost full set applies it.
+    check('§53 snow weather horizon is warm dusk', WEATHER_DEFS.snow.sky.horizon === '#ff9a50');
+    weather.applyWeather('snow', MAP_WEATHER_FULL.frost);
+    check('§53 frost dusk sun is warm (0xffc080)', world.sun.color.getHex() === 0xffc080);
+    // Hi-vis worker bots: vest + hard hat present, no backpack anywhere.
+    const g53 = S.bots[0].mesh.model;
+    const parts53 = [];
+    if (g53._gear && g53._gear.group) g53._gear.group.traverse((o) => { if (o.userData.part) parts53.push(o.userData.part); });
+    check('§53 bot wears a hi-vis vest', parts53.includes('vest'));
+    check('§53 bot wears a hard hat', parts53.includes('hat'));
+    check('§53 bot has reflective stripes', parts53.includes('stripe'));
+    check('§53 bot has a tool belt, no backpack', parts53.includes('belt') && !parts53.includes('backpack'));
+    check('§53 bot vest is team orange', !!g53._gear && g53._gear.teamHex === 0xff7a1a);
   } catch (e) {
     checks.push({ name: 'exception: ' + (e && e.message) + ' @ ' + (e && e.stack ? String(e.stack).split('\n').slice(0, 4).join(' | ') : '?'), ok: false });
   }

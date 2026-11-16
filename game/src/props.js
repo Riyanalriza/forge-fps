@@ -66,6 +66,13 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
   // v27.0 ambient life: animals wander + NPCs stand at their stalls.
   const decorAnimals = []; // {kind, group, x, z, phase, head, tail, wanderT, tx, tz}
   const glbPlacements = []; // {url, x, z} — GLB props requested for this map (async)
+  // Visual pass (2026-11-16, reference-style industrial): steam vents,
+  // wall pipes, glowing windows and grate floors — all animated from
+  // animateDecor, no intervals, no colliders.
+  const decorSteams = []; // {sprites: [{sprite, phase}], x, z, baseY}
+  const decorPipes = []; // {mesh} — horizontal wall pipes (visual only)
+  const decorGlowWindows = []; // {mesh} — lit windows (visual only)
+  const decorGrates = []; // {mesh} — dark steel grate floor patches
   // v24.1 color system: materials tagged by kind so the whole map can be
   // recolored live (building/roof/door/window/container/fence/tent/statue/
   // rock/road/leaves/flowers/water/grass/billboard). Each box()/mat() call
@@ -158,6 +165,16 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
       const k = ((time * 0.25 + b.phase) % 1);
       b.mesh.position.y = b.baseY + k * 0.25;
       b.mesh.scale.setScalar(0.5 + k * 0.7);
+    }
+    // Steam vents: puffs rise ~2.2m, swell and fade, staggered by phase.
+    for (const v of decorSteams) {
+      for (const p of v.sprites) {
+        const k = ((time * 0.32 + p.phase) % 1);
+        p.sprite.position.y = v.baseY + k * 2.2;
+        p.sprite.position.x = v.x + Math.sin(time * 0.8 + p.phase * 6.3) * 0.35 * k;
+        p.sprite.scale.setScalar(0.7 + k * 2.0);
+        p.sprite.material.opacity = 0.65 * (1 - k) * (0.4 + 0.6 * Math.min(1, k * 4));
+      }
     }
     for (const b of decorButterflies) {
       b.angle += dt * 0.35;
@@ -262,7 +279,9 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
       fountains: decorFountains.length, bubbles: decorBubbles.length,
       butterflies: decorButterflies.length, leaves: decorLeaves.length,
       papers: decorPapers.length, clocks: decorClocks.length,
-      total: decorFlags.length + decorTvs.length + decorFires.length + decorLights.length + decorSwings.length + decorBirds.length + decorBrokenLights.length + decorHouseLights.length + decorSparks.length + decorNeon.length + decorFountains.length + decorBubbles.length + decorButterflies.length + decorLeaves.length + decorPapers.length + decorClocks.length,
+      steams: decorSteams.length, pipes: decorPipes.length,
+      glowWindows: decorGlowWindows.length, grates: decorGrates.length,
+      total: decorFlags.length + decorTvs.length + decorFires.length + decorLights.length + decorSwings.length + decorBirds.length + decorBrokenLights.length + decorHouseLights.length + decorSparks.length + decorNeon.length + decorFountains.length + decorBubbles.length + decorButterflies.length + decorLeaves.length + decorPapers.length + decorClocks.length + decorSteams.length + decorPipes.length + decorGlowWindows.length + decorGrates.length,
     };
   }
 
@@ -407,6 +426,39 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
       }
     }, 2, 1);
     return _corrTintTex;
+  }
+  let _grateTex = null;
+  function grateTexture() { // dark steel grate floor: grid bars + holes
+    if (_grateTex) return _grateTex;
+    _grateTex = ptex(256, (g, s) => {
+      g.fillStyle = '#14171a'; g.fillRect(0, 0, s, s);
+      for (let x = 0; x < s; x += 32) {
+        g.fillStyle = '#3a4046'; g.fillRect(x, 0, 7, s);
+        g.fillStyle = '#23282c'; g.fillRect(x + 7, 0, 3, s);
+      }
+      for (let y = 0; y < s; y += 32) {
+        g.fillStyle = '#2e3438'; g.fillRect(0, y, s, 6);
+        g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(0, y + 6, s, 2);
+      }
+      for (let i = 0; i < 24; i++) { // worn bright spots on the bars
+        const h = _hash(i * 13 + 2);
+        g.fillStyle = h < 0.5 ? 'rgba(200,210,220,0.12)' : 'rgba(0,0,0,0.25)';
+        g.fillRect((i * 47) % s, (i * 89) % s, 10, 4);
+      }
+    }, 4, 4);
+    return _grateTex;
+  }
+  let _steamTex = null;
+  function steamTexture() { // soft white radial puff for steam vents
+    if (_steamTex) return _steamTex;
+    _steamTex = ptex(128, (g, s) => {
+      const gr = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+      gr.addColorStop(0, 'rgba(255,255,255,0.9)');
+      gr.addColorStop(0.5, 'rgba(255,255,255,0.4)');
+      gr.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, s, s);
+    }, 1, 1);
+    return _steamTex;
   }
   let _plasterTex = null;
   function plasterTexture() { // house walls: stucco noise + faint courses
@@ -558,6 +610,7 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
     colorMats.length = 0; bushes.length = 0; containers.length = 0;
     decorTraffic.length = 0; decorDummies.length = 0; interactables.length = 0;
     decorAnimals.length = 0;
+    decorSteams.length = 0; decorPipes.length = 0; decorGlowWindows.length = 0; decorGrates.length = 0;
   }
 
   // ---- Simple props ----
@@ -638,7 +691,8 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
   // Giant painted site letter on a wall face (like the reference's big "B"):
   // transparent canvas, bold letter + site name under it, no collider.
   // rot 0 faces +z (south, toward the player spawn); rot Math.PI faces -z.
-  function addWallLetter(x, z, rot = 0, letter = 'A', sub = 'FURNACE', color = '#f0a830') {
+  // size: plane edge in metres (3.2 default; frost gate walls use 4.5).
+  function addWallLetter(x, z, rot = 0, letter = 'A', sub = 'FURNACE', color = '#f0a830', size = 3.2) {
     const cv = document.createElement('canvas'); cv.width = 256; cv.height = 256;
     const g = cv.getContext('2d');
     g.clearRect(0, 0, 256, 256);
@@ -652,11 +706,103 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
     g.fillStyle = '#ffffff'; g.fillText(sub, 128, 222);
     const tex = new THREE.CanvasTexture(cv);
     tex.colorSpace = THREE.SRGBColorSpace;
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 3.2),
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(size, size),
       new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
-    mesh.position.set(x, 2.1, z); mesh.rotation.y = rot; group.add(mesh);
+    mesh.position.set(x, size * 0.66, z); mesh.rotation.y = rot; group.add(mesh);
     mesh.userData.propType = 'wall-letter';
     return mesh;
+  }
+  // Corrugated steel panel wall (reference industrial walls): cold-tinted
+  // ridges + a snow cap on top. Same footprint/collider as addBrickWall.
+  // o.cap false skips the cap (the hall already has a snow roof slab).
+  function addPanelWall(x, z, w, d, h = 3.5, color = 0x8a929a, o = {}) {
+    const rot = o.rot || 0;
+    const tex = corrugatedTintTexture().clone();
+    tex.repeat.set(Math.max(w, d) / 2.2, h / 2.2);
+    tex.needsUpdate = true;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d),
+      new THREE.MeshStandardMaterial({ color, roughness: 0.7, metalness: 0.35, map: tex }));
+    m.castShadow = true; m.receiveShadow = true;
+    m.position.set(x, h / 2, z); m.rotation.y = rot;
+    m.userData.propType = 'panel-wall';
+    group.add(m); shootable(m, 'metal');
+    const hw = rot ? d / 2 : w / 2, hd = rot ? w / 2 : d / 2;
+    solid(x - hw, z - hd, x + hw, z + hd, 0, h);
+    if (o.cap !== false) {
+      const cap = box(w + 0.15, 0.12, d + 0.15, 0xeef2f6);
+      cap.position.set(x, h + 0.06, z); cap.rotation.y = rot; group.add(cap);
+    }
+    return m;
+  }
+  // Horizontal wall pipe (reference: big black/red pipes along the walls):
+  // dark steel run + 2 red coupling rings. Visual only, never solid.
+  // rot 0 runs along x, Math.PI/2 runs along z. y is the pipe centre.
+  function addPipe(x, z, len, rot = 0, y = 3, r = 0.18, color = 0x2e3236) {
+    const g = new THREE.Group();
+    const pipe = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 10),
+      mat(color, 0.5, null));
+    pipe.material.metalness = 0.6;
+    if (rot) pipe.rotation.x = Math.PI / 2; else pipe.rotation.z = Math.PI / 2;
+    pipe.castShadow = true; g.add(pipe);
+    for (const k of [-len / 3, len / 3]) {
+      const ring = new THREE.Mesh(new THREE.CylinderGeometry(r + 0.03, r + 0.03, 0.18, 10),
+        mat(0x8a2a2a, 0.6, null));
+      if (rot) { ring.rotation.x = Math.PI / 2; ring.position.z = k; }
+      else { ring.rotation.z = Math.PI / 2; ring.position.x = k; }
+      ring.castShadow = true; g.add(ring);
+    }
+    g.position.set(x, y, z);
+    g.traverse((o) => { if (o.isMesh) o.userData.propType = 'pipe'; });
+    group.add(g);
+    decorPipes.push({ mesh: g });
+    return g;
+  }
+  // Lit window (reference: warm yellow panes on the grey wall): dark frame
+  // + emissive amber pane. Visual only, never solid. rot faces the pane.
+  function addGlowWindow(x, z, rot = 0, y = 3.5, w = 1.4, h = 1.8) {
+    const g = new THREE.Group();
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(w + 0.2, h + 0.2, 0.1),
+      mat(0x1a1c1e, 0.8, null));
+    frame.castShadow = true; g.add(frame);
+    const pane = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.06),
+      new THREE.MeshStandardMaterial({ color: 0xffc860, roughness: 0.4, emissive: 0xffb040, emissiveIntensity: 1.6 }));
+    pane.position.z = 0.04; g.add(pane);
+    // 2x2 mullion cross, dark, proud of the pane.
+    const barV = new THREE.Mesh(new THREE.BoxGeometry(0.08, h, 0.04), mat(0x1a1c1e, 0.8, null));
+    barV.position.z = 0.08; g.add(barV);
+    const barH = new THREE.Mesh(new THREE.BoxGeometry(w, 0.08, 0.04), mat(0x1a1c1e, 0.8, null));
+    barH.position.z = 0.08; g.add(barH);
+    g.position.set(x, y, z); g.rotation.y = rot;
+    g.traverse((o) => { if (o.isMesh) o.userData.propType = 'glow-window'; });
+    group.add(g);
+    decorGlowWindows.push({ mesh: g });
+    return g;
+  }
+  // Dark steel grate floor (reference walkway): flat grid patch, no collider.
+  function addGrate(x, z, w, d, rot = 0) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, metalness: 0.5, map: grateTexture() }));
+    m.rotation.x = -Math.PI / 2; m.rotation.z = rot;
+    m.position.set(x, 0.02, z); m.receiveShadow = true;
+    m.userData.propType = 'grate';
+    group.add(m);
+    decorGrates.push({ mesh: m });
+    return m;
+  }
+  // Steam vent (reference: white steam billowing by the pipes): 5 sprites
+  // rising in a staggered loop, animated by animateDecor. Visual only.
+  function addSteamVent(x, z, y = 0.4, n = 5) {
+    const tex = steamTexture();
+    const sprites = [];
+    for (let i = 0; i < n; i++) {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: 0xf2f6fa, transparent: true, opacity: 0, depthWrite: false }));
+      sp.position.set(x, y, z);
+      sp.renderOrder = 4;
+      group.add(sp);
+      sprites.push({ sprite: sp, phase: i / n });
+    }
+    decorSteams.push({ sprites, x, z, baseY: y });
+    return sprites;
   }
   // Hazard-striped gate barrier: concrete block + yellow/black stripe band.
   // rot 0 = spans x; rot 90 = spans z.
@@ -2356,6 +2502,7 @@ export function createProps(scene, colliders, shootables, doors, levels, stairs)
     addAnimal, addNPC, addFridge, addStove, addSafe, addWardrobe,
     addCropPatch, addFruitTree,
     addBrickWall, addWallLetter, addHazardBarrier, brickTexture,
+    addPanelWall, addPipe, addGlowWindow, addGrate, addSteamVent,
     propFall, setLightsOut, dropLeaves, recolor, setSeason, setLightColor,
     animateDecor, decorCounts, destructibles, houseRects, pools,
     treeRecs, flowerSpots, ammoBoxes, lifts, mudRects, lootCrates,
