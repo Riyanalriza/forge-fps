@@ -27,8 +27,11 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
   ray.far = 120;
   // First-person hands + gun viewmodel attached to the camera.
   const hands = createFirstPersonHands(S);
-  hands.group.scale.setScalar(0.62);
-  hands.group.position.set(0.2, -0.16, -0.8);
+  // Shot-mode close-up (dossier play shot only): bigger viewmodel so the
+  // rounded hands read clearly. Gameplay always uses 0.62.
+  const shotPlay = new URLSearchParams(location.search).get('shot') === 'play';
+  hands.group.scale.setScalar(shotPlay ? 0.76 : 0.62);
+  hands.group.position.set(shotPlay ? 0.17 : 0.2, shotPlay ? -0.13 : -0.16, -0.8);
   camera.add(hands.group);
   const fillLight = new THREE.PointLight(0xdfe8ff, 1.0, 2, 2);
   fillLight.position.set(0.25, -0.05, -0.35);

@@ -734,7 +734,11 @@ export function createBotModel(weaponSkin, weaponId, name, charOpId = 'specter',
 export function createFirstPersonHands(S) {
   const group = new THREE.Group();
   const gloveM = new THREE.MeshStandardMaterial({ color: GLOVE_COLOR[S.charSkin] || 0x4a4a52, roughness: 0.9 });
-  const fingerM = new THREE.MeshStandardMaterial({ color: 0x5c5c66, roughness: 0.9 });
+  const fingerM = new THREE.MeshStandardMaterial({ color: 0x3f3f46, roughness: 1 });
+  // Palm/thumb material: glove colour darkened — the cool-white fill light
+  // sits ~30cm away and blasts a smooth sphere pale, so the base must be
+  // darker than the flat box it replaces.
+  const palmM = gloveM.clone(); palmM.color.multiplyScalar(0.62);
   const sleeveM = new THREE.MeshStandardMaterial({ color: 0x2e8b62, roughness: 0.85, emissive: 0x0a2e1c, emissiveIntensity: 0.25 });
   const gunM = new THREE.MeshStandardMaterial({ color: 0x2b2f33, roughness: 0.5, metalness: 0.5 });
   const barrelM = new THREE.MeshStandardMaterial({ color: 0x16181c, roughness: 0.35, metalness: 0.8 });
@@ -750,24 +754,40 @@ export function createFirstPersonHands(S) {
   // moves the hands together with the gun — the gun no longer slides out
   // of the grip when it kicks.
   const handsGroup = new THREE.Group(); group.add(handsGroup);
-  const handR = box(0.21, 0.16, 0.2, gloveM); handR.position.set(0.08, -0.2, -0.04); handsGroup.add(handR);
-  for (let i = 0; i < 4; i++) {
-    const f = box(0.038, 0.14, 0.05, fingerM);
-    f.position.set(0.015 + i * 0.052, -0.1, -0.03 - i * 0.004); f.rotation.x = 0.45 + i * 0.12; handsGroup.add(f);
-  }
-  const thumbR = box(0.04, 0.06, 0.12, gloveM); thumbR.position.set(0.16, -0.15, -0.03); thumbR.rotation.y = -0.6; handsGroup.add(thumbR);
-  const armR = box(0.095, 0.095, 0.24, sleeveM); armR.position.set(0.11, -0.38, 0.16); armR.rotation.x = 0.55; handsGroup.add(armR);
+  // ROUNDED HANDS (2026-11-16): no more boxes — palms are flattened
+  // spheres, fingers are 2 capsule segments + knuckle ball + tapered tip,
+  // thumbs are capsules, forearms are capsules. Same positions/curls as
+  // before, so grip + animation are unchanged.
+  const cap = (r, len, mat) => { const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 4, 10), mat); m.castShadow = true; return m; };
+  const ball = (r, mat) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 8), mat); m.castShadow = true; return m; };
+  const mkFinger = (parent, x, y, z, curl) => {
+    const fg = new THREE.Group();
+    fg.position.set(x, y, z); fg.rotation.x = curl;
+    const prox = cap(0.02, 0.05, fingerM); prox.position.y = -0.035; fg.add(prox);
+    const knuckle = ball(0.02, fingerM); knuckle.position.y = -0.068; fg.add(knuckle);
+    const dist = cap(0.017, 0.038, fingerM); dist.position.y = -0.096; dist.rotation.x = 0.55; fg.add(dist);
+    const tip = ball(0.015, fingerM); tip.position.set(0, -0.126, 0.02); fg.add(tip);
+    parent.add(fg);
+  };
+  const mkThumb = (parent, x, y, z, yaw) => {
+    const tg = new THREE.Group();
+    tg.position.set(x, y, z); tg.rotation.y = yaw;
+    const th = cap(0.022, 0.07, palmM); th.rotation.x = Math.PI / 2; tg.add(th);
+    const tip = ball(0.02, palmM); tip.position.set(0, 0, -0.055); tg.add(tip);
+    parent.add(tg);
+  };
+  const handR = ball(0.105, palmM); handR.scale.set(0.95, 0.62, 0.85); handR.position.set(0.08, -0.2, -0.04); handsGroup.add(handR);
+  for (let i = 0; i < 4; i++) mkFinger(handsGroup, 0.015 + i * 0.052, -0.1, -0.03 - i * 0.004, 0.45 + i * 0.12);
+  mkThumb(handsGroup, 0.16, -0.15, -0.03, -0.6);
+  const armR = cap(0.048, 0.15, sleeveM); armR.position.set(0.11, -0.38, 0.16); armR.rotation.x = Math.PI / 2 + 0.55; handsGroup.add(armR);
   // Left hand rides a subgroup so buildGun can slide it along the fore-end
   // per weapon class (pump on shotguns, handguard on rifles, grip on pistols).
   const gripL = new THREE.Group(); handsGroup.add(gripL);
-  const handL = box(0.21, 0.15, 0.2, gloveM); handL.position.set(-0.05, -0.21, 0); gripL.add(handL);
-  for (let i = 0; i < 4; i++) {
-    const f = box(0.038, 0.13, 0.05, fingerM);
-    f.position.set(-0.12 + i * 0.052, -0.11, 0.0 - i * 0.004); f.rotation.x = 0.45 + i * 0.12; gripL.add(f);
-  }
-  const thumbL = box(0.04, 0.06, 0.12, gloveM); thumbL.position.set(0.03, -0.16, 0); thumbL.rotation.y = 0.6; gripL.add(thumbL);
+  const handL = ball(0.105, palmM); handL.scale.set(0.95, 0.6, 0.85); handL.position.set(-0.05, -0.21, 0); gripL.add(handL);
+  for (let i = 0; i < 4; i++) mkFinger(gripL, -0.12 + i * 0.052, -0.11, 0.0 - i * 0.004, 0.45 + i * 0.12);
+  mkThumb(gripL, 0.03, -0.16, 0, 0.6);
   gripL.position.set(0, 0, -0.5);
-  const armL = box(0.095, 0.095, 0.24, sleeveM); armL.position.set(-0.08, -0.38, -0.3); armL.rotation.x = 0.6; handsGroup.add(armL);
+  const armL = cap(0.048, 0.15, sleeveM); armL.position.set(-0.08, -0.38, -0.3); armL.rotation.x = Math.PI / 2 + 0.6; handsGroup.add(armL);
   // Camo repaints the GUN only: hands + sleeves keep their colours.
   handsGroup.traverse(o => { if (o.isMesh) o.userData.noCamo = true; });
   // Gun (rebuilt per weapon below).
