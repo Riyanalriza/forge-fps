@@ -28,8 +28,11 @@ export function createWeapon(scene, camera, S, audio, effects, cbs = {}) {
   // First-person hands + gun viewmodel attached to the camera.
   const hands = createFirstPersonHands(S);
   hands.group.scale.setScalar(0.62);
-  hands.group.position.set(0.22, -0.2, -0.8);
+  hands.group.position.set(0.2, -0.16, -0.8);
   camera.add(hands.group);
+  const fillLight = new THREE.PointLight(0xdfe8ff, 1.0, 2, 2);
+  fillLight.position.set(0.25, -0.05, -0.35);
+  camera.add(fillLight);
   scene.add(camera);
   const gun = hands.group; // the whole viewmodel (hands + gun), for positioning
 

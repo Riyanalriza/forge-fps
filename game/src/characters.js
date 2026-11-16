@@ -254,6 +254,7 @@ export function createBotModel(weaponSkin, weaponId, name, charOpId = 'specter',
     const shoe = box(0.24, 0.12, 0.36, shoeM); shoe.position.set(0, -0.72, -0.05); pivot.add(shoe);
     const laces = box(0.14, 0.02, 0.2, new THREE.MeshStandardMaterial({ color: 0xe9e6df, roughness: 0.9 }));
     laces.position.set(0, -0.65, -0.08); pivot.add(laces);
+    const knee = box(0.16, 0.12, 0.06, darkM); knee.position.set(0, -0.4, -0.11); pivot.add(knee);
     group.add(pivot);
     return pivot;
   };
@@ -270,8 +271,19 @@ export function createBotModel(weaponSkin, weaponId, name, charOpId = 'specter',
   for (const px of [-0.13, 0.13]) {
     const pocket = box(0.16, 0.16, 0.04, trimM); pocket.position.set(px, 0.32, 0.25); torso.add(pocket);
   }
+  // Shoulder pads + belt + chest straps: the torso reads as a soldier even
+  // at distance (bare capsule shoulders vanish past 10m).
+  for (const sx of [-0.42, 0.42]) {
+    const pad = box(0.18, 0.1, 0.26, trimM); pad.position.set(sx, 0.66, 0); torso.add(pad);
+  }
+  const beltM = new THREE.MeshStandardMaterial({ color: 0x4a3a28, roughness: 0.9 });
+  const belt = box(0.52, 0.07, 0.36, beltM); belt.position.set(0, 0.06, 0); torso.add(belt);
+  const buckle = box(0.1, 0.05, 0.02, goldM); buckle.position.set(0, 0.06, 0.19); torso.add(buckle);
+  const strapM = new THREE.MeshStandardMaterial({ color: 0x9a8a6a, roughness: 0.9 });
+  for (const sx of [-0.22, 0.22]) {
+    const strap = box(0.05, 0.5, 0.02, strapM); strap.position.set(sx, 0.4, 0.25); torso.add(strap);
+  }
   if (skin.zombie) {
-    const belt = box(0.52, 0.07, 0.36, darkM); belt.position.set(0, 0.06, 0); torso.add(belt);
     const tear = box(0.18, 0.14, 0.03, new THREE.MeshStandardMaterial({ color: 0x1e2a16, roughness: 1 }));
     tear.position.set(-0.12, 0.42, 0.26); tear.rotation.z = 0.4; torso.add(tear);
   }
@@ -547,13 +559,16 @@ export function createBotModel(weaponSkin, weaponId, name, charOpId = 'specter',
       const walking = speed > 0.5;
       // Backwards walk (v18.18): backpedalling while facing the player —
       // legs swing the other way, torso leans back.
-      const sw = walking ? Math.sin(time * 10) * 0.6 * (bot.backwards ? -1 : 1) : 0;
+      // Smooth swing: the amplitude eases in/out instead of snapping when
+      // a bot starts or stops walking.
+      bot._swAmp = (bot._swAmp ?? 0) + ((walking ? 0.6 : 0) - (bot._swAmp ?? 0)) * Math.min(1, dt * 8);
+      const sw = Math.sin(time * 10) * bot._swAmp * (bot.backwards ? -1 : 1);
       legL.rotation.x = sw;
       legR.rotation.x = -sw;
-      armL.rotation.x = walking ? -sw * 0.7 : 0;
-      armR.rotation.x = walking ? sw * 0.3 : 0;
+      armL.rotation.x = -sw * 0.7;
+      armR.rotation.x = sw * 0.3;
       armL.rotation.z = 0; armR.rotation.z = 0;
-      torso.position.y = 0.78 + (walking ? Math.abs(Math.sin(time * 10)) * 0.03 : 0);
+      torso.position.y = 0.78 + Math.abs(Math.sin(time * 10)) * 0.05 * bot._swAmp;
       torso.rotation.x = bot.backwards && walking ? 0.12 : 0;
       headG.position.y = 1.5 + (walking ? 0 : Math.sin(time * 2) * 0.015); // idle breathing
       headG.rotation.x = 0; headG.rotation.z = 0;
@@ -719,7 +734,8 @@ export function createBotModel(weaponSkin, weaponId, name, charOpId = 'specter',
 export function createFirstPersonHands(S) {
   const group = new THREE.Group();
   const gloveM = new THREE.MeshStandardMaterial({ color: GLOVE_COLOR[S.charSkin] || 0x4a4a52, roughness: 0.9 });
-  const sleeveM = new THREE.MeshStandardMaterial({ color: 0x2e8b62, roughness: 0.85, emissive: 0x0a2e1c, emissiveIntensity: 0.4 });
+  const fingerM = new THREE.MeshStandardMaterial({ color: 0x5c5c66, roughness: 0.9 });
+  const sleeveM = new THREE.MeshStandardMaterial({ color: 0x2e8b62, roughness: 0.85, emissive: 0x0a2e1c, emissiveIntensity: 0.25 });
   const gunM = new THREE.MeshStandardMaterial({ color: 0x2b2f33, roughness: 0.5, metalness: 0.5 });
   const barrelM = new THREE.MeshStandardMaterial({ color: 0x16181c, roughness: 0.35, metalness: 0.8 });
   const gripM = new THREE.MeshStandardMaterial({ color: 0x14161a, roughness: 0.95 });
@@ -736,22 +752,22 @@ export function createFirstPersonHands(S) {
   const handsGroup = new THREE.Group(); group.add(handsGroup);
   const handR = box(0.21, 0.16, 0.2, gloveM); handR.position.set(0.08, -0.2, -0.04); handsGroup.add(handR);
   for (let i = 0; i < 4; i++) {
-    const f = box(0.05, 0.14, 0.05, gloveM);
-    f.position.set(0.02 + i * 0.05, -0.1, -0.03); f.rotation.x = 0.6; handsGroup.add(f);
+    const f = box(0.038, 0.14, 0.05, fingerM);
+    f.position.set(0.015 + i * 0.052, -0.1, -0.03 - i * 0.004); f.rotation.x = 0.45 + i * 0.12; handsGroup.add(f);
   }
   const thumbR = box(0.04, 0.06, 0.12, gloveM); thumbR.position.set(0.16, -0.15, -0.03); thumbR.rotation.y = -0.6; handsGroup.add(thumbR);
-  const armR = box(0.12, 0.12, 0.3, sleeveM); armR.position.set(0.1, -0.35, 0.14); armR.rotation.x = 0.5; handsGroup.add(armR);
+  const armR = box(0.095, 0.095, 0.24, sleeveM); armR.position.set(0.11, -0.38, 0.16); armR.rotation.x = 0.55; handsGroup.add(armR);
   // Left hand rides a subgroup so buildGun can slide it along the fore-end
   // per weapon class (pump on shotguns, handguard on rifles, grip on pistols).
   const gripL = new THREE.Group(); handsGroup.add(gripL);
   const handL = box(0.21, 0.15, 0.2, gloveM); handL.position.set(-0.05, -0.21, 0); gripL.add(handL);
   for (let i = 0; i < 4; i++) {
-    const f = box(0.05, 0.13, 0.05, gloveM);
-    f.position.set(-0.11 + i * 0.05, -0.11, 0.0); f.rotation.x = 0.6; gripL.add(f);
+    const f = box(0.038, 0.13, 0.05, fingerM);
+    f.position.set(-0.12 + i * 0.052, -0.11, 0.0 - i * 0.004); f.rotation.x = 0.45 + i * 0.12; gripL.add(f);
   }
   const thumbL = box(0.04, 0.06, 0.12, gloveM); thumbL.position.set(0.03, -0.16, 0); thumbL.rotation.y = 0.6; gripL.add(thumbL);
   gripL.position.set(0, 0, -0.5);
-  const armL = box(0.12, 0.12, 0.3, sleeveM); armL.position.set(-0.06, -0.35, -0.28); armL.rotation.x = 0.55; handsGroup.add(armL);
+  const armL = box(0.095, 0.095, 0.24, sleeveM); armL.position.set(-0.08, -0.38, -0.3); armL.rotation.x = 0.6; handsGroup.add(armL);
   // Camo repaints the GUN only: hands + sleeves keep their colours.
   handsGroup.traverse(o => { if (o.isMesh) o.userData.noCamo = true; });
   // Gun (rebuilt per weapon below).

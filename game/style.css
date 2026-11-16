@@ -128,13 +128,13 @@
   .mythic-btn.void.sel { border-color:#8a00ff; background:#1e0033; }
   #buy-menu { position:fixed; inset:0; display:grid; place-items:center; background:rgba(20,16,12,.7); pointer-events:auto; }
   #buy-menu[hidden] { display:none; }
-  .buy-panel { width:min(880px,94%); max-height:92vh; overflow-y:auto; background:#1e2228; border:1px solid var(--amber); border-radius:6px; padding:20px 22px; }
-  .buy-head { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px; }
+  .buy-panel { width:min(880px,94%); max-height:92vh; overflow-y:auto; background:#1e2228; border:1px solid var(--amber); border-radius:6px; padding:14px 18px; }
+  .buy-head { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; }
   .buy-panel h2 { margin:0; color:var(--amber); letter-spacing:.08em; }
   #buy-money { color:#4ade80; font-weight:700; font-size:20px; }
-  .buy-sec { color:var(--muted); font-size:11px; letter-spacing:.14em; margin:10px 0 8px; }
-  .buy-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
-  .buy-row { display:flex; flex-direction:column; gap:2px; width:100%; text-align:left; font:inherit; color:var(--ink); background:#262b31; border:1px solid #2c323a; border-radius:5px; padding:10px 12px; cursor:pointer; }
+  .buy-sec { color:var(--muted); font-size:11px; letter-spacing:.14em; margin:8px 0 6px; }
+  .buy-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+  .buy-row { display:flex; flex-direction:column; gap:2px; width:100%; text-align:left; font:inherit; color:var(--ink); background:#262b31; border:1px solid #2c323a; border-radius:5px; padding:8px 10px; cursor:pointer; }
   .buy-row:hover { border-color:var(--amber); }
   .buy-row .buy-name { font-size:14px; }
   .buy-row .buy-sub { color:var(--muted); font-size:12px; }

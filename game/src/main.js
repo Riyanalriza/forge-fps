@@ -1906,7 +1906,7 @@ function runShot(name) {
     game.startRound();
     weather.applyWeather('sunset'); S.weatherManual = true;
     // Place 3 bots visible mid-map ahead of the player.
-    const spots = [[-4, 10, 100], [1, 5, 40], [-9, 8, 100]];
+    const spots = [[0, 17, 100], [4, 12, 40], [-5, 14, 100]];
     spots.forEach(([x, z, hp], i) => {
       const b = S.bots[i]; b.x = x; b.z = z; b.hp = hp; b.state = 'combat';
     });
