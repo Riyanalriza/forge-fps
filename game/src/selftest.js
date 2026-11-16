@@ -12,6 +12,7 @@ import { FLAGS, setFlag } from './state.js';
 import { dmgAngle } from './hud.js';
 import { fxFor } from './weaponfx.js';
 import { viewmodelReady, soldierReady, WEAPON_GLB, armsMountReport, attachViewmodel, leftArmPocket } from './models.js';
+import { nearestSiteName } from './world.js';
 
 export function runSelfTest(ctx) {
   const { S, game, bots, hud, mythicFx, world, weapon, player, doEmote, settle, FIXED_STEP, createDragon3D, createVoidPortal3D, weather, zombies, vehicles, economy, effects, audio, input } = ctx;
@@ -1116,6 +1117,19 @@ export function runSelfTest(ctx) {
     settle(60 * 12); // west leg detour is longer; 12s still clears it
     const d1 = Math.hypot(wb.x - wps51[6].x, wb.z - wps51[6].z);
     check(`§51 bot walks the frost ring (dist ${d0.toFixed(1)} -> ${d1.toFixed(1)}m)`, d1 < d0 - 5);
+    // ---- §52: radio callouts follow the active map (2026-11-16) ----
+    // The staged play-shot radio used to say "Mid Yard" on frost, and the
+    // phone booth said "Foundry Yard" on cargo. Both now use the active
+    // map: the radio via nearestSiteName (reads shared SITES, rewritten
+    // by buildMap), the booth via MAP_DEFS[S.mapId].name.
+    world.buildMap('frost'); game.startRound();
+    check('§52 radio lookup on frost: near C is Frost Gate', nearestSiteName(10, 14) === 'Frost Gate');
+    check('§52 radio lookup on frost: near A is Boiler House', nearestSiteName(-16, -16) === 'Boiler House');
+    check('§52 radio lookup on frost: near B is Crane Dock', nearestSiteName(26, 0) === 'Crane Dock');
+    world.buildMap('foundry'); game.startRound();
+    check('§52 radio lookup on foundry: near C is Mid Yard', nearestSiteName(0, 6) === 'Mid Yard');
+    check('§52 radio lookup on foundry: near A is Furnace', nearestSiteName(-27, -19) === 'Furnace');
+    world.buildMap('frost'); game.startRound();
     S.hideT = 0;
     world.buildMap('foundry');
     game.startRound();

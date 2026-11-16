@@ -1357,7 +1357,7 @@ const input = createInput(renderer.domElement, {
         S.msgT = 2; return;
       }
       if (it.type === 'atm' && !it.used) { it.used = true; S.economy.money += 100; economy.addCoins(100); S.msg = '🏧 ATM: +100 🪙!'; S.msgT = 2; audio.coin(); return; }
-      if (it.type === 'phone-booth') { S.msg = '📞 Telepon umum: "Halo? Ini Foundry Yard…"'; S.msgT = 2; audio.ring(); return; }
+      if (it.type === 'phone-booth') { S.msg = `📞 Telepon umum: "Halo? Ini ${MAP_DEFS[S.mapId].name}…"`; S.msgT = 2; audio.ring(); return; }
       if (it.type === 'cart') { S.msg = '🛒 Gerobak didorong… (tidak ada isinya)'; S.msgT = 2; audio.whoosh(); return; }
       if (it.type === 'suitcase' && !it.used) { it.used = true; const w = weapon.cur(); w.reserve += 30; S.economy.money += 25; economy.addCoins(25); S.msg = '🧳 Koper: pistol + 30 peluru + 25 🪙!'; S.msgT = 2; audio.coin(); return; }
     }
@@ -1773,7 +1773,7 @@ function runShot(name) {
     bots.damage(b0, 60);
     game.startGrenadeAim();
     shotFx = {
-      radio: 'Contact at Mid Yard, rotating',
+      radio: `Contact at ${nearestSiteName(b0.x, b0.z)}, rotating`,
       killfeed: ['YOU — B12 Breacher @ BOT-1 — HIT', '🔥 KILLSTREAK READY: 🛰️ UAV — click it!'],
       comms: ['BOT-2: flanking!'],
       mythic: 'dragon',
