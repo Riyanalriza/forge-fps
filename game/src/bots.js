@@ -7,7 +7,6 @@ import { PALETTE } from './palette.js';
 import { losClear } from './world.js';
 import { createBotModel, BOT_SKINS, BOT_WEAPONS, CHAR_OPERATOR_IDS, CHAR_SKIN_IDS, COSTUME_DEFS, COSTUME_IDS, camoMatches } from './characters.js';
 import { DIFFICULTY_DEFS } from './state.js'; // v25.0.5 difficulty table
-import { ensureSoldier, swapBotToSoldier, soldierReady } from './models.js';
 import { getVehicles } from './vehicles.js'; // v28: bot driving reaches the live vehicles instance via its registry
 
 const _v = new THREE.Vector3();
@@ -26,17 +25,15 @@ const TACTICS = {
 
 export function createBots(scene, world, S, rng, deps = {}) {
   const group = new THREE.Group(); scene.add(group);
-  // Realistic soldier bots: the GLB loads in the background; every bot swaps
-  // from its procedural model to the soldier when it arrives (and on respawn
-  // after that). Stats/tactics/difficulty are untouched — only the mesh changes.
-  ensureSoldier().then(() => { for (const b of S.bots) swapBotToSoldier(b); }).catch(() => {});
+  // Bots are procedural construction workers (characters.js) — no GLB
+  // swap. Stats/tactics/difficulty are untouched — only the mesh changes.
   const fx = deps.effects || null; // enemy tracers (red lines when bots fire)
   const sfx = deps.audio || null; // distance gunshots + enemy reload clicks
   const onSpot = deps.onSpot || null; // radio callout when a bot first spots you
 
   function buildBot(i) {
-    // Varied look per bot: weapon skin + weapon + operator + outfit + costume
-    // (colors/helmet/effect vary locally) + a second weapon slung on the back.
+    // Uniform worker look per bot (red hi-vis, hard hat): weapon skin +
+    // weapon vary locally; the body is the same stocky worker for all.
     const weaponSkin = BOT_SKINS[i % BOT_SKINS.length];
     const weaponId = BOT_WEAPONS[i % BOT_WEAPONS.length];
     const charOp = CHAR_OPERATOR_IDS[i % CHAR_OPERATOR_IDS.length];
@@ -101,7 +98,6 @@ export function createBots(scene, world, S, rng, deps = {}) {
       if (i === 0) { bot.x = world.sites.A.x + 3; bot.z = world.sites.A.z + 3; }
       if (i === 1) { bot.x = world.sites.B.x - 3; bot.z = world.sites.B.z + 3; }
       S.bots.push(bot);
-      if (soldierReady()) swapBotToSoldier(bot);
     }
     syncMeshes();
   }

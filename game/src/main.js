@@ -22,7 +22,7 @@ import { createAudio } from './audio.js';
 import { getBattlePass, addXP } from './battlepass.js';
 import { getDaily, claimDaily, dailyEmoteXp } from './daily.js';
 import { runSelfTest } from './selftest.js';
-import { ensureViewmodelAssets, ensureSoldier, ensurePropAssets, ALL_PROP_URLS } from './models.js';
+import { ensureViewmodelAssets, ensurePropAssets, ALL_PROP_URLS } from './models.js';
 
 const FIXED_STEP = 1 / 60;
 const params = new URLSearchParams(window.location.search);
@@ -1843,9 +1843,9 @@ if ('serviceWorker' in navigator) {
 
 syncCamera();
 if (shot) {
-  // Dossier/test shots wait for the GLB assets (viewmodel + soldier + all map
-  // props) so the screenshots and the self-test see the wired models, not the
-  // procedural fallbacks. Normal play never waits — it swaps in live.
-  await Promise.allSettled([ensureViewmodelAssets(), ensureSoldier(), ensurePropAssets(ALL_PROP_URLS)]);
+  // Dossier/test shots wait for the GLB assets (viewmodel + all map
+  // props) so the screenshots and the self-test see the wired models, not
+  // the procedural fallbacks. Bots are procedural workers — no GLB to wait for.
+  await Promise.allSettled([ensureViewmodelAssets(), ensurePropAssets(ALL_PROP_URLS)]);
   runShot(shot);
 } else { hud.showMenu('FROSTWORKS'); hud.refreshBattlePass(); requestAnimationFrame(frame); }

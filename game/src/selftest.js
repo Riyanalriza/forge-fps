@@ -11,7 +11,7 @@ import { loadColorChoices, saveColorChoices } from './palette.js';
 import { FLAGS, setFlag } from './state.js';
 import { dmgAngle } from './hud.js';
 import { fxFor } from './weaponfx.js';
-import { viewmodelReady, soldierReady, WEAPON_GLB, armsMountReport, attachViewmodel, leftArmPocket } from './models.js';
+import { viewmodelReady, WEAPON_GLB, armsMountReport, attachViewmodel, leftArmPocket } from './models.js';
 import { nearestSiteName } from './world.js';
 
 export function runSelfTest(ctx) {
@@ -522,9 +522,11 @@ export function runSelfTest(ctx) {
     game.startRound();
     check('GLB viewmodel assets ready (arms + 7 weapons)', viewmodelReady());
     check('7 GLB weapons mapped (AK47 excluded, licence)', Object.keys(WEAPON_GLB).length === 7 && !WEAPON_GLB.ak47);
-    check('Soldier GLB ready', soldierReady());
-    check('All bots swapped to the realistic soldier',
-      S.bots.every(b => b.mesh && b.mesh.model && b.mesh.model._isSoldier));
+    check('No soldier GLB: bots are procedural workers, not the soldier',
+      S.bots.every(b => b.mesh && b.mesh.model && !b.mesh.model._isSoldier && !!b.mesh.model._gear));
+    check('All bots carry the worker model (hard hat + vest + hit meshes)',
+      S.bots.every(b => b.mesh && b.mesh.model && b.mesh.model._gear
+        && b.mesh.model.parts.bodyMesh && b.mesh.model.parts.headMesh));
     check('GLB arms attached, procedural hands hidden', (() => {
       const hg = weapon.hands.parts.handsGroup;
       return hg.children.length >= 2 && weapon.hands.parts.procHands.visible === false;
@@ -537,19 +539,24 @@ export function runSelfTest(ctx) {
       const g = weapon.hands.gun;
       return g.children.length === 1 && !!g.children[0].isGroup && !!g.userData.tip;
     })());
-    check('Soldier plays Walk while moving', (() => {
+    check('Worker bot swings its legs while walking', (() => {
       const sb = S.bots.find(b => b.alive) || S.bots[0];
       if (!sb.alive) bots.respawn(sb);
       sb.burst = 0;
-      for (let i = 0; i < 10; i++) { sb.x += 0.05; sb.mesh.model.animate(1 / 60, sb, i / 60); }
-      return sb.mesh.model._clip === 'Walk';
+      let maxSwing = 0;
+      for (let i = 0; i < 30; i++) {
+        sb.x += 0.05; sb.mesh.model.animate(1 / 60, sb, i / 60);
+        maxSwing = Math.max(maxSwing, Math.abs(sb.mesh.model.parts.legL.rotation.x));
+      }
+      return maxSwing > 0.2;
     })());
-    check('Soldier plays Death clip when killed', (() => {
+    check('Worker bot falls over when killed', (() => {
       const sb = S.bots.find(b => b.alive) || S.bots[0];
       if (!sb.alive) bots.respawn(sb);
       bots.damage(sb, 999);
       for (let i = 0; i < 30; i++) sb.mesh.model.animate(1 / 60, sb, i / 60);
-      return sb.mesh.model._clip === 'Death';
+      const g = sb.mesh.model.group;
+      return Math.abs(g.rotation.x) > 1 || Math.abs(g.rotation.z) > 1;
     })());
     check('GLB props placed on every map', (() => {
       const want = { foundry: 6, ember: 5, twin: 11, iron: 8, cargo: 1, harvest: 7, ruin: 9 };
@@ -979,17 +986,17 @@ export function runSelfTest(ctx) {
     check('§50 frost has industrial containers', world.containers.length >= 8);
     check('§50 frost has Kenney industrial GLB props', world.glbPlacements.length >= 5);
     check('§50 frost has enterable-house doors', world.doors.length > 0);
-    // Bot team gear on the soldier GLB (procedural, never touches the GLB).
+    // Worker bot team gear (procedural red hi-vis — no soldier GLB).
     const g0 = S.bots[0].mesh.model;
-    check('§50 bot 0 is the soldier model', !!g0._isSoldier);
-    check('§50 soldier carries hi-vis gear (hard hat / vest / belt)',
-      !!g0._gear && !!g0._gear.group && g0._gear.group.children.length >= 8);
-    check('§50 enemy gear is orange', !!g0._gear && g0._gear.teamHex === 0xff7a1a);
+    check('§50 bot 0 is the procedural worker (not the soldier)', !g0._isSoldier && !!g0._gear);
+    check('§50 worker carries hi-vis gear (hard hat / vest / stripes)',
+      !!g0._gear && g0._gear.parts.filter(m => ['hat', 'vest', 'stripe'].includes(m.userData.part)).length >= 5);
+    check('§50 enemy gear is red', !!g0._gear && g0._gear.teamHex === 0xe02020);
     if (g0.setAlly && g0._gear) {
       g0.setAlly(true);
       check('§50 ally gear turns teal', g0._gear.teamHex === 0x2fd8c8);
       g0.setAlly(false);
-      check('§50 gear back to orange', g0._gear.teamHex === 0xff7a1a);
+      check('§50 gear back to red', g0._gear.teamHex === 0xe02020);
     }
     // Shell casing: a real shot ejects a visible brass case. Force the
     // VK-9 (hitscan, non-melee): earlier sections can leave a melee or
@@ -1175,13 +1182,49 @@ export function runSelfTest(ctx) {
     check('§53 frost dusk sun is warm (0xffc080)', world.sun.color.getHex() === 0xffc080);
     // Hi-vis worker bots: vest + hard hat present, no backpack anywhere.
     const g53 = S.bots[0].mesh.model;
-    const parts53 = [];
-    if (g53._gear && g53._gear.group) g53._gear.group.traverse((o) => { if (o.userData.part) parts53.push(o.userData.part); });
+    const parts53 = (g53._gear && g53._gear.parts ? g53._gear.parts : []).map(o => o.userData.part);
     check('§53 bot wears a hi-vis vest', parts53.includes('vest'));
     check('§53 bot wears a hard hat', parts53.includes('hat'));
     check('§53 bot has reflective stripes', parts53.includes('stripe'));
     check('§53 bot has a tool belt, no backpack', parts53.includes('belt') && !parts53.includes('backpack'));
-    check('§53 bot vest is team orange', !!g53._gear && g53._gear.teamHex === 0xff7a1a);
+    check('§53 bot vest is team red', !!g53._gear && g53._gear.teamHex === 0xe02020);
+    // ---- §55: bot rebuild — procedural red hi-vis worker, no soldier GLB (2026-11-16) ----
+    // Every bot is the same stocky worker: red hard hat + red vest with
+    // silver stripes, dark work pants/boots, gun in hand. Behaviour and
+    // the procedural animation (walk/prone/death) are unchanged.
+    const wb55 = S.bots[1].mesh.model;
+    check('§55 no bot model carries soldier parts (_wrap/_clone)', S.bots.every(b => {
+      const m = b.mesh && b.mesh.model;
+      return m && !m._isSoldier && !m._wrap && !m._clone;
+    }));
+    const parts55 = (wb55._gear && wb55._gear.parts ? wb55._gear.parts : []).map(o => o.userData.part);
+    check('§55 worker has hard hat + vest + stripes + belt + pouches + pads',
+      ['hat', 'vest', 'stripe', 'belt', 'pouch', 'pad'].every(k => parts55.includes(k)));
+    const vest55 = wb55._gear.parts.find(m => m.userData.part === 'vest');
+    check('§55 vest is a wide shell (0.72m, broader than the old 0.5m plate)',
+      !!vest55 && vest55.geometry.parameters && Math.abs(vest55.geometry.parameters.width - 0.72) < 0.01);
+    const stripes55 = wb55._gear.parts.filter(m => m.userData.part === 'stripe');
+    check('§55 two thin reflective stripes wrap the vest (front and back)',
+      stripes55.length === 2 && stripes55.every(m => m.geometry.parameters.depth > 0.44 && m.geometry.parameters.height < 0.05));
+    check('§55 worker holds its gun on the right arm',
+      !!wb55.parts.gun && wb55.parts.gun.parent === wb55.parts.armR);
+    check('§55 worker hit meshes tagged body/head',
+      wb55.parts.bodyMesh.userData.part === 'body' && wb55.parts.headMesh.userData.part === 'head');
+    // Prone on the procedural model: torso pitches flat, body drops low.
+    const pb55 = S.bots[1];
+    pb55.prone = true;
+    for (let i = 0; i < 10; i++) wb55.animate(1 / 60, pb55, i / 60);
+    check('§55 worker goes prone (torso flat, body low)',
+      wb55.parts.torso.rotation.x > 1.0 && wb55.parts.torso.position.y < 0.5);
+    pb55.prone = false;
+    for (let i = 0; i < 10; i++) wb55.animate(1 / 60, pb55, i / 60);
+    check('§55 worker stands back up from prone', wb55.parts.torso.rotation.x < 0.5);
+    // Team colours on a second bot: red enemy, teal ally, back to red.
+    check('§55 bot 1 enemy gear is red', wb55._gear.teamHex === 0xe02020);
+    wb55.setAlly(true);
+    check('§55 bot 1 ally gear turns teal', wb55._gear.teamHex === 0x2fd8c8);
+    wb55.setAlly(false);
+    check('§55 bot 1 gear back to red', wb55._gear.teamHex === 0xe02020);
   } catch (e) {
     checks.push({ name: 'exception: ' + (e && e.message) + ' @ ' + (e && e.stack ? String(e.stack).split('\n').slice(0, 4).join(' | ') : '?'), ok: false });
   }

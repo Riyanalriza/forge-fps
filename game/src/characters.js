@@ -214,123 +214,95 @@ export function makeNameSprite(name) {
 
 // Full character model for one bot. Forward is local -z (yaw = atan2(-dx,-dz)).
 // opts: { costumeId, helmet, backWeaponId, playerModel } (v18.7).
+// Bot rebuild (2026-11-16): every bot is a stocky construction worker —
+// red hard hat + red hi-vis vest with silver reflective stripes, dark work
+// pants and boots. The old operator/skin/costume variety is gone: the
+// worker look IS the identity (team colour = vest + hat). Enemy = red,
+// revived ally = teal (setAlly repaints the team material).
 export function createBotModel(weaponSkin, weaponId, name, charOpId = 'specter', charSkinId = 'default', opts = {}) {
   const op = CHAR_OPERATORS[charOpId] || CHAR_OPERATORS.specter;
-  const skin = CHAR_SKINS[charSkinId] || CHAR_SKINS.default;
   const costume = (opts.costumeId && COSTUME_DEFS[opts.costumeId]) || null;
   const ws = WEAPON_SKIN[weaponSkin] || WEAPON_SKIN.default;
   const female = op.gender === 'female';
   const tone = female ? SKIN_TONE.female : SKIN_TONE.male;
-  // v24.1.2: opts.colors ({body, vest, pants, helmet} as CSS hex) overrides
-  // the costume/skin colors — the color picker in the menu repaints live.
   const cc = opts.colors || {};
   const hex = (h) => parseInt(String(h).replace('#', ''), 16);
-  const shirtC = cc.body ? hex(cc.body) : (costume ? costume.colors.shirt : skin.body);
-  // GRAPHICS FIX: zombie/ghille skins used the same green for shirt AND pants,
-  // so at distance the bot read as one solid green column. Dark pants break
-  // the silhouette into a person again.
-  const pantsC = cc.pants ? hex(cc.pants) : (costume ? costume.colors.pants : (skin.zombie ? 0x2a2a22 : skin.leaves ? 0x2a2418 : skin.body));
-  const shoesC = costume ? costume.colors.shoes : 0x141414;
-  const bodyM = new THREE.MeshStandardMaterial({ color: shirtC, roughness: 0.85 });
-  const pantsM = new THREE.MeshStandardMaterial({ color: pantsC, roughness: 0.85 });
-  const shoeM = new THREE.MeshStandardMaterial({ color: shoesC, roughness: 0.6 });
-  const trimM = new THREE.MeshStandardMaterial({ color: cc.vest ? hex(cc.vest) : (skin.trim || 0x2e332a), roughness: 0.85 });
+  const TEAM_RED = 0xe02020, TEAM_TEAL = 0x2fd8c8;
+  // Team material (shared by vest + hard hat + shoulder pads) — the one
+  // material setAlly repaints. Kept OUT of wetMats so rain never restores
+  // an ally back to red (see the wetMats traverse below).
+  const teamM = new THREE.MeshStandardMaterial({ color: TEAM_RED, roughness: 0.55, metalness: 0.1 });
+  const stripeM = new THREE.MeshStandardMaterial({ color: 0xd8dce0, roughness: 0.35, metalness: 0.4, emissive: 0x555a60, emissiveIntensity: 0.5 });
+  const shirtM = new THREE.MeshStandardMaterial({ color: cc.body ? hex(cc.body) : 0x2e3236, roughness: 0.9 });
+  const pantsM = new THREE.MeshStandardMaterial({ color: cc.pants ? hex(cc.pants) : 0x23262b, roughness: 0.9 });
+  const bootM = new THREE.MeshStandardMaterial({ color: 0x1a1512, roughness: 0.6 });
   const effect = costume ? costume.effect : 'none';
-  const helmetId = opts.helmet || (costume ? costume.helmet : 'none');
-  const skinM = new THREE.MeshStandardMaterial({ color: skin.zombie ? 0x5a8a3a : tone, roughness: 0.7 });
+  const skinM = new THREE.MeshStandardMaterial({ color: tone, roughness: 0.7 });
   const gunM = new THREE.MeshStandardMaterial({ color: ws.body, roughness: 0.5, metalness: 0.5, emissive: ws.glow, emissiveIntensity: ws.fx ? 0.5 : 0 });
   const glowM = new THREE.MeshBasicMaterial({ color: ws.glow });
   const darkM = new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.6 });
-  const goldM = new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.35, metalness: 0.8 });
 
   const group = new THREE.Group();
-  // Legs (pivot at the hip so they can swing). HD (v22.0.9): capsule legs +
-  // shoes with laces, same pivots so every animation keeps working.
+  // Gear parts (hard hat / vest / stripes / pads) — collected for the
+  // self-test (§55) and recoloured as one team by setAlly.
+  const gearParts = [];
+  const tag = (mesh, part) => { mesh.userData.part = part; gearParts.push(mesh); return mesh; };
+  // Legs (pivot at the hip so they can swing). Stocky worker: thicker
+  // capsules, dark work pants, heavy boots.
   const mkLeg = (x) => {
     const pivot = new THREE.Group();
     pivot.position.set(x, 0.78, 0);
-    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.5, 4, 10), pantsM);
+    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.14, 0.5, 4, 10), pantsM);
     leg.position.y = -0.39; leg.castShadow = true; pivot.add(leg);
-    const shoe = box(0.24, 0.12, 0.36, shoeM); shoe.position.set(0, -0.72, -0.05); pivot.add(shoe);
-    const laces = box(0.14, 0.02, 0.2, new THREE.MeshStandardMaterial({ color: 0xe9e6df, roughness: 0.9 }));
-    laces.position.set(0, -0.65, -0.08); pivot.add(laces);
-    const knee = box(0.16, 0.12, 0.06, darkM); knee.position.set(0, -0.4, -0.11); pivot.add(knee);
+    const boot = box(0.26, 0.13, 0.4, bootM); boot.position.set(0, -0.72, -0.04); pivot.add(boot);
     group.add(pivot);
     return pivot;
   };
-  const legL = mkLeg(-0.14), legR = mkLeg(0.14);
-  // Torso + vest + pockets + backpack. HD (v22.0.9): capsule torso + badge.
+  const legL = mkLeg(-0.15), legR = mkLeg(0.15);
+  // Torso (pivot at the waist): broad capsule chest in a dark work shirt,
+  // wrapped in a red hi-vis vest shell with silver reflective bands that
+  // run all the way round (readable from the front AND the back).
   const torso = new THREE.Group();
   torso.position.y = 0.78;
-  const chest = new THREE.Mesh(new THREE.CapsuleGeometry(0.26, 0.3, 4, 12), skin.gold ? goldM : bodyM);
-  chest.scale.set(1.25, 1, 0.72); chest.position.y = 0.36; chest.castShadow = true; torso.add(chest);
-  const badge = new THREE.Mesh(new THREE.CircleGeometry(0.06, 12),
-    new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.3, metalness: 0.8 }));
-  badge.position.set(0.14, 0.52, 0.2); torso.add(badge);
-  const vest = box(0.5, 0.45, 0.08, op.vest === 'black' ? darkM : trimM); vest.position.set(0, 0.4, 0.2); torso.add(vest);
-  for (const px of [-0.13, 0.13]) {
-    const pocket = box(0.16, 0.16, 0.04, trimM); pocket.position.set(px, 0.32, 0.25); torso.add(pocket);
+  const chest = new THREE.Mesh(new THREE.CapsuleGeometry(0.27, 0.32, 4, 12), shirtM);
+  chest.scale.set(1.35, 1, 0.8); chest.position.y = 0.36; chest.castShadow = true; torso.add(chest);
+  const vest = box(0.72, 0.6, 0.44, teamM); vest.position.set(0, 0.38, 0); tag(vest, 'vest'); torso.add(vest);
+  // Thin reflective bands (0.035m): the old 0.07m bands covered ~40% of
+  // the vest and read as a barber pole. Two thin bands, still wrapping.
+  for (const sy of [0.52, 0.28]) {
+    const stripe = box(0.74, 0.035, 0.46, stripeM); stripe.position.set(0, sy, 0); tag(stripe, 'stripe'); torso.add(stripe);
   }
-  // Shoulder pads + belt + chest straps: the torso reads as a soldier even
-  // at distance (bare capsule shoulders vanish past 10m).
+  // Front chest pockets, below the lower stripe (face is local -Z).
+  for (const px of [-0.14, 0.14]) {
+    const pocket = box(0.14, 0.12, 0.04, darkM); pocket.position.set(px, 0.16, -0.23); torso.add(pocket);
+  }
+  // Broad shoulders (team colour) + tool belt with a pouch on each hip.
   for (const sx of [-0.42, 0.42]) {
-    const pad = box(0.18, 0.1, 0.26, trimM); pad.position.set(sx, 0.66, 0); torso.add(pad);
+    const pad = box(0.2, 0.09, 0.3, teamM); pad.position.set(sx, 0.68, 0); tag(pad, 'pad'); torso.add(pad);
   }
-  const beltM = new THREE.MeshStandardMaterial({ color: 0x4a3a28, roughness: 0.9 });
-  const belt = box(0.52, 0.07, 0.36, beltM); belt.position.set(0, 0.06, 0); torso.add(belt);
-  const buckle = box(0.1, 0.05, 0.02, goldM); buckle.position.set(0, 0.06, 0.19); torso.add(buckle);
-  const strapM = new THREE.MeshStandardMaterial({ color: 0x9a8a6a, roughness: 0.9 });
-  for (const sx of [-0.22, 0.22]) {
-    const strap = box(0.05, 0.5, 0.02, strapM); strap.position.set(sx, 0.4, 0.25); torso.add(strap);
-  }
-  if (skin.zombie) {
-    const tear = box(0.18, 0.14, 0.03, new THREE.MeshStandardMaterial({ color: 0x1e2a16, roughness: 1 }));
-    tear.position.set(-0.12, 0.42, 0.26); tear.rotation.z = 0.4; torso.add(tear);
-  }
-  const pack = box(0.5, 0.55, 0.16, trimM); pack.position.set(0, 0.38, -0.25);
-  if (!costume || costume.backpack !== false) torso.add(pack);
-  // Second weapon on the back (v18.7.5): the sidearm/secondary rides slung
-  // across the backpack while the primary is in hand.
-  let backGun = null;
-  if (opts.backWeaponId) {
-    backGun = buildBotGun(opts.backWeaponId, gunM, glowM);
-    backGun.position.set(0, 0.45, -0.38);
-    backGun.rotation.set(0.35, 0, 0.5);
-    backGun.scale.setScalar(0.85);
-    torso.add(backGun);
-  }
-  if (skin.leaves) {
-    for (let i = 0; i < 12; i++) {
-      const leaf = box(0.12, 0.03, 0.12, new THREE.MeshStandardMaterial({ color: [0x2a4a1a, 0x4a6a2a, 0x5a7a2a][i % 3], roughness: 1 }));
-      leaf.position.set((i % 4 - 1.5) * 0.2, 0.15 + (i % 3) * 0.25, i % 2 ? 0.2 : -0.28);
-      leaf.rotation.y = i * 0.7;
-      torso.add(leaf);
-    }
-  }
-  if (skin.katana) {
-    const katana = box(0.05, 1.1, 0.03, darkM); katana.position.set(0.1, 0.5, -0.36); katana.rotation.z = 0.6; torso.add(katana);
-    const handle = box(0.05, 0.18, 0.05, new THREE.MeshStandardMaterial({ color: 0x8a2a2a, roughness: 0.7 }));
-    handle.position.set(-0.18, 0.95, -0.36); handle.rotation.z = 0.6; torso.add(handle);
+  const belt = box(0.62, 0.09, 0.46, darkM); belt.position.set(0, 0.05, 0); tag(belt, 'belt'); torso.add(belt);
+  for (const sx of [-0.29, 0.29]) {
+    const pouch = box(0.13, 0.17, 0.13, darkM); pouch.position.set(sx, 0.02, 0.05); tag(pouch, 'pouch'); torso.add(pouch);
   }
   group.add(torso);
-  // Arms (pivot at the shoulder). Right arm holds the gun. HD (v22.0.9):
-  // capsule arms + glove spheres, same pivots as before.
+  // Arms (pivot at the shoulder): dark work-shirt sleeves, dark gloves.
+  // Right arm holds the gun.
   const mkArm = (x) => {
     const pivot = new THREE.Group();
     pivot.position.set(x, 1.42, 0);
-    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.42, 4, 10), skinM);
+    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.42, 4, 10), shirtM);
     arm.position.y = -0.31; arm.castShadow = true; pivot.add(arm);
     const glove = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), darkM);
     glove.position.y = -0.65; glove.scale.set(1, 1.2, 1); pivot.add(glove);
     group.add(pivot);
     return pivot;
   };
-  const armL = mkArm(-0.38), armR = mkArm(0.38);
+  const armL = mkArm(-0.44), armR = mkArm(0.44);
   const gun = buildBotGun(weaponId, gunM, glowM);
   gun.position.set(0, -0.68, -0.25);
   armR.add(gun);
-  // Head (pivot at the neck). Face is local -z. HD (v22.0.9): sphere head +
-  // nose + ears + hair; the face gear sits on the sphere surface.
+  // Head (pivot at the neck): skin-tone face, red hard hat (dome + wide
+  // brim + centre ridge). Face is local -Z.
   const headG = new THREE.Group();
   headG.position.y = 1.5;
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.19, 18, 14), skinM);
@@ -344,131 +316,16 @@ export function createBotModel(weaponSkin, weaponId, name, charOpId = 'specter',
   for (const ex of [-0.08, 0.08]) {
     const eye = box(0.05, 0.04, 0.02, eyeM); eye.position.set(ex, 0.2, -0.19); headG.add(eye);
   }
-  if (!female) {
-    const helmetM = cc.helmet ? new THREE.MeshStandardMaterial({ color: hex(cc.helmet), roughness: 0.85 }) : (skin.stealth ? darkM : trimM);
-    const helmet = box(0.38, 0.16, 0.38, helmetM); helmet.position.y = 0.38; headG.add(helmet);
-  }
-  const headsetL = box(0.05, 0.12, 0.12, darkM); headsetL.position.set(-0.19, 0.2, 0); headG.add(headsetL);
-  const headsetR = box(0.05, 0.12, 0.12, darkM); headsetR.position.set(0.19, 0.2, 0); headG.add(headsetR);
-  const mic = box(0.03, 0.03, 0.16, darkM); mic.position.set(0.14, 0.06, -0.14); headG.add(mic);
-  // Operator face gear.
-  if (op.mask === 'skull' || op.mask === 'skull-white') {
-    const plateM = new THREE.MeshStandardMaterial({ color: op.mask === 'skull-white' ? 0xf0f0f0 : 0x1a1a1a, roughness: 0.5 });
-    const plate = box(0.36, 0.3, 0.04, plateM); plate.position.set(0, 0.14, -0.2); headG.add(plate);
-    for (const ex of [-0.08, 0.08]) {
-      const hole = box(0.06, 0.05, 0.02, new THREE.MeshBasicMaterial({ color: 0x000000 }));
-      hole.position.set(ex, 0.2, -0.23); headG.add(hole);
-    }
-    for (let i = 0; i < 3; i++) {
-      const tooth = box(0.02, 0.08, 0.02, new THREE.MeshBasicMaterial({ color: op.mask === 'skull-white' ? 0x111111 : 0xf0f0f0 }));
-      tooth.position.set(-0.06 + i * 0.06, 0.04, -0.23); headG.add(tooth);
-    }
-  }
-  if (op.beard) {
-    const beard = box(0.3, 0.14, 0.1, darkM); beard.position.set(0, 0.02, -0.2); headG.add(beard);
-  }
-  if (op.cap) {
-    const cap = box(0.4, 0.08, 0.4, trimM); cap.position.y = 0.42; headG.add(cap);
-    const brim = box(0.4, 0.04, 0.18, trimM); brim.position.set(0, 0.38, -0.24); headG.add(brim);
-  }
-  if (op.beret) {
-    const beret = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.05, 12), new THREE.MeshStandardMaterial({ color: 0x2a1a1a, roughness: 0.9 }));
-    beret.position.y = 0.4; beret.rotation.z = 0.25; beret.castShadow = true; headG.add(beret);
-  }
-  if (op.mustache) {
-    const mo = box(0.2, 0.05, 0.05, darkM); mo.position.set(0, 0.08, -0.21); headG.add(mo);
-  }
-  if (op.hair === 'long-black') {
-    const hairM = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.9 });
-    const back = box(0.36, 0.6, 0.1, hairM); back.position.set(0, -0.1, 0.2); headG.add(back);
-    for (const sx of [-0.18, 0.18]) {
-      const strand = box(0.08, 0.5, 0.1, hairM); strand.position.set(sx, -0.05, 0.14); headG.add(strand);
-    }
-    const top = box(0.38, 0.12, 0.38, hairM); top.position.y = 0.38; headG.add(top);
-  }
-  if (op.hair === 'brown') {
-    const hairM = new THREE.MeshStandardMaterial({ color: 0x5a3a1a, roughness: 0.9 });
-    const top = box(0.38, 0.12, 0.38, hairM); top.position.y = 0.38; headG.add(top);
-    const back = box(0.36, 0.3, 0.08, hairM); back.position.set(0, 0.2, 0.2); headG.add(back);
-  }
-  if (op.glasses) {
-    const frameM = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.4, metalness: 0.6 });
-    for (const ex of [-0.08, 0.08]) {
-      const frame = box(0.11, 0.09, 0.02, frameM); frame.position.set(ex, 0.2, -0.19); headG.add(frame);
-    }
-    const bridge = box(0.06, 0.02, 0.02, frameM); bridge.position.set(0, 0.2, -0.19); headG.add(bridge);
-  }
-  // Helmet / hat variants (v18.7.6): additive on top of the operator's gear.
-  if (helmetId === 'brim') {
-    const brimM = new THREE.MeshStandardMaterial({ color: 0x6b4a2a, roughness: 0.9 });
-    const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.03, 12), brimM);
-    disc.position.y = 0.36; disc.castShadow = true; headG.add(disc);
-    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2), brimM);
-    dome.position.y = 0.36; headG.add(dome);
-  } else if (helmetId === 'combat' && female) {
-    const helm = box(0.38, 0.16, 0.38, trimM); helm.position.y = 0.38; headG.add(helm);
-  } else if (helmetId === 'horns') {
-    const hornM = new THREE.MeshStandardMaterial({ color: 0x8a2a2a, roughness: 0.5, emissive: 0x441111, emissiveIntensity: 0.6 });
-    for (const sx of [-0.14, 0.14]) {
-      const horn = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.3, 8), hornM);
-      horn.position.set(sx, 0.48, 0.05); horn.rotation.z = -sx * 2.2; horn.castShadow = true; headG.add(horn);
-    }
-  } else if (helmetId === 'crown') {
-    const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 0.1, 8), goldM);
-    crown.position.y = 0.4; crown.castShadow = true; headG.add(crown);
-    for (let i = 0; i < 4; i++) {
-      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.09, 6), goldM);
-      const a = i * Math.PI / 2;
-      spike.position.set(Math.cos(a) * 0.18, 0.48, Math.sin(a) * 0.18); headG.add(spike);
-    }
-  } else if (helmetId === 'hood') {
-    const hoodM = new THREE.MeshStandardMaterial({ color: 0x14141c, roughness: 1 });
-    const top = box(0.4, 0.1, 0.4, hoodM); top.position.y = 0.38; headG.add(top);
-    const back = box(0.38, 0.4, 0.08, hoodM); back.position.set(0, 0.2, 0.2); headG.add(back);
-  } else if (helmetId === 'nvg') {
-    const nvgM = new THREE.MeshStandardMaterial({ color: 0x1a4a1a, roughness: 0.4, emissive: 0x22aa22, emissiveIntensity: 0.8 });
-    const nvg = box(0.22, 0.1, 0.08, nvgM); nvg.position.set(0, 0.3, -0.2); headG.add(nvg);
-    for (const ex of [-0.06, 0.06]) {
-      const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.05, 8), nvgM);
-      lens.rotation.x = Math.PI / 2; lens.position.set(ex, 0.3, -0.25); headG.add(lens);
-    }
-  } else if (helmetId === 'skull' && !op.mask) {
-    const plateM = new THREE.MeshStandardMaterial({ color: 0xf0f0f0, roughness: 0.5 });
-    const plate = box(0.36, 0.3, 0.04, plateM); plate.position.set(0, 0.14, -0.18); headG.add(plate);
-  }
+  const helm = new THREE.Mesh(new THREE.SphereGeometry(0.24, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2), teamM);
+  helm.position.y = 0.32; helm.scale.y = 0.8; helm.castShadow = true; tag(helm, 'hat'); headG.add(helm);
+  const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.025, 14), teamM);
+  brim.position.y = 0.32; brim.castShadow = true; tag(brim, 'hat'); headG.add(brim);
+  const ridge = box(0.06, 0.05, 0.38, teamM); ridge.position.set(0, 0.48, 0); tag(ridge, 'hat'); headG.add(ridge);
   group.add(headG);
-  // Legendary costume effects (v18.7.3): persistent meshes on the model,
-  // animated in animate() from the main loop — no per-effect setInterval.
-  let fxMeshes = null;
-  if (effect === 'fire') {
-    const flameM = new THREE.MeshStandardMaterial({ color: 0xcc4400, emissive: 0xff5500, emissiveIntensity: 2.2, transparent: true, opacity: 0.9 });
-    fxMeshes = [];
-    for (const sx of [-0.42, 0.42]) {
-      const flame = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.42, 8), flameM);
-      flame.position.set(sx, 1.55, 0); group.add(flame);
-      fxMeshes.push(flame);
-    }
-  } else if (effect === 'void') {
-    const orbM = new THREE.MeshStandardMaterial({ color: 0x3a0a5a, emissive: 0xaa00ff, emissiveIntensity: 2.5 });
-    const orb = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 10), orbM);
-    orb.position.set(0.55, 1.2, 0); group.add(orb);
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.02, 8, 24),
-      new THREE.MeshBasicMaterial({ color: 0xaa00ff, transparent: true, opacity: 0.6 }));
-    ring.position.y = 1.0; ring.rotation.x = Math.PI / 2; group.add(ring);
-    fxMeshes = [orb, ring];
-  } else if (effect === 'neon') {
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.03, 8, 28),
-      new THREE.MeshStandardMaterial({ color: 0x0a2a1a, emissive: 0x00ff88, emissiveIntensity: 2.0 }));
-    ring.position.y = 1.0; ring.rotation.x = Math.PI / 2; group.add(ring);
-    fxMeshes = [ring];
-    // One real point light, only on the player's own preview model —
-    // five bots with lights each would be too many lights.
-    if (opts.playerModel) {
-      const pl = new THREE.PointLight(0x00ff88, 1.5, 4);
-      pl.position.y = 1.0; group.add(pl);
-      fxMeshes.push(pl);
-    }
-  }
+  // Worker bots: no costume effects (fire/void/neon) — the hi-vis
+  // worker look is the whole identity. fxMeshes stays null; animate()
+  // guards it, and the mythic aura below still pulses for mythic skins.
+  const fxMeshes = null;
   // Mythic aura: pulsing translucent shell.
   const aura = new THREE.Mesh(
     new THREE.BoxGeometry(0.95, 1.95, 0.65),
@@ -491,26 +348,36 @@ export function createBotModel(weaponSkin, weaponId, name, charOpId = 'specter',
   // Wet clothes (v18.2.5): rain darkens the outfit 20%. Base colors are
   // stored once so the darkening never compounds across map changes.
   const wetMats = [];
+  const camoMats = [];
   {
     const seen = new Set();
     group.traverse(o => {
       if (o.isMesh && o.material && o.material.isMeshStandardMaterial && !seen.has(o.material)) {
         seen.add(o.material);
-        wetMats.push({ m: o.material, hex: o.material.color.getHex() });
+        camoMats.push({ m: o.material });
+        // The team material is NOT rain-darkened: its base hex is enemy
+        // red, so restoring it after rain would repaint an ally red.
+        if (o.material !== teamM) wetMats.push({ m: o.material, hex: o.material.color.getHex() });
       }
     });
   }
 
   const model = {
     group, skin: weaponSkin, weaponId, name, charOp: charOpId, charSkin: charSkinId,
-    costume: opts.costumeId || null, effect, helmet: helmetId,
-    parts: { legL, legR, armL, armR, head: headG, headMesh: head, torso, bodyMesh: chest, gun, backGun, aura, fxMeshes, nameSprite: nameTag.sprite, indicator },
+    costume: opts.costumeId || null, effect, helmet: 'hardhat',
+    parts: { legL, legR, armL, armR, head: headG, headMesh: head, torso, bodyMesh: chest, gun, backGun: null, aura, fxMeshes, nameSprite: nameTag.sprite, indicator },
     deathT: 0, emote: null, lastHp: 100,
+    // Worker gear (team colour): vest + hard hat + pads share teamM.
+    _gear: {
+      parts: gearParts,
+      get teamHex() { return teamM.color.getHex(); },
+      setTeam(ally) { teamM.color.setHex(ally ? TEAM_TEAL : TEAM_RED); },
+    },
     // Camo (v18.7.2): the whole outfit goes 70% transparent on its map.
     setCamo(on) {
       if (this._camo === on) return;
       this._camo = on;
-      for (const { m } of wetMats) { m.transparent = !!on; m.opacity = on ? 0.7 : 1; }
+      for (const { m } of camoMats) { m.transparent = !!on; m.opacity = on ? 0.7 : 1; }
     },
     setWet(wet) {
       if (this._wet === wet) return;
@@ -529,6 +396,7 @@ export function createBotModel(weaponSkin, weaponId, name, charOpId = 'specter',
     setAlly(ally) {
       indicator.visible = !ally;
       nameTag.setName(ally ? `ALLY ${name}` : name);
+      if (this._gear) this._gear.setTeam(ally);
     },
     setEmote(id) { this.emote = { id, t: 0 }; },
     animate(dt, bot, time) {
